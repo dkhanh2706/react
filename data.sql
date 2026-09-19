@@ -492,3 +492,21 @@ VALUES
 '0900000000',
 'ADMIN'
 );
+CREATE TABLE password_resets
+(
+    id SERIAL PRIMARY KEY,
+
+    user_id INTEGER NOT NULL,
+
+    reset_code VARCHAR(10) NOT NULL,
+
+    expires_at TIMESTAMP NOT NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+
+    CONSTRAINT fk_user_reset
+    FOREIGN KEY(user_id)
+    REFERENCES users(id)
+    ON DELETE CASCADE
+);
