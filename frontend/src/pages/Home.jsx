@@ -1,37 +1,53 @@
-import { useNavigate } from "react-router-dom";
+import Header from "../components/Header";
+import FlightSearch from "../components/FlightSearch";
+import PopularFlights from "../components/PopularFlights";
+import Promotions from "../components/Promotions";
+import AirlinePartners from "../components/AirlinePartners";
+import Footer from "../components/Footer";
+import SupportButton from "../components/SupportButton";
+
+import "../styles/home.css";
 
 function Home() {
-  const navigate = useNavigate();
-
-  const user = JSON.parse(localStorage.getItem("user"));
-
-  const logout = () => {
-    localStorage.removeItem("token");
-
-    localStorage.removeItem("user");
-
-    navigate("/login");
-  };
-
   return (
-    <div className="home">
-      <h1>✈️ Airline Booking</h1>
+    <div className="home-page">
+      {/* HEADER */}
 
-      <h2>Xin chào {user?.full_name}</h2>
+      <Header />
 
-      <p>Chào mừng bạn đến hệ thống đặt vé máy bay trực tuyến</p>
+      {/* HERO BANNER */}
 
-      <div className="search-box">
-        <h3>Tìm chuyến bay</h3>
+      <section className="hero">
+        <div className="hero-content">
+          <h1>Bay mọi nơi - Kết nối mọi hành trình</h1>
 
-        <input placeholder="Điểm đi" />
+          <p>Đặt vé máy bay nhanh chóng, an toàn và tiện lợi</p>
 
-        <input placeholder="Điểm đến" />
+          {/* FORM TÌM KIẾM */}
 
-        <button>Tìm kiếm</button>
-      </div>
+          <FlightSearch />
+        </div>
+      </section>
 
-      <button onClick={logout}>Đăng xuất</button>
+      {/* VÉ MÁY BAY NỔI BẬT */}
+
+      <PopularFlights />
+
+      {/* ƯU ĐÃI */}
+
+      <Promotions />
+
+      {/* ĐỐI TÁC HÀNG KHÔNG */}
+
+      <AirlinePartners />
+
+      {/* FOOTER */}
+
+      <Footer />
+
+      {/* NÚT HỖ TRỢ */}
+
+      <SupportButton />
     </div>
   );
 }

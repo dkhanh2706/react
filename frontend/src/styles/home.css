@@ -1,0 +1,1134 @@
+@import url("https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap");
+
+/* =====================================================
+   DESIGN TOKENS
+   Bầu trời lúc bình minh: xanh đậm → xanh trời → vàng nắng
+===================================================== */
+
+:root {
+  --ink: #0b1b34;
+  --muted: #5a6b86;
+  --blue: #1567e8;
+  --blue-deep: #0b3c91;
+  --blue-soft: #e8f0fe;
+  --sun: #ffb547;
+  --sun-hover: #ffc463;
+  --mist: #f4f8fd;
+  --line: #dde6f3;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --font-body:
+    "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display:
+    "Bricolage Grotesque", "Be Vietnam Pro", system-ui, sans-serif;
+
+  --shadow-lift: 0 24px 40px -22px rgba(7, 27, 58, 0.35);
+  --shadow-float:
+    0 40px 70px -28px rgba(4, 22, 56, 0.55),
+    0 10px 24px -10px rgba(4, 22, 56, 0.2);
+
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235a6b86' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+.header,
+.hero,
+.promotion,
+.partners,
+.footer,
+.support {
+  font-family: var(--font-body);
+  color: var(--ink);
+  box-sizing: border-box;
+}
+
+.header *,
+.hero *,
+.promotion *,
+.partners *,
+.footer *,
+.support * {
+  box-sizing: border-box;
+}
+
+/* Chuyển động dùng chung */
+@keyframes rise {
+  from {
+    opacity: 0;
+    translate: 0 28px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes fieldIn {
+  from {
+    opacity: 0;
+    translate: -10px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+/* Focus rõ ràng cho bàn phím */
+.header :is(button, select):focus-visible,
+.trip button:focus-visible,
+.search-button:focus-visible,
+.support button:focus-visible {
+  outline: 3px solid rgba(21, 103, 232, 0.45);
+  outline-offset: 2px;
+}
+
+/* =====================================================
+   HEADER
+===================================================== */
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+
+  min-height: 76px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+
+  padding: 12px max(24px, calc((100% - 1200px) / 2));
+
+  background: rgba(255, 255, 255, 0.86);
+  -webkit-backdrop-filter: saturate(160%) blur(14px);
+  backdrop-filter: saturate(160%) blur(14px);
+  border-bottom: 1px solid rgba(221, 230, 243, 0.9);
+}
+
+.logo {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--blue-deep);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    opacity 0.25s var(--ease),
+    transform 0.25s var(--ease);
+}
+
+.logo:hover {
+  opacity: 0.85;
+}
+
+.logo:active {
+  transform: scale(0.97);
+}
+
+.header nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.header nav span {
+  padding: 9px 15px;
+  border-radius: 999px;
+
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+
+  transition:
+    background-color 0.25s var(--ease),
+    color 0.25s var(--ease);
+}
+
+.header nav span:hover {
+  background: var(--blue-soft);
+  color: var(--blue-deep);
+}
+
+.header-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-action select {
+  appearance: none;
+  -webkit-appearance: none;
+
+  height: 40px;
+  padding: 0 32px 0 14px;
+
+  border-radius: 999px;
+  border: 1px solid var(--line);
+
+  background-color: #fff;
+  background-image: var(--chevron);
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px;
+
+  font: 500 14px var(--font-body);
+  color: var(--ink);
+  cursor: pointer;
+
+  transition:
+    border-color 0.25s var(--ease),
+    box-shadow 0.25s var(--ease);
+}
+
+.header-action select:hover {
+  border-color: #b9cbe6;
+}
+
+.header-action button {
+  height: 40px;
+  padding: 0 20px;
+
+  border-radius: 999px;
+  border: 1px solid transparent;
+
+  background: var(--blue);
+  color: #fff;
+
+  font: 600 14px var(--font-body);
+  cursor: pointer;
+
+  transition:
+    transform 0.3s var(--ease),
+    box-shadow 0.3s var(--ease),
+    background-color 0.25s var(--ease),
+    color 0.25s var(--ease),
+    border-color 0.25s var(--ease);
+}
+
+.header-action button:hover {
+  transform: translateY(-2px);
+  background: #0f56c9;
+  box-shadow: 0 10px 20px -8px rgba(21, 103, 232, 0.6);
+}
+
+.header-action button:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Nút "Đăng nhập" dạng nhẹ, "Đăng ký" là nút chính */
+.header-action > button:first-of-type {
+  background: transparent;
+  color: var(--blue-deep);
+  border-color: var(--line);
+}
+
+.header-action > button:first-of-type:hover {
+  background: var(--blue-soft);
+  border-color: #b9cbe6;
+  box-shadow: none;
+}
+
+.user-box {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.user-box span {
+  font-size: 14.5px;
+  color: var(--muted);
+}
+
+.user-box b {
+  color: var(--blue-deep);
+  font-weight: 700;
+}
+
+.user-box button {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.user-box button:hover {
+  background: #fff1f1;
+  color: #c62828;
+  border-color: #f3c4c4;
+  box-shadow: none;
+}
+
+/* =====================================================
+   HERO
+   Một khoảnh khắc chuyển động duy nhất: chiếc máy bay
+   bay ngang bầu trời bình minh.
+===================================================== */
+
+.hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+
+  min-height: 680px;
+  padding: 72px 24px 100px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  background:
+    radial-gradient(
+      60% 45% at 50% 110%,
+      rgba(255, 196, 110, 0.95) 0%,
+      rgba(255, 196, 110, 0) 70%
+    ),
+    radial-gradient(
+      40% 16% at 14% 80%,
+      rgba(255, 255, 255, 0.38),
+      transparent 70%
+    ),
+    radial-gradient(
+      34% 14% at 88% 66%,
+      rgba(255, 255, 255, 0.3),
+      transparent 70%
+    ),
+    linear-gradient(180deg, #0a3b8f 0%, #1567e8 48%, #5aa9f2 82%, #a9d4fb 100%);
+}
+
+/* Máy bay + vệt khói */
+.hero::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: 15%;
+  left: 0;
+
+  width: 320px;
+  height: 44px;
+  pointer-events: none;
+
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath transform='rotate(90 12 12)' fill='white' d='M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z'/%3E%3C/svg%3E")
+      right center / 44px 44px no-repeat,
+    linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.8))
+      left center / 270px 2px no-repeat;
+
+  opacity: 0;
+  animation: planeFly 30s linear 1.4s infinite;
+}
+
+@keyframes planeFly {
+  0% {
+    opacity: 0;
+    transform: translate3d(-340px, 50px, 0) rotate(-6deg);
+  }
+  5% {
+    opacity: 0.95;
+  }
+  95% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(100vw + 40px), -90px, 0) rotate(-6deg);
+  }
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+
+  width: 100%;
+  max-width: 980px;
+
+  text-align: center;
+  color: #fff;
+}
+
+.hero-content h1 {
+  margin: 0 0 16px;
+
+  font-family: var(--font-display);
+  font-size: clamp(34px, 5.4vw, 62px);
+  font-weight: 800;
+  line-height: 1.06;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+  text-shadow: 0 4px 30px rgba(4, 22, 56, 0.25);
+}
+
+.hero-content p {
+  max-width: 560px;
+  margin: 0 auto 36px;
+
+  font-size: clamp(16px, 1.6vw, 19px);
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Trình tự xuất hiện khi tải trang */
+.hero-content h1,
+.hero-content p,
+.hero-content .flight-box {
+  animation: rise 0.9s var(--ease) both;
+}
+
+.hero-content h1 {
+  animation-delay: 0.05s;
+}
+
+.hero-content p {
+  animation-delay: 0.15s;
+}
+
+.hero-content .flight-box {
+  animation-delay: 0.3s;
+}
+
+/* =====================================================
+   SEARCH BOX  (thiết kế như một tấm thẻ lên máy bay)
+===================================================== */
+
+.flight-box {
+  width: min(100%, 940px);
+  margin: 0 auto;
+  padding: 28px;
+
+  background: #fff;
+  border-radius: 28px;
+
+  text-align: left;
+  color: var(--ink);
+
+  box-shadow: var(--shadow-float);
+}
+
+/* Bộ chuyển loại hành trình với "viên thuốc" trượt */
+.trip {
+  position: relative;
+
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+
+  width: 100%;
+  max-width: 440px;
+  padding: 5px;
+
+  background: var(--mist);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.trip::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 5px;
+
+  width: calc((100% - 10px) / 3);
+
+  background: #fff;
+  border-radius: 999px;
+  box-shadow: 0 2px 10px rgba(7, 27, 58, 0.16);
+
+  transition: transform 0.5s var(--ease);
+}
+
+.trip[data-type="round"]::before {
+  transform: translateX(100%);
+}
+
+.trip[data-type="multi"]::before {
+  transform: translateX(200%);
+}
+
+.trip button {
+  position: relative;
+  z-index: 1;
+
+  padding: 11px 12px;
+
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+
+  font: 600 14px var(--font-body);
+  color: var(--muted);
+  cursor: pointer;
+
+  transition: color 0.3s var(--ease);
+}
+
+.trip button:hover {
+  color: var(--ink);
+}
+
+.trip button.active {
+  color: var(--blue-deep);
+}
+
+.search-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px;
+
+  margin-top: 22px;
+}
+
+/* Đường cắt đứt nét giữa hai hàng, như cuống vé */
+.search-grid + .search-grid {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 2px dashed var(--line);
+}
+
+/* Ô "Ngày về" xuất hiện trượt vào khi chọn Khứ hồi */
+.search-grid > div:nth-child(4) {
+  animation: fieldIn 0.5s var(--ease) both;
+}
+
+.search-grid label {
+  display: block;
+  margin-bottom: 8px;
+
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.search-grid input,
+.search-grid select {
+  width: 100%;
+  height: 52px;
+  padding: 0 16px;
+
+  border-radius: 14px;
+  border: 1.5px solid var(--line);
+  background-color: var(--mist);
+
+  font: 500 15px var(--font-body);
+  color: var(--ink);
+
+  transition:
+    border-color 0.25s var(--ease),
+    box-shadow 0.25s var(--ease),
+    background-color 0.25s var(--ease);
+}
+
+.search-grid input::placeholder {
+  color: #93a2ba;
+  font-weight: 400;
+}
+
+.search-grid select {
+  appearance: none;
+  -webkit-appearance: none;
+
+  padding-right: 42px;
+  background-image: var(--chevron);
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 14px;
+  cursor: pointer;
+}
+
+.search-grid input:hover,
+.search-grid select:hover {
+  border-color: #b9cbe6;
+}
+
+.search-grid input:focus,
+.search-grid select:focus {
+  outline: none;
+  border-color: var(--blue);
+  background-color: #fff;
+  box-shadow: 0 0 0 4px rgba(21, 103, 232, 0.14);
+}
+
+.search-button {
+  width: 100%;
+  height: 56px;
+  margin-top: 26px;
+
+  border: none;
+  border-radius: 16px;
+
+  background: var(--sun);
+  color: var(--ink);
+
+  font: 700 16px var(--font-body);
+  cursor: pointer;
+
+  box-shadow: 0 10px 24px -10px rgba(245, 158, 27, 0.8);
+
+  transition:
+    transform 0.3s var(--ease),
+    box-shadow 0.3s var(--ease),
+    background-color 0.25s var(--ease);
+}
+
+.search-button:hover {
+  transform: translateY(-2px);
+  background: var(--sun-hover);
+  box-shadow: 0 18px 30px -12px rgba(245, 158, 27, 0.85);
+}
+
+.search-button:active {
+  transform: translateY(0) scale(0.99);
+}
+
+/* =====================================================
+   PROMOTION
+===================================================== */
+
+.promotion,
+.partners {
+  padding: 96px max(24px, calc((100% - 1200px) / 2));
+  text-align: left;
+}
+
+.promotion h2,
+.partners h2 {
+  margin: 0 0 36px;
+
+  font-family: var(--font-display);
+  font-size: clamp(26px, 3.2vw, 38px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.promotion {
+  background: #fff;
+}
+
+.promo-container {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.promo-card {
+  position: relative;
+  overflow: hidden;
+
+  padding: 28px 30px;
+
+  background: var(--mist);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+
+  /* cỡ chữ này chỉ để phóng to biểu tượng emoji */
+  font-size: 36px;
+  line-height: 1;
+  text-align: left;
+
+  transition:
+    transform 0.45s var(--ease),
+    box-shadow 0.45s var(--ease),
+    border-color 0.3s var(--ease);
+}
+
+.promo-card h3 {
+  margin: 18px 0 6px;
+
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.promo-card p {
+  margin: 0;
+
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.promo-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lift);
+}
+
+/* Thẻ nổi bật: khuyến mãi lớn nhất */
+.promo-card:first-child {
+  grid-row: span 2;
+
+  display: flex;
+  flex-direction: column;
+
+  min-height: 320px;
+  padding: 36px;
+
+  border: none;
+  color: #fff;
+  font-size: 56px;
+
+  background:
+    radial-gradient(
+      90% 70% at 100% 0%,
+      rgba(255, 181, 71, 0.55),
+      transparent 60%
+    ),
+    linear-gradient(160deg, #0b3c91, #1567e8);
+}
+
+.promo-card:first-child h3 {
+  margin-top: auto;
+  font-size: clamp(34px, 4vw, 52px);
+}
+
+.promo-card:first-child p {
+  font-size: 17px;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.promo-card:nth-child(2) {
+  background: #fff7e8;
+  border-color: #f6dfb6;
+}
+
+.promo-card:nth-child(3) {
+  background: var(--blue-soft);
+  border-color: #cfe0fb;
+}
+
+/* =====================================================
+   PARTNER
+===================================================== */
+
+.partners {
+  background: var(--mist);
+  border-top: 1px solid var(--line);
+}
+
+.airline-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.airline {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  padding: 20px 22px;
+
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+
+  transition:
+    transform 0.4s var(--ease),
+    box-shadow 0.4s var(--ease),
+    border-color 0.3s var(--ease);
+}
+
+.airline-code {
+  flex: none;
+
+  display: grid;
+  place-items: center;
+
+  width: 46px;
+  height: 46px;
+
+  border-radius: 12px;
+  background: var(--blue-soft);
+  color: var(--blue-deep);
+
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+
+  transition:
+    background-color 0.3s var(--ease),
+    color 0.3s var(--ease);
+}
+
+.airline:hover {
+  transform: translateY(-3px);
+  border-color: #b9cfef;
+  box-shadow: var(--shadow-lift);
+}
+
+.airline:hover .airline-code {
+  background: var(--blue);
+  color: #fff;
+}
+
+/* Hiện dần khi cuộn tới (trình duyệt nào hỗ trợ) */
+@supports (animation-timeline: view()) {
+  .promo-card,
+  .airline {
+    animation: rise linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 45%;
+  }
+}
+
+/* =====================================================
+   FOOTER
+===================================================== */
+
+.footer {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr;
+  gap: 40px;
+
+  padding: 72px max(24px, calc((100% - 1200px) / 2)) 28px;
+
+  background: #06183a;
+  color: #fff;
+}
+
+.footer h3 {
+  margin: 0 0 16px;
+
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.footer > div:first-child h3 {
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+
+.footer p {
+  margin: 0 0 10px;
+
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.66);
+
+  transition:
+    color 0.25s var(--ease),
+    translate 0.3s var(--ease);
+}
+
+.footer > div:not(:first-child):not(.footer-bottom) p {
+  cursor: pointer;
+}
+
+.footer > div:not(:first-child):not(.footer-bottom) p:hover {
+  color: #fff;
+  translate: 4px 0;
+}
+
+.footer .footer-bottom {
+  grid-column: 1 / -1;
+
+  margin-top: 24px;
+  padding-top: 24px;
+
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.footer .footer-bottom p {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* =====================================================
+   SUPPORT BUTTON
+===================================================== */
+
+.support {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 60;
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+
+  animation: rise 0.8s var(--ease) 1.2s both;
+}
+
+.support button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  height: 48px;
+  padding: 0 20px;
+
+  border: none;
+  border-radius: 999px;
+
+  background: #fff;
+  color: var(--blue-deep);
+
+  font: 600 15px var(--font-body);
+  cursor: pointer;
+
+  box-shadow:
+    0 10px 30px -8px rgba(7, 27, 58, 0.4),
+    0 0 0 1px rgba(7, 27, 58, 0.06);
+
+  transition:
+    transform 0.3s var(--ease),
+    box-shadow 0.3s var(--ease),
+    background-color 0.25s var(--ease);
+}
+
+.support button:first-child {
+  background: var(--blue);
+  color: #fff;
+}
+
+.support button:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 18px 34px -10px rgba(7, 27, 58, 0.5),
+    0 0 0 1px rgba(7, 27, 58, 0.06);
+}
+
+.support button:first-child:hover {
+  background: #0f56c9;
+}
+
+.support button:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* =====================================================
+   RESPONSIVE
+===================================================== */
+
+@media (max-width: 900px) {
+  .header nav {
+    order: 3;
+    width: 100%;
+    margin: 0 -8px;
+    padding: 0 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .header nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .header-action {
+    margin-left: auto;
+  }
+
+  .promo-container {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+  }
+
+  .promo-card:first-child {
+    grid-row: auto;
+    min-height: 260px;
+  }
+
+  .footer {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 32px;
+  }
+
+  .footer > div:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .header {
+    padding: 10px 16px;
+  }
+
+  .logo {
+    font-size: 21px;
+  }
+
+  .header-action {
+    gap: 8px;
+  }
+
+  .header-action button {
+    padding: 0 14px;
+  }
+
+  .user-box {
+    gap: 8px;
+  }
+
+  .user-box span {
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+
+  .hero {
+    min-height: auto;
+    padding: 48px 16px 72px;
+  }
+
+  .flight-box {
+    padding: 20px;
+    border-radius: 22px;
+  }
+
+  .trip {
+    max-width: none;
+  }
+
+  .promotion,
+  .partners {
+    padding-top: 64px;
+    padding-bottom: 64px;
+  }
+
+  .support {
+    right: 16px;
+    bottom: 16px;
+  }
+
+  .support button {
+    height: 44px;
+    padding: 0 16px;
+    font-size: 14px;
+  }
+
+  .footer {
+    grid-template-columns: 1fr;
+    padding-top: 56px;
+  }
+}
+
+/* =====================================================
+   GIẢM CHUYỂN ĐỘNG (cài đặt trợ năng của hệ điều hành)
+===================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .hero::after {
+    display: none;
+  }
+
+  .hero-content h1,
+  .hero-content p,
+  .hero-content .flight-box,
+  .search-grid > div,
+  .support,
+  .promo-card,
+  .airline {
+    animation: none !important;
+  }
+
+  .trip::before,
+  .header nav span,
+  .header-action button,
+  .search-button,
+  .support button,
+  .promo-card,
+  .airline,
+  .footer p {
+    transition: none !important;
+  }
+}
+/* =====================
+POPULAR FLIGHTS
+===================== */
+
+.popular-flight {
+  padding: 60px 50px;
+
+  text-align: center;
+
+  background: #f7faff;
+}
+
+.flight-card-list {
+  display: flex;
+
+  justify-content: center;
+
+  gap: 25px;
+
+  flex-wrap: wrap;
+}
+
+.flight-card {
+  width: 280px;
+
+  background: white;
+
+  padding: 25px;
+
+  border-radius: 20px;
+
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+
+  transition: 0.3s;
+}
+
+.flight-card:hover {
+  transform: translateY(-8px);
+}
+
+.flight-image {
+  font-size: 50px;
+}
+
+.flight-card h3 {
+  color: #0066ff;
+}
+
+.price {
+  font-size: 18px;
+}
+
+.price b {
+  color: #ff6600;
+
+  font-size: 24px;
+}
+
+.discount {
+  display: block;
+
+  color: #e63946;
+
+  margin: 15px;
+}
+
+.flight-card button {
+  width: 100%;
+
+  padding: 12px;
+
+  background: #0066ff;
+
+  color: white;
+
+  border: none;
+
+  border-radius: 10px;
+
+  cursor: pointer;
+}
