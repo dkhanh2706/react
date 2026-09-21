@@ -62,6 +62,11 @@ function Booking() {
           <strong>{flight.flight_number}</strong>
         </p>
 
+        <p>
+          Ngày bay:
+          <strong>{flight.date}</strong>
+        </p>
+
         <div className="booking-route">
           <div>
             <h3>{flight.from}</h3>
@@ -84,7 +89,10 @@ function Booking() {
 
         <div className="booking-price">
           Giá vé:
-          <strong>{flight.price.toLocaleString("vi-VN")} VNĐ</strong>
+          <strong>
+            {flight.price.toLocaleString("vi-VN")}
+            VNĐ
+          </strong>
         </div>
       </div>
 

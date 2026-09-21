@@ -46,6 +46,10 @@ function FlightList() {
               <div className="airport">
                 <h3>{flight.from}</h3>
 
+                <p>Ngày bay:</p>
+
+                <strong>{flight.date}</strong>
+
                 <p>{flight.departure_time}</p>
 
                 <span>Điểm đi</span>
@@ -59,6 +63,10 @@ function FlightList() {
 
               <div className="airport">
                 <h3>{flight.to}</h3>
+
+                <p>Ngày đến:</p>
+
+                <strong>{flight.date}</strong>
 
                 <p>{flight.arrival_time}</p>
 
