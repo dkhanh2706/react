@@ -1132,3 +1132,74 @@ POPULAR FLIGHTS
 
   cursor: pointer;
 }
+.flight-result {
+  padding: 50px;
+
+  background: #f5f8ff;
+
+  min-height: 100vh;
+}
+
+.result-list {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 25px;
+}
+
+.result-card {
+  background: white;
+
+  padding: 30px;
+
+  border-radius: 20px;
+
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+}
+
+.flight-header {
+  display: flex;
+
+  justify-content: space-between;
+}
+
+.route {
+  display: flex;
+
+  justify-content: center;
+
+  align-items: center;
+
+  gap: 50px;
+
+  margin: 30px 0;
+}
+
+.plane {
+  font-size: 30px;
+}
+
+.price {
+  font-size: 25px;
+
+  font-weight: bold;
+
+  color: #ff6600;
+
+  margin: 20px 0;
+}
+
+.result-card button {
+  width: 100%;
+
+  padding: 14px;
+
+  background: #0066ff;
+
+  color: white;
+
+  border: none;
+
+  border-radius: 12px;
+}

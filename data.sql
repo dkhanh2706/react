@@ -510,3 +510,229 @@ CREATE TABLE password_resets
     REFERENCES users(id)
     ON DELETE CASCADE
 );
+CREATE TABLE IF NOT EXISTS airlines
+(
+    id SERIAL PRIMARY KEY,
+
+    name VARCHAR(100) NOT NULL,
+
+    code VARCHAR(10) UNIQUE NOT NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS airports
+(
+    id SERIAL PRIMARY KEY,
+
+    code VARCHAR(10) UNIQUE NOT NULL,
+
+    name VARCHAR(100) NOT NULL,
+
+    city VARCHAR(100),
+
+    country VARCHAR(100)
+);
+CREATE TABLE IF NOT EXISTS airplanes
+(
+    id SERIAL PRIMARY KEY,
+
+    airline_id INTEGER REFERENCES airlines(id),
+
+    model VARCHAR(100),
+
+    seat_capacity INTEGER,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS flights
+(
+    id SERIAL PRIMARY KEY,
+
+
+    flight_number VARCHAR(20),
+
+
+    airline_id INTEGER 
+    REFERENCES airlines(id),
+
+
+    airplane_id INTEGER
+    REFERENCES airplanes(id),
+
+
+    departure_airport_id INTEGER
+    REFERENCES airports(id),
+
+
+    arrival_airport_id INTEGER
+    REFERENCES airports(id),
+
+
+    departure_time TIMESTAMP,
+
+
+    arrival_time TIMESTAMP,
+
+
+    price NUMERIC(12,2),
+
+
+    status VARCHAR(50),
+
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+INSERT INTO flights
+(
+flight_number,
+
+airline_id,
+
+airplane_id,
+
+departure_airport_id,
+
+arrival_airport_id,
+
+departure_time,
+
+arrival_time,
+
+price,
+
+status
+)
+
+VALUES
+
+
+(
+'VN123',
+
+1,
+
+1,
+
+2,
+
+1,
+
+'2026-10-20 08:00:00',
+
+'2026-10-20 10:15:00',
+
+1500000,
+
+'AVAILABLE'
+),
+
+
+
+(
+'VJ456',
+
+2,
+
+3,
+
+1,
+
+3,
+
+'2026-10-21 09:00:00',
+
+'2026-10-21 10:20:00',
+
+600000,
+
+'AVAILABLE'
+),
+
+
+
+(
+'VN789',
+
+1,
+
+2,
+
+1,
+
+3,
+
+'2026-10-22 22:00:00',
+
+'2026-10-23 06:30:00',
+
+5500000,
+
+'AVAILABLE'
+),
+
+
+
+(
+'VN310',
+
+1,
+
+2,
+
+1,
+
+4,
+
+'2026-10-25 23:00:00',
+
+'2026-10-26 07:00:00',
+
+5500000,
+
+'AVAILABLE'
+);
+SELECT
+
+f.flight_number,
+
+a1.city AS from_city,
+
+a2.city AS to_city,
+
+al.name AS airline,
+
+f.departure_time,
+
+f.arrival_time,
+
+f.price
+
+
+FROM flights f
+
+
+JOIN airports a1
+
+ON f.departure_airport_id = a1.id
+
+
+
+JOIN airports a2
+
+ON f.arrival_airport_id = a2.id
+
+
+
+JOIN airlines al
+
+ON f.airline_id = al.id
+
+
+
+WHERE
+
+a1.code='HAN'
+
+AND
+
+a2.code='SGN';

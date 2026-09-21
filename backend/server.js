@@ -4,12 +4,22 @@ require("dotenv").config();
 
 const db = require("./config/database");
 
+// =======================
+// ROUTES
+// =======================
+
 const authRoutes = require("./routes/auth.routes");
+
+const flightRoutes = require("./routes/flight.routes");
 
 const app = express();
 
-// middleware
+// =======================
+// MIDDLEWARE
+// =======================
+
 app.use(cors());
+
 app.use(express.json());
 
 // =======================
@@ -40,7 +50,15 @@ app.get("/", async (req, res) => {
 
 app.use("/api/auth", authRoutes);
 
+// =======================
+// FLIGHT ROUTES
+// =======================
+
+app.use("/api/flights", flightRoutes);
+
+// =======================
 // TEST API
+// =======================
 
 app.get("/api/test", (req, res) => {
   res.json({

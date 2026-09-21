@@ -6,6 +6,12 @@ import Home from "./pages/Home";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 
+import FlightResult from "./pages/FlightResult";
+
+// thêm mới
+import FlightList from "./pages/FlightList";
+import Booking from "./pages/Booking";
+
 function App() {
   return (
     <BrowserRouter>
@@ -29,6 +35,18 @@ function App() {
         {/* Reset password */}
 
         <Route path="/reset-password" element={<ResetPassword />} />
+
+        {/* Flight Result cũ */}
+
+        <Route path="/flights" element={<FlightResult />} />
+
+        {/* Flight List mới */}
+
+        <Route path="/flight-list" element={<FlightList />} />
+
+        {/* Booking mới */}
+
+        <Route path="/booking" element={<Booking />} />
 
         {/* mặc định */}
 
