@@ -4,9 +4,7 @@ require("dotenv").config();
 
 const db = require("./config/database");
 
-// =======================
 // ROUTES
-// =======================
 
 const authRoutes = require("./routes/auth.routes");
 
@@ -14,17 +12,13 @@ const flightRoutes = require("./routes/flight.routes");
 
 const app = express();
 
-// =======================
 // MIDDLEWARE
-// =======================
 
 app.use(cors());
 
 app.use(express.json());
 
-// =======================
 // TEST DATABASE
-// =======================
 
 app.get("/", async (req, res) => {
   try {

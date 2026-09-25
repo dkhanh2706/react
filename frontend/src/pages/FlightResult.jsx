@@ -4,76 +4,71 @@ import "../styles/home.css";
 
 function FlightResult() {
   const location = useLocation();
-
   const navigate = useNavigate();
 
   const flights = location.state?.flights || [];
 
   return (
-    <div className="flight-result">
+    <div className="flight-result-container">
       <h1>✈️ Danh sách chuyến bay</h1>
 
       {flights.length === 0 ? (
-        <p>Không tìm thấy chuyến bay</p>
+        <div className="empty">Không tìm thấy chuyến bay</div>
       ) : (
-        <div className="result-list">
-          {flights.map((item) => (
-            <div className="result-card" key={item.id}>
-              <div className="flight-header">
-                <h2>{item.flight_number}</h2>
+        flights.map((item) => (
+          <div className="flight-card" key={item.id}>
+            {/* Cột hãng bay */}
+            <div className="airline">
+              <h2>✈️ {item.airline}</h2>
+              <p>
+                Mã chuyến
+                <strong>{item.flight_number}</strong>
+              </p>
+            </div>
 
-                <span>{item.airline}</span>
-              </div>
-
-              <div className="route">
-                <div>
-                  <h3>{item.departure_code}</h3>
-
-                  <p>{item.departure_city}</p>
-                </div>
-
-                <div className="plane">✈️</div>
-
-                <div>
-                  <h3>{item.arrival_code}</h3>
-
-                  <p>{item.arrival_city}</p>
-                </div>
-              </div>
-
-              <div className="time">
-                <p>
-                  🕒
+            {/* Lộ trình */}
+            <div className="flight-route">
+              <div className="airport">
+                <h3>{item.departure_code}</h3>
+                <p>{item.departure_city}</p>
+                <strong>
                   {new Date(item.departure_time).toLocaleTimeString("vi-VN", {
                     hour: "2-digit",
                     minute: "2-digit",
                   })}
-                  -
+                </strong>
+              </div>
+
+              <div className="line">
+                <div>✈ ───────</div>
+                <p>Bay thẳng</p>
+              </div>
+
+              <div className="airport">
+                <h3>{item.arrival_code}</h3>
+                <p>{item.arrival_city}</p>
+                <strong>
                   {new Date(item.arrival_time).toLocaleTimeString("vi-VN", {
                     hour: "2-digit",
                     minute: "2-digit",
                   })}
-                </p>
+                </strong>
               </div>
+            </div>
 
-              <div className="price">
-                {Number(item.price).toLocaleString("vi-VN")}đ
-              </div>
-
+            {/* Giá + nút chọn */}
+            <div className="price-box">
+              <h2>{Number(item.price).toLocaleString("vi-VN")}đ</h2>
               <button
-                onClick={() => {
-                  navigate("/booking", {
-                    state: {
-                      flight: item,
-                    },
-                  });
-                }}
+                onClick={() =>
+                  navigate("/booking", { state: { flight: item } })
+                }
               >
                 Chọn chuyến bay
               </button>
             </div>
-          ))}
-        </div>
+          </div>
+        ))
       )}
     </div>
   );

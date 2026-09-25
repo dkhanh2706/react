@@ -2,7 +2,6 @@
 
 /* =====================================================
    DESIGN TOKENS
-   Bầu trời lúc bình minh: xanh đậm → xanh trời → vàng nắng
 ===================================================== */
 
 :root {
@@ -221,7 +220,6 @@
   transform: translateY(0) scale(0.98);
 }
 
-/* Nút "Đăng nhập" dạng nhẹ, "Đăng ký" là nút chính */
 .header-action > button:first-of-type {
   background: transparent;
   color: var(--blue-deep);
@@ -265,8 +263,6 @@
 
 /* =====================================================
    HERO
-   Một khoảnh khắc chuyển động duy nhất: chiếc máy bay
-   bay ngang bầu trời bình minh.
 ===================================================== */
 
 .hero {
@@ -300,7 +296,6 @@
     linear-gradient(180deg, #0a3b8f 0%, #1567e8 48%, #5aa9f2 82%, #a9d4fb 100%);
 }
 
-/* Máy bay + vệt khói */
 .hero::after {
   content: "";
   position: absolute;
@@ -371,7 +366,6 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
-/* Trình tự xuất hiện khi tải trang */
 .hero-content h1,
 .hero-content p,
 .hero-content .flight-box {
@@ -391,7 +385,7 @@
 }
 
 /* =====================================================
-   SEARCH BOX  (thiết kế như một tấm thẻ lên máy bay)
+   SEARCH BOX
 ===================================================== */
 
 .flight-box {
@@ -408,7 +402,6 @@
   box-shadow: var(--shadow-float);
 }
 
-/* Bộ chuyển loại hành trình với "viên thuốc" trượt */
 .trip {
   position: relative;
 
@@ -481,14 +474,12 @@
   margin-top: 22px;
 }
 
-/* Đường cắt đứt nét giữa hai hàng, như cuống vé */
 .search-grid + .search-grid {
   margin-top: 24px;
   padding-top: 24px;
   border-top: 2px dashed var(--line);
 }
 
-/* Ô "Ngày về" xuất hiện trượt vào khi chọn Khứ hồi */
 .search-grid > div:nth-child(4) {
   animation: fieldIn 0.5s var(--ease) both;
 }
@@ -625,7 +616,6 @@
   border: 1px solid var(--line);
   border-radius: 24px;
 
-  /* cỡ chữ này chỉ để phóng to biểu tượng emoji */
   font-size: 36px;
   line-height: 1;
   text-align: left;
@@ -660,7 +650,6 @@
   box-shadow: var(--shadow-lift);
 }
 
-/* Thẻ nổi bật: khuyến mãi lớn nhất */
 .promo-card:first-child {
   grid-row: span 2;
 
@@ -773,10 +762,9 @@
   color: #fff;
 }
 
-/* Hiện dần khi cuộn tới (trình duyệt nào hỗ trợ) */
 @supports (animation-timeline: view()) {
   .promo-card,
-  .airline {
+  .airline-list .airline {
     animation: rise linear both;
     animation-timeline: view();
     animation-range: entry 0% entry 45%;
@@ -914,6 +902,449 @@
 }
 
 /* =====================================================
+   POPULAR FLIGHTS  (trang chủ)
+===================================================== */
+
+.popular-flight {
+  padding: 80px max(24px, calc((100% - 1200px) / 2));
+  text-align: center;
+  background: #fff;
+}
+
+.popular-flight h2 {
+  margin: 0 0 12px;
+
+  font-family: var(--font-display);
+  font-size: clamp(26px, 3.2vw, 38px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.flight-card-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 22px;
+  margin-top: 36px;
+}
+
+.flight-card-list .flight-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+
+  padding: 28px 24px;
+
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+
+  box-shadow: 0 6px 20px -12px rgba(7, 27, 58, 0.2);
+  text-align: center;
+
+  transition:
+    transform 0.4s var(--ease),
+    box-shadow 0.4s var(--ease),
+    border-color 0.3s var(--ease);
+}
+
+.flight-card-list .flight-card:hover {
+  transform: translateY(-6px);
+  border-color: #b9cfef;
+  box-shadow: var(--shadow-lift);
+}
+
+.flight-image {
+  font-size: 44px;
+  line-height: 1;
+}
+
+.flight-card-list .flight-card h3 {
+  margin: 8px 0 4px;
+
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--blue-deep);
+}
+
+.price {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.price b {
+  display: inline-block;
+  margin-left: 4px;
+
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--sun);
+}
+
+.discount {
+  display: inline-block;
+  margin: 10px 0 14px;
+  padding: 4px 12px;
+
+  border-radius: 999px;
+  background: #ffe9e9;
+  color: #c62828;
+
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.flight-card-list .flight-card button {
+  width: 100%;
+  margin-top: auto;
+  padding: 12px 16px;
+
+  border: none;
+  border-radius: 12px;
+
+  background: var(--blue);
+  color: #fff;
+
+  font: 700 14px var(--font-body);
+  cursor: pointer;
+
+  transition:
+    background 0.25s var(--ease),
+    transform 0.25s var(--ease),
+    box-shadow 0.3s var(--ease);
+}
+
+.flight-card-list .flight-card button:hover {
+  background: var(--blue-deep);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 22px -10px rgba(21, 103, 232, 0.7);
+}
+
+.flight-card-list .flight-card button:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* =====================================================
+   FLIGHT RESULT  (trang kết quả tìm kiếm)
+   → 1 khung ngang duy nhất: hãng · lộ trình · ngày · giá
+===================================================== */
+
+.flight-result-container {
+  max-width: 1080px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 40px 20px 80px;
+
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--mist);
+}
+
+.flight-result-container h1 {
+  margin: 0 0 28px;
+
+  font-family: var(--font-display);
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.flight-result-container .empty {
+  padding: 60px 20px;
+
+  text-align: center;
+  font-size: 15px;
+  color: var(--muted);
+
+  background: #fff;
+  border: 1px dashed var(--line);
+  border-radius: 18px;
+}
+
+/* --- Danh sách --- */
+.flight-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* --- Card chuyến bay: 1 khung ngang duy nhất --- */
+.flight-result-container .flight-card {
+  display: grid;
+  grid-template-columns: 190px 1fr 110px 180px;
+  align-items: center;
+  gap: 22px;
+
+  padding: 18px 24px;
+
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+
+  box-shadow: 0 4px 16px -12px rgba(7, 27, 58, 0.25);
+
+  transition:
+    transform 0.3s var(--ease),
+    box-shadow 0.3s var(--ease),
+    border-color 0.3s var(--ease);
+}
+
+.flight-result-container .flight-card:hover {
+  transform: translateY(-3px);
+  border-color: #b9cfef;
+  box-shadow: var(--shadow-lift);
+}
+
+/* --- 1. Hãng bay --- */
+.flight-result-container .airline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  padding-right: 20px;
+  border-right: 1px solid var(--line);
+}
+
+.flight-result-container .airline-logo {
+  flex: none;
+
+  display: grid;
+  place-items: center;
+
+  width: 44px;
+  height: 44px;
+
+  border-radius: 12px;
+
+  background: var(--blue-soft);
+  color: var(--blue);
+
+  font-size: 20px;
+  line-height: 1;
+}
+
+.flight-result-container .airline-info {
+  min-width: 0;
+}
+
+.flight-result-container .airline-info h2 {
+  margin: 0 0 4px;
+
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--blue-deep);
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.flight-result-container .airline-info span {
+  display: inline-block;
+
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+}
+
+/* --- 2. Lộ trình --- */
+.flight-result-container .flight-route {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 14px;
+}
+
+.flight-result-container .airport {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.flight-result-container .airport:last-child {
+  text-align: right;
+  align-items: flex-end;
+}
+
+.flight-result-container .airport h3 {
+  margin: 0;
+
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.flight-result-container .airport p {
+  margin: 0;
+
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.flight-result-container .airport strong {
+  margin-top: 2px;
+
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* Đường nối giữa 2 sân bay */
+.flight-result-container .line {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+
+  min-width: 120px;
+}
+
+.flight-result-container .line-duration {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.flight-result-container .line-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  width: 100%;
+}
+
+.flight-result-container .line-dot {
+  flex: none;
+
+  width: 6px;
+  height: 6px;
+
+  border-radius: 50%;
+  background: var(--blue);
+}
+
+.flight-result-container .line-plane {
+  flex: 1;
+
+  position: relative;
+
+  height: 2px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--blue) 0 6px,
+    transparent 6px 12px
+  );
+
+  color: var(--blue);
+  font-size: 12px;
+  line-height: 1;
+  text-align: center;
+}
+
+.flight-result-container .line-plane::before {
+  content: "✈";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+
+  padding: 0 6px;
+
+  background: #fff;
+  transform: translate(-50%, -50%);
+}
+
+.flight-result-container .line-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* --- 3. Ngày bay --- */
+.flight-result-container .flight-date {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+
+  padding: 0 10px;
+  border-left: 1px dashed var(--line);
+  border-right: 1px dashed var(--line);
+}
+
+.flight-result-container .flight-date-label {
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.flight-result-container .flight-date-value {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+/* --- 4. Giá + nút chọn --- */
+.flight-result-container .price-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.flight-result-container .price-box h2 {
+  margin: 0;
+
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+  color: #e63946;
+  white-space: nowrap;
+}
+
+.flight-result-container .price-box button {
+  width: 100%;
+  padding: 10px 16px;
+
+  border: none;
+  border-radius: 12px;
+
+  background: var(--sun);
+  color: var(--ink);
+
+  font: 700 13px var(--font-body);
+  letter-spacing: 0.3px;
+  cursor: pointer;
+
+  box-shadow: 0 10px 22px -12px rgba(245, 158, 27, 0.9);
+
+  transition:
+    background 0.25s var(--ease),
+    transform 0.25s var(--ease),
+    box-shadow 0.3s var(--ease);
+}
+
+.flight-result-container .price-box button:hover {
+  background: var(--sun-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 16px 26px -12px rgba(245, 158, 27, 0.95);
+}
+
+.flight-result-container .price-box button:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* =====================================================
    RESPONSIVE
 ===================================================== */
 
@@ -952,6 +1383,45 @@
 
   .footer > div:first-child {
     grid-column: 1 / -1;
+  }
+
+  /* --- Flight result: chuyển sang 2 hàng --- */
+  .flight-result-container .flight-card {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "airline  price"
+      "route    route"
+      "date     date";
+    gap: 16px;
+    padding: 18px;
+  }
+
+  .flight-result-container .airline {
+    grid-area: airline;
+    padding-right: 0;
+    border-right: none;
+  }
+
+  .flight-result-container .flight-route {
+    grid-area: route;
+
+    padding-top: 14px;
+    border-top: 1px dashed var(--line);
+  }
+
+  .flight-result-container .flight-date {
+    grid-area: date;
+
+    flex-direction: row;
+    justify-content: center;
+    gap: 8px;
+
+    padding: 0;
+    border: none;
+  }
+
+  .flight-result-container .price-box {
+    grid-area: price;
   }
 }
 
@@ -1019,10 +1489,47 @@
     grid-template-columns: 1fr;
     padding-top: 56px;
   }
+
+  .popular-flight {
+    padding: 60px 16px;
+  }
+
+  .flight-result-container {
+    padding: 28px 14px 60px;
+  }
+
+  /* Flight result: stack hoàn toàn */
+  .flight-result-container .flight-card {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "airline"
+      "route"
+      "date"
+      "price";
+    gap: 14px;
+  }
+
+  .flight-result-container .price-box {
+    align-items: stretch;
+    padding-top: 12px;
+    border-top: 1px dashed var(--line);
+  }
+
+  .flight-result-container .price-box h2 {
+    text-align: center;
+  }
+
+  .flight-result-container .airport:last-child {
+    text-align: right;
+  }
+
+  .flight-result-container .line {
+    min-width: 80px;
+  }
 }
 
 /* =====================================================
-   GIẢM CHUYỂN ĐỘNG (cài đặt trợ năng của hệ điều hành)
+   GIẢM CHUYỂN ĐỘNG
 ===================================================== */
 
 @media (prefers-reduced-motion: reduce) {
@@ -1047,159 +1554,11 @@
   .support button,
   .promo-card,
   .airline,
-  .footer p {
+  .flight-card-list .flight-card,
+  .flight-card-list .flight-card button,
+  .footer p,
+  .flight-result-container .flight-card,
+  .flight-result-container .price-box button {
     transition: none !important;
   }
-}
-/* =====================
-POPULAR FLIGHTS
-===================== */
-
-.popular-flight {
-  padding: 60px 50px;
-
-  text-align: center;
-
-  background: #f7faff;
-}
-
-.flight-card-list {
-  display: flex;
-
-  justify-content: center;
-
-  gap: 25px;
-
-  flex-wrap: wrap;
-}
-
-.flight-card {
-  width: 280px;
-
-  background: white;
-
-  padding: 25px;
-
-  border-radius: 20px;
-
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-
-  transition: 0.3s;
-}
-
-.flight-card:hover {
-  transform: translateY(-8px);
-}
-
-.flight-image {
-  font-size: 50px;
-}
-
-.flight-card h3 {
-  color: #0066ff;
-}
-
-.price {
-  font-size: 18px;
-}
-
-.price b {
-  color: #ff6600;
-
-  font-size: 24px;
-}
-
-.discount {
-  display: block;
-
-  color: #e63946;
-
-  margin: 15px;
-}
-
-.flight-card button {
-  width: 100%;
-
-  padding: 12px;
-
-  background: #0066ff;
-
-  color: white;
-
-  border: none;
-
-  border-radius: 10px;
-
-  cursor: pointer;
-}
-.flight-result {
-  padding: 50px;
-
-  background: #f5f8ff;
-
-  min-height: 100vh;
-}
-
-.result-list {
-  display: flex;
-
-  flex-direction: column;
-
-  gap: 25px;
-}
-
-.result-card {
-  background: white;
-
-  padding: 30px;
-
-  border-radius: 20px;
-
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
-}
-
-.flight-header {
-  display: flex;
-
-  justify-content: space-between;
-}
-
-.route {
-  display: flex;
-
-  justify-content: center;
-
-  align-items: center;
-
-  gap: 50px;
-
-  margin: 30px 0;
-}
-
-.plane {
-  font-size: 30px;
-}
-
-.price {
-  font-size: 25px;
-
-  font-weight: bold;
-
-  color: #ff6600;
-
-  margin: 20px 0;
-}
-
-.result-card button {
-  width: 100%;
-
-  padding: 14px;
-
-  background: #0066ff;
-
-  color: white;
-
-  border: none;
-
-  border-radius: 12px;
 }

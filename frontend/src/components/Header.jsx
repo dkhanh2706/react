@@ -42,7 +42,7 @@ function Header() {
   const text = {
     vi: {
       ticket: "Vé máy bay",
-      promotion: "Khuyến mãi",
+      promotion: "thuê xe ",
       booking: "Quản lý đặt chỗ",
       support: "Hỗ trợ",
       blog: "Blog",

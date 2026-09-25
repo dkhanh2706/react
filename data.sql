@@ -1,12 +1,3 @@
--------------------------------------------------
--- DATABASE: airline_booking
--------------------------------------------------
-
-
--------------------------------------------------
--- ENUM TYPES
--------------------------------------------------
-
 CREATE TYPE user_role AS ENUM
 (
     'CUSTOMER',
@@ -110,17 +101,24 @@ CREATE TABLE airplanes
 (
     id SERIAL PRIMARY KEY,
 
+
     airline_id INTEGER NOT NULL,
+
 
     model VARCHAR(100) NOT NULL,
 
+
     seat_capacity INTEGER NOT NULL,
+
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
 
-    FOREIGN KEY (airline_id)
+
+    FOREIGN KEY( airline_id )
+
     REFERENCES airlines(id)
+
 );
 
 
@@ -133,24 +131,30 @@ CREATE TABLE seats
 (
     id SERIAL PRIMARY KEY,
 
+
     airplane_id INTEGER NOT NULL,
+
 
     seat_number VARCHAR(10) NOT NULL,
 
+
     class seat_class NOT NULL,
 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
 
-    FOREIGN KEY (airplane_id)
+    FOREIGN KEY(airplane_id)
+
     REFERENCES airplanes(id)
+
     ON DELETE CASCADE
+
 );
 
 
 
 -------------------------------------------------
 -- FLIGHTS
+-- THÔNG TIN CHUYẾN BAY
 -------------------------------------------------
 
 CREATE TABLE flights
@@ -159,13 +163,48 @@ CREATE TABLE flights
 
 
     flight_number VARCHAR(20)
+
     UNIQUE NOT NULL,
+
 
 
     airline_id INTEGER NOT NULL,
 
 
+
     airplane_id INTEGER NOT NULL,
+
+
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+
+
+    FOREIGN KEY(airline_id)
+
+    REFERENCES airlines(id),
+
+
+
+    FOREIGN KEY(airplane_id)
+
+    REFERENCES airplanes(id)
+
+);
+
+
+
+-------------------------------------------------
+-- FLIGHT SCHEDULES
+-- LỊCH BAY
+-------------------------------------------------
+
+CREATE TABLE flight_schedules
+(
+    id SERIAL PRIMARY KEY,
+
+
+    flight_id INTEGER NOT NULL,
 
 
     departure_airport_id INTEGER NOT NULL,
@@ -174,36 +213,48 @@ CREATE TABLE flights
     arrival_airport_id INTEGER NOT NULL,
 
 
-    departure_time TIMESTAMP NOT NULL,
+    departure_time TIME NOT NULL,
 
 
-    arrival_time TIMESTAMP NOT NULL,
+    arrival_time TIME NOT NULL,
+
+
+    price NUMERIC(12,2) NOT NULL,
+
+
+    operating_days VARCHAR(100),
 
 
     status VARCHAR(30)
-    DEFAULT 'SCHEDULED',
+
+    DEFAULT 'AVAILABLE',
+
 
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
 
 
-    FOREIGN KEY (airline_id)
-    REFERENCES airlines(id),
+    FOREIGN KEY(flight_id)
+
+    REFERENCES flights(id)
+
+    ON DELETE CASCADE,
 
 
-    FOREIGN KEY (airplane_id)
-    REFERENCES airplanes(id),
 
+    FOREIGN KEY(departure_airport_id)
 
-    FOREIGN KEY (departure_airport_id)
     REFERENCES airports(id),
 
 
-    FOREIGN KEY (arrival_airport_id)
+
+    FOREIGN KEY(arrival_airport_id)
+
     REFERENCES airports(id)
 
 );
+
 
 
 
@@ -220,22 +271,27 @@ CREATE TABLE bookings
 
 
     booking_code VARCHAR(20)
+
     UNIQUE NOT NULL,
 
 
     total_price NUMERIC(12,2)
+
     DEFAULT 0,
 
 
     status booking_status
+
     DEFAULT 'PENDING',
+
 
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
 
 
-    FOREIGN KEY (user_id)
+    FOREIGN KEY(user_id)
+
     REFERENCES users(id)
 
 );
@@ -255,6 +311,7 @@ CREATE TABLE passengers
 
 
     full_name VARCHAR(100)
+
     NOT NULL,
 
 
@@ -268,8 +325,10 @@ CREATE TABLE passengers
 
 
 
-    FOREIGN KEY (booking_id)
+    FOREIGN KEY(booking_id)
+
     REFERENCES bookings(id)
+
     ON DELETE CASCADE
 
 );
@@ -298,30 +357,36 @@ CREATE TABLE tickets
 
 
     ticket_number VARCHAR(50)
+
     UNIQUE NOT NULL,
 
 
     price NUMERIC(12,2)
+
     NOT NULL,
 
 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
+    FOREIGN KEY(booking_id)
 
-
-    FOREIGN KEY (booking_id)
     REFERENCES bookings(id),
 
 
-    FOREIGN KEY (flight_id)
+
+    FOREIGN KEY(flight_id)
+
     REFERENCES flights(id),
 
 
-    FOREIGN KEY (passenger_id)
+
+    FOREIGN KEY(passenger_id)
+
     REFERENCES passengers(id),
 
 
-    FOREIGN KEY (seat_id)
+
+    FOREIGN KEY(seat_id)
+
     REFERENCES seats(id)
 
 );
@@ -341,14 +406,17 @@ CREATE TABLE payments
 
 
     method VARCHAR(50)
+
     NOT NULL,
 
 
     amount NUMERIC(12,2)
+
     NOT NULL,
 
 
     status payment_status
+
     DEFAULT 'PENDING',
 
 
@@ -358,11 +426,9 @@ CREATE TABLE payments
     payment_date TIMESTAMP,
 
 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
+    FOREIGN KEY(booking_id)
 
-
-    FOREIGN KEY (booking_id)
     REFERENCES bookings(id)
 
 );
@@ -394,7 +460,8 @@ CREATE TABLE notifications
 
 
 
-    FOREIGN KEY (user_id)
+    FOREIGN KEY(user_id)
+
     REFERENCES users(id)
 
 );
@@ -402,40 +469,35 @@ CREATE TABLE notifications
 
 
 -------------------------------------------------
--- INDEX
+-- PASSWORD RESET
 -------------------------------------------------
 
-CREATE INDEX idx_users_email
-ON users(email);
-
-
-
-CREATE INDEX idx_flights_route
-ON flights
+CREATE TABLE password_resets
 (
-    departure_airport_id,
-    arrival_airport_id
+    id SERIAL PRIMARY KEY,
+
+
+    user_id INTEGER NOT NULL,
+
+
+    reset_code VARCHAR(10) NOT NULL,
+
+
+    expires_at TIMESTAMP NOT NULL,
+
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+
+
+    FOREIGN KEY(user_id)
+
+    REFERENCES users(id)
+
+    ON DELETE CASCADE
+
 );
 
-
-
-CREATE INDEX idx_flights_departure_time
-ON flights(departure_time);
-
-
-
-CREATE INDEX idx_booking_user
-ON bookings(user_id);
-
-
-
-CREATE INDEX idx_ticket_flight
-ON tickets(flight_id);
-
-
-
-CREATE INDEX idx_ticket_booking
-ON tickets(booking_id);
 
 
 
@@ -446,21 +508,30 @@ ON tickets(booking_id);
 
 INSERT INTO airlines
 (name,code)
+
 VALUES
+
 ('Vietnam Airlines','VN'),
+
 ('Vietjet Air','VJ'),
+
 ('Bamboo Airways','QH');
+
+
 
 
 
 INSERT INTO airports
 (code,name,city,country)
+
 VALUES
+
 
 ('SGN',
 'Tan Son Nhat Airport',
 'Ho Chi Minh',
 'Vietnam'),
+
 
 
 ('HAN',
@@ -469,138 +540,54 @@ VALUES
 'Vietnam'),
 
 
+
 ('DAD',
 'Da Nang Airport',
 'Da Nang',
-'Vietnam');
+'Vietnam'),
 
 
 
-INSERT INTO users
+('HND',
+'Haneda Airport',
+'Tokyo',
+'Japan'),
+
+
+
+('SIN',
+'Changi Airport',
+'Singapore',
+'Singapore');
+
+
+
+
+
+INSERT INTO airplanes
 (
-full_name,
-email,
-password_hash,
-phone,
-role
+airline_id,
+model,
+seat_capacity
 )
+
 VALUES
-(
-'Admin',
-'admin@gmail.com',
-'123456',
-'0900000000',
-'ADMIN'
-);
-CREATE TABLE password_resets
-(
-    id SERIAL PRIMARY KEY,
 
-    user_id INTEGER NOT NULL,
+(1,'Airbus A321',200),
 
-    reset_code VARCHAR(10) NOT NULL,
+(2,'Airbus A320',180),
 
-    expires_at TIMESTAMP NOT NULL,
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+(3,'Boeing 787',250);
 
 
-    CONSTRAINT fk_user_reset
-    FOREIGN KEY(user_id)
-    REFERENCES users(id)
-    ON DELETE CASCADE
-);
-CREATE TABLE IF NOT EXISTS airlines
-(
-    id SERIAL PRIMARY KEY,
-
-    name VARCHAR(100) NOT NULL,
-
-    code VARCHAR(10) UNIQUE NOT NULL,
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-CREATE TABLE IF NOT EXISTS airports
-(
-    id SERIAL PRIMARY KEY,
-
-    code VARCHAR(10) UNIQUE NOT NULL,
-
-    name VARCHAR(100) NOT NULL,
-
-    city VARCHAR(100),
-
-    country VARCHAR(100)
-);
-CREATE TABLE IF NOT EXISTS airplanes
-(
-    id SERIAL PRIMARY KEY,
-
-    airline_id INTEGER REFERENCES airlines(id),
-
-    model VARCHAR(100),
-
-    seat_capacity INTEGER,
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-CREATE TABLE IF NOT EXISTS flights
-(
-    id SERIAL PRIMARY KEY,
 
 
-    flight_number VARCHAR(20),
 
-
-    airline_id INTEGER 
-    REFERENCES airlines(id),
-
-
-    airplane_id INTEGER
-    REFERENCES airplanes(id),
-
-
-    departure_airport_id INTEGER
-    REFERENCES airports(id),
-
-
-    arrival_airport_id INTEGER
-    REFERENCES airports(id),
-
-
-    departure_time TIMESTAMP,
-
-
-    arrival_time TIMESTAMP,
-
-
-    price NUMERIC(12,2),
-
-
-    status VARCHAR(50),
-
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
 INSERT INTO flights
 (
 flight_number,
-
 airline_id,
-
-airplane_id,
-
-departure_airport_id,
-
-arrival_airport_id,
-
-departure_time,
-
-arrival_time,
-
-price,
-
-status
+airplane_id
 )
 
 VALUES
@@ -608,131 +595,106 @@ VALUES
 
 (
 'VN123',
-
 1,
-
-1,
-
-2,
-
-1,
-
-'2026-10-20 08:00:00',
-
-'2026-10-20 10:15:00',
-
-1500000,
-
-'AVAILABLE'
+1
 ),
-
 
 
 (
 'VJ456',
-
 2,
-
-3,
-
-1,
-
-3,
-
-'2026-10-21 09:00:00',
-
-'2026-10-21 10:20:00',
-
-600000,
-
-'AVAILABLE'
+2
 ),
 
 
-
 (
-'VN789',
-
-1,
-
-2,
-
-1,
-
+'QH789',
 3,
-
-'2026-10-22 22:00:00',
-
-'2026-10-23 06:30:00',
-
-5500000,
-
-'AVAILABLE'
-),
-
-
-
-(
-'VN310',
-
-1,
-
-2,
-
-1,
-
-4,
-
-'2026-10-25 23:00:00',
-
-'2026-10-26 07:00:00',
-
-5500000,
-
-'AVAILABLE'
+3
 );
-SELECT
-
-f.flight_number,
-
-a1.city AS from_city,
-
-a2.city AS to_city,
-
-al.name AS airline,
-
-f.departure_time,
-
-f.arrival_time,
-
-f.price
-
-
-FROM flights f
-
-
-JOIN airports a1
-
-ON f.departure_airport_id = a1.id
 
 
 
-JOIN airports a2
-
-ON f.arrival_airport_id = a2.id
 
 
 
-JOIN airlines al
+-------------------------------------------------
+-- FLIGHT SCHEDULES DATA
+-------------------------------------------------
 
-ON f.airline_id = al.id
+
+
+INSERT INTO flight_schedules
+(
+flight_id,
+departure_airport_id,
+arrival_airport_id,
+departure_time,
+arrival_time,
+price,
+operating_days
+)
+
+VALUES
 
 
 
-WHERE
+(
+1,
+2,
+1,
+'08:00',
+'10:15',
+1500000,
+'MON,TUE,WED,THU,FRI,SAT,SUN'
+),
 
-a1.code='HAN'
 
-AND
 
-a2.code='SGN';
+(
+2,
+2,
+3,
+'09:00',
+'10:20',
+700000,
+'MON,WED,FRI'
+),
+
+
+
+(
+3,
+1,
+4,
+'22:00',
+'06:30',
+5500000,
+'TUE,THU,SAT'
+);
+
+
+
+-------------------------------------------------
+-- INDEX SEARCH
+-------------------------------------------------
+
+CREATE INDEX idx_schedule_route
+
+ON flight_schedules
+(
+departure_airport_id,
+arrival_airport_id
+);
+
+
+
+CREATE INDEX idx_flight_number
+
+ON flights(flight_number);
+
+
+
+CREATE INDEX idx_airport_code
+
+ON airports(code);

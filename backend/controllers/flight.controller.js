@@ -124,10 +124,6 @@ exports.searchFlight = async (req, res) => {
       });
     }
 
-    // Không lưu database
-    // Không tìm theo ngày
-    // Tự sinh chuyến bay
-
     const result = generateFlights(
       from,
 
