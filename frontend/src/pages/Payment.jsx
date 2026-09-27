@@ -6,9 +6,9 @@ function Payment() {
 
   const navigate = useNavigate();
 
-  const booking = location.state?.booking;
+  const data = location.state;
 
-  if (!booking) {
+  if (!data) {
     return (
       <div>
         <h2>Không có thông tin thanh toán</h2>
@@ -20,30 +20,55 @@ function Payment() {
 
   return (
     <div className="payment-container">
-      <h1>Thanh toán vé máy bay</h1>
-
       <div className="payment-card">
-        <h2>Thông tin đặt vé</h2>
+        <h1>Thanh toán vé máy bay</h1>
+
+        <h2>Thông tin chuyến bay</h2>
 
         <p>
-          Mã đặt chỗ:
-          <b>{booking.booking.booking_code}</b>
+          Hãng bay:
+          <b>{data.flight.airline}</b>
         </p>
 
         <p>
+          Chuyến:
+          <b>
+            {data.flight.from}→{data.flight.to}
+          </b>
+        </p>
+
+        <p>
+          Mã chuyến:
+          <b>{data.flight.flight_number}</b>
+        </p>
+
+        <hr />
+
+        <h2>Thông tin ghế</h2>
+
+        <p>
+          Ghế:
+          <b>{data.seat.seat_number}</b>
+        </p>
+
+        <p>
+          Hạng:
+          <b>{data.seat.class}</b>
+        </p>
+
+        <h2>
           Tổng tiền:
-          <b>{Number(booking.booking.total_price).toLocaleString("vi-VN")}đ</b>
-        </p>
+          {Number(data.price).toLocaleString("vi-VN")}đ
+        </h2>
 
-        <h3>Phương thức thanh toán</h3>
+        <button
+          className="confirm-pay"
+          onClick={() => alert("Thanh toán thành công")}
+        >
+          Xác nhận thanh toán
+        </button>
 
-        <button className="pay-method">💳 Thanh toán thẻ</button>
-
-        <button className="pay-method">🏦 Chuyển khoản ngân hàng</button>
-
-        <button className="pay-method">📱 Ví điện tử</button>
-
-        <button className="confirm-pay">Xác nhận thanh toán</button>
+        <button onClick={() => navigate(-1)}>Quay lại</button>
       </div>
     </div>
   );

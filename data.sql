@@ -773,3 +773,5 @@ CREATE TABLE booking_details (
     REFERENCES seats(id)
 
 );
+DELETE FROM booking_details;
+DELETE FROM bookings;

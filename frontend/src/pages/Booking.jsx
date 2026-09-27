@@ -6,78 +6,150 @@ import "../styles/Booking.css";
 
 function Booking() {
   const location = useLocation();
+
   const navigate = useNavigate();
+
   const flight = location.state?.flight;
 
   const [seats, setSeats] = useState([]);
+
   const [selectedSeat, setSelectedSeat] = useState(null);
 
   // ==========================
-  // LOAD GHẾ
+  // LOAD GHẾ BAN ĐẦU
   // ==========================
-  useEffect(() => {
-    if (!flight?.airplane_id) return;
 
-    const getSeats = async () => {
+  useEffect(() => {
+    if (!flight?.id) {
+      return;
+    }
+
+    const fetchSeats = async () => {
       try {
         const res = await axios.get(
-          `http://localhost:5000/api/seats/airplane/${flight.airplane_id}`,
+          `http://localhost:5000/api/seats/flight/${flight.id}`,
         );
-        console.log("SEATS:", res.data);
+
         setSeats(res.data);
       } catch (error) {
-        console.log("Lỗi lấy ghế:", error);
+        console.log(error);
       }
     };
 
-    getSeats();
-  }, [flight?.airplane_id]);
+    fetchSeats();
+  }, [flight]);
+
+  // ==========================
+  // LOAD LẠI GHẾ
+  // ==========================
+
+  const reloadSeats = async () => {
+    try {
+      const res = await axios.get(
+        `http://localhost:5000/api/seats/flight/${flight.id}`,
+      );
+
+      setSeats(res.data);
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   // ==========================
   // CHỌN GHẾ
   // ==========================
-  const chooseSeat = (seat) => {
-    setSelectedSeat(seat);
+
+  const chooseSeat = async (seat) => {
+    if (seat.status === "BOOKED") {
+      alert("Ghế này đã có người đặt");
+
+      return;
+    }
+
+    try {
+      await axios.post(
+        "http://localhost:5000/api/bookings/hold-seat",
+
+        {
+          flight_id: flight.id,
+
+          seat_id: seat.id,
+
+          seat_class: seat.class,
+        },
+      );
+
+      setSelectedSeat(seat);
+
+      reloadSeats();
+    } catch (error) {
+      alert(error.response?.data?.message || "Ghế này đã được chọn");
+
+      reloadSeats();
+    }
   };
 
   // ==========================
-  // TÍNH GIÁ
+  // TÍNH TIỀN
   // ==========================
-  const getPrice = () => {
+
+  const totalPrice = () => {
     let price = Number(flight.price);
+
     if (selectedSeat?.class === "BUSINESS") {
       price = price * 1.5;
     }
+
     return price;
   };
 
   // ==========================
-  // TẠO BOOKING
+  // ĐẶT VÉ + SANG PAYMENT
   // ==========================
-  const submitBooking = async () => {
+
+  const goPayment = async () => {
     if (!selectedSeat) {
       alert("Vui lòng chọn ghế");
+
       return;
     }
 
-    const data = {
-      user_id: 1,
-      flight_id: flight.id,
-      seat_id: selectedSeat.id,
-      seat_class: selectedSeat.class,
-      passenger_name: "",
-      email: "",
-      phone: "",
-      price: getPrice(),
-    };
-
     try {
-      const res = await axios.post("http://localhost:5000/api/bookings", data);
-      console.log(res.data);
-      navigate("/payment", { state: { booking: res.data } });
+      const res = await axios.post(
+        "http://localhost:5000/api/bookings",
+
+        {
+          user_id: 1,
+
+          flight_id: flight.id,
+
+          seat_id: selectedSeat.id,
+
+          seat_class: selectedSeat.class,
+
+          price: totalPrice(),
+        },
+      );
+
+      navigate(
+        "/payment",
+
+        {
+          state: {
+            flight,
+
+            seat: selectedSeat,
+
+            booking: res.data.booking,
+
+            price: totalPrice(),
+          },
+        },
+      );
     } catch (error) {
-      console.log(error);
-      alert("Lỗi tạo booking");
+      alert(error.response?.data?.message || "Không thể tạo booking");
+
+      reloadSeats();
     }
   };
 
@@ -85,140 +157,100 @@ function Booking() {
     return <h2>Không có dữ liệu chuyến bay</h2>;
   }
 
-  // Nhóm ghế theo hạng để hiển thị đẹp hơn
-  const businessSeats = seats.filter((s) => s.class === "BUSINESS");
-  const economySeats = seats.filter((s) => s.class !== "BUSINESS");
+  const businessSeats = seats.filter((seat) => seat.class === "BUSINESS");
+
+  const economySeats = seats.filter((seat) => seat.class === "ECONOMY");
+
+  const renderSeat = (seat) => {
+    return (
+      <button
+        key={seat.id}
+        disabled={seat.status === "BOOKED"}
+        className={
+          seat.status === "BOOKED"
+            ? "seat booked"
+            : selectedSeat?.id === seat.id
+              ? "seat selected"
+              : seat.class === "BUSINESS"
+                ? "seat business"
+                : "seat economy"
+        }
+        onClick={() => chooseSeat(seat)}
+      >
+        <b>{seat.seat_number}</b>
+
+        <small>{seat.status === "BOOKED" ? "Đã đặt" : seat.class}</small>
+      </button>
+    );
+  };
 
   return (
     <div className="booking-container">
       <div className="booking-wrapper">
-        <h1>Đặt chỗ chuyến bay</h1>
+        <h1>✈ Đặt chỗ chuyến bay</h1>
 
-        {/* THÔNG TIN CHUYẾN BAY */}
         <div className="flight-info">
-          <div className="flight-info-header">
-            <h2>{flight.airline}</h2>
-            <span className="flight-number">{flight.flight_number}</span>
-          </div>
-          <div className="flight-route">
-            <div className="route-point">
-              <span className="label">Điểm đi</span>
-              <strong>{flight.from}</strong>
-            </div>
-            <div className="route-arrow">→</div>
-            <div className="route-point">
-              <span className="label">Điểm đến</span>
-              <strong>{flight.to}</strong>
-            </div>
-          </div>
-          <div className="flight-meta">
-            <div>
-              <span className="label">Ngày bay</span>
-              <strong>{flight.date}</strong>
-            </div>
-            <div>
-              <span className="label">Giờ bay</span>
-              <strong>{flight.departure_time}</strong>
-            </div>
-            <div>
-              <span className="label">Giá gốc</span>
-              <strong className="price">
-                {Number(flight.price).toLocaleString("vi-VN")}đ
-              </strong>
-            </div>
-          </div>
+          <h2>{flight.airline}</h2>
+
+          <p>
+            {flight.from}→{flight.to}
+          </p>
+
+          <p>
+            Mã chuyến:
+            {flight.flight_number}
+          </p>
+
+          <p>
+            Ngày bay:
+            {flight.date}
+          </p>
+
+          <p>
+            Giờ bay:
+            {flight.departure_time}
+          </p>
+
+          <h3>{Number(flight.price).toLocaleString("vi-VN")}đ</h3>
         </div>
 
-        {/* SƠ ĐỒ GHẾ */}
         <div className="seat-section">
-          <div className="section-header">
-            <h2>Chọn ghế</h2>
-            <div className="seat-legend">
-              <span>
-                <i className="box business"></i> Thương gia
-              </span>
-              <span>
-                <i className="box economy"></i> Phổ thông
-              </span>
-              <span>
-                <i className="box selected"></i> Đang chọn
-              </span>
-            </div>
-          </div>
+          <h2>Chọn ghế</h2>
 
-          <div className="seat-area">
-            {businessSeats.length > 0 && (
-              <div className="seat-group">
-                <p className="group-title">Hạng thương gia</p>
-                <div className="seat-container">
-                  {businessSeats.map((seat) => (
-                    <button
-                      key={seat.id}
-                      className={
-                        selectedSeat?.id === seat.id
-                          ? "seat business selected"
-                          : "seat business"
-                      }
-                      onClick={() => chooseSeat(seat)}
-                    >
-                      <span className="seat-number">{seat.seat_number}</span>
-                      <small>{seat.class}</small>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+          <h3>BUSINESS</h3>
 
-            {economySeats.length > 0 && (
-              <div className="seat-group">
-                <p className="group-title">Hạng phổ thông</p>
-                <div className="seat-container">
-                  {economySeats.map((seat) => (
-                    <button
-                      key={seat.id}
-                      className={
-                        selectedSeat?.id === seat.id
-                          ? "seat economy selected"
-                          : "seat economy"
-                      }
-                      onClick={() => chooseSeat(seat)}
-                    >
-                      <span className="seat-number">{seat.seat_number}</span>
-                      <small>{seat.class}</small>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <div className="seat-container">{businessSeats.map(renderSeat)}</div>
+
+          <h3>ECONOMY</h3>
+
+          <div className="seat-container">{economySeats.map(renderSeat)}</div>
         </div>
 
-        {/* THÔNG TIN GHẾ ĐÃ CHỌN */}
         {selectedSeat && (
           <div className="seat-info">
-            <div>
-              <span className="label">Ghế chọn</span>
-              <strong>{selectedSeat.seat_number}</strong>
-            </div>
-            <div>
-              <span className="label">Hạng</span>
-              <strong>{selectedSeat.class}</strong>
-            </div>
-            <div>
-              <span className="label">Thành tiền</span>
-              <strong className="price">
-                {getPrice().toLocaleString("vi-VN")}đ
-              </strong>
-            </div>
+            <h3>
+              Ghế:
+              {selectedSeat.seat_number}
+            </h3>
+
+            <p>
+              Hạng:
+              {selectedSeat.class}
+            </p>
+
+            <p>
+              Giá:
+              {totalPrice().toLocaleString("vi-VN")}đ
+            </p>
           </div>
         )}
 
-        {/* BUTTON */}
         <div className="booking-actions">
           <button className="back-button" onClick={() => navigate(-1)}>
             ← Quay lại
           </button>
-          <button className="payment-button" onClick={submitBooking}>
+
+          <button className="payment-button" onClick={goPayment}>
             Tiếp tục thanh toán →
           </button>
         </div>
