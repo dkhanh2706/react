@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import axios from "axios";
 
 import "../styles/Booking.css";
 
@@ -10,117 +11,190 @@ function Booking() {
 
   const flight = location.state?.flight;
 
-  const [customer, setCustomer] = useState({
-    name: "",
+  const [seats, setSeats] = useState([]);
 
-    email: "",
+  const [selectedSeat, setSelectedSeat] = useState(null);
 
-    phone: "",
-  });
+  // ==========================
+  // LOAD GHẾ
+  // ==========================
 
-  if (!flight) {
-    return <div className="booking-empty">Không có thông tin chuyến bay</div>;
-  }
+  useEffect(() => {
+    if (!flight?.airplane_id) return;
 
-  const handleChange = (e) => {
-    setCustomer({
-      ...customer,
+    const getSeats = async () => {
+      try {
+        const res = await axios.get(
+          `http://localhost:5000/api/seats/airplane/${flight.airplane_id}`,
+        );
 
-      [e.target.name]: e.target.value,
-    });
+        console.log("SEATS:", res.data);
+
+        setSeats(res.data);
+      } catch (error) {
+        console.log("Lỗi lấy ghế:", error);
+      }
+    };
+
+    getSeats();
+  }, [flight?.airplane_id]);
+
+  // ==========================
+  // CHỌN GHẾ
+  // ==========================
+
+  const chooseSeat = (seat) => {
+    setSelectedSeat(seat);
   };
 
-  const continuePayment = () => {
-    if (!customer.name || !customer.email || !customer.phone) {
-      alert("Vui lòng nhập đầy đủ thông tin");
+  // ==========================
+  // TÍNH GIÁ
+  // ==========================
+
+  const getPrice = () => {
+    let price = Number(flight.price);
+
+    // thương gia +50%
+
+    if (selectedSeat?.class === "BUSINESS") {
+      price = price * 1.5;
+    }
+
+    return price;
+  };
+
+  // ==========================
+  // TẠO BOOKING
+  // ==========================
+
+  const submitBooking = async () => {
+    if (!selectedSeat) {
+      alert("Vui lòng chọn ghế");
 
       return;
     }
 
-    navigate(
-      "/payment",
+    const data = {
+      user_id: 1,
 
-      {
+      flight_id: flight.id,
+
+      seat_id: selectedSeat.id,
+
+      seat_class: selectedSeat.class,
+
+      // bỏ thông tin khách hàng
+
+      passenger_name: "",
+
+      email: "",
+
+      phone: "",
+
+      price: getPrice(),
+    };
+
+    try {
+      const res = await axios.post(
+        "http://localhost:5000/api/bookings",
+
+        data,
+      );
+
+      console.log(res.data);
+
+      navigate("/payment", {
         state: {
-          flight,
-
-          customer,
+          booking: res.data,
         },
-      },
-    );
+      });
+    } catch (error) {
+      console.log(error);
+
+      alert("Lỗi tạo booking");
+    }
   };
+
+  if (!flight) {
+    return <h2>Không có dữ liệu chuyến bay</h2>;
+  }
 
   return (
     <div className="booking-container">
-      <h1>Thông tin đặt vé</h1>
+      <h1>Đặt chỗ chuyến bay</h1>
 
-      <div className="booking-flight-card">
-        <h2>✈ {flight.airline}</h2>
+      {/* THÔNG TIN CHUYẾN BAY */}
 
-        <p>
-          Mã chuyến bay:
-          <strong>{flight.flight_number}</strong>
-        </p>
+      <div className="flight-info">
+        <h2>{flight.airline}</h2>
 
         <p>
-          Ngày bay:
-          <strong>{flight.date}</strong>
+          {flight.from}
+          {" → "}
+          {flight.to}
         </p>
 
-        <div className="booking-route">
-          <div>
-            <h3>{flight.from}</h3>
+        <p>Mã chuyến: {flight.flight_number}</p>
 
-            <p>{flight.departure_time}</p>
+        <p>Ngày bay: {flight.date}</p>
 
-            <span>Giờ xuất phát</span>
-          </div>
+        <p>Giờ bay: {flight.departure_time}</p>
 
-          <div className="arrow">✈</div>
-
-          <div>
-            <h3>{flight.to}</h3>
-
-            <p>{flight.arrival_time}</p>
-
-            <span>Giờ đến</span>
-          </div>
-        </div>
-
-        <div className="booking-price">
-          Giá vé:
-          <strong>
-            {flight.price.toLocaleString("vi-VN")}
-            VNĐ
-          </strong>
-        </div>
+        <p>
+          Giá gốc:
+          {Number(flight.price).toLocaleString("vi-VN")}đ
+        </p>
       </div>
 
-      <div className="customer-form">
-        <h2>Thông tin hành khách</h2>
+      {/* SƠ ĐỒ GHẾ */}
 
-        <input
-          name="name"
-          placeholder="Họ và tên"
-          value={customer.name}
-          onChange={handleChange}
-        />
+      <h2>Chọn ghế</h2>
 
-        <input
-          name="email"
-          placeholder="Email"
-          value={customer.email}
-          onChange={handleChange}
-        />
+      <div className="seat-container">
+        {seats.map((seat) => (
+          <button
+            key={seat.id}
+            className={selectedSeat?.id === seat.id ? "seat selected" : "seat"}
+            onClick={() => chooseSeat(seat)}
+          >
+            {seat.seat_number}
 
-        <input
-          name="phone"
-          placeholder="Số điện thoại"
-          value={customer.phone}
-          onChange={handleChange}
-        />
+            <br />
 
-        <button onClick={continuePayment}>Tiếp tục thanh toán</button>
+            <small>{seat.class}</small>
+          </button>
+        ))}
+      </div>
+
+      {selectedSeat && (
+        <div className="seat-info">
+          <h3>
+            Ghế chọn:
+            {selectedSeat.seat_number}
+          </h3>
+
+          <h3>
+            Hạng:
+            {selectedSeat.class}
+          </h3>
+
+          <h3>
+            Thành tiền:
+            {getPrice().toLocaleString("vi-VN")}đ
+          </h3>
+        </div>
+      )}
+
+      {/* BUTTON */}
+
+      <div className="booking-actions">
+        <button className="back-button" onClick={() => navigate(-1)}>
+          ← Quay lại
+        </button>
+
+        <button className="payment-button" onClick={submitBooking}>
+          Tiếp tục thanh toán →
+        </button>
       </div>
     </div>
   );

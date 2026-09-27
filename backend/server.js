@@ -4,21 +4,31 @@ require("dotenv").config();
 
 const db = require("./config/database");
 
+// =======================
 // ROUTES
+// =======================
 
 const authRoutes = require("./routes/auth.routes");
 
 const flightRoutes = require("./routes/flight.routes");
 
+const seatRoutes = require("./routes/seat.routes");
+
+const bookingRoutes = require("./routes/booking.routes");
+
 const app = express();
 
+// =======================
 // MIDDLEWARE
+// =======================
 
 app.use(cors());
 
 app.use(express.json());
 
+// =======================
 // TEST DATABASE
+// =======================
 
 app.get("/", async (req, res) => {
   try {
@@ -51,6 +61,18 @@ app.use("/api/auth", authRoutes);
 app.use("/api/flights", flightRoutes);
 
 // =======================
+// SEAT ROUTES
+// =======================
+
+app.use("/api/seats", seatRoutes);
+
+// =======================
+// BOOKING ROUTES
+// =======================
+
+app.use("/api/bookings", bookingRoutes);
+
+// =======================
 // TEST API
 // =======================
 
@@ -61,9 +83,25 @@ app.get("/api/test", (req, res) => {
 });
 
 // =======================
+// ERROR HANDLING
+// =======================
+
+app.use((err, req, res, next) => {
+  console.error(err);
+
+  res.status(500).json({
+    message: "Server error",
+
+    error: err.message,
+  });
+});
+
+// =======================
 // START SERVER
 // =======================
 
-app.listen(5000, () => {
-  console.log("Server running port 5000");
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`Server running port ${PORT}`);
 });

@@ -4,80 +4,158 @@
   background: #f5f7fb;
 
   min-height: 100vh;
+
+  font-family: Arial, sans-serif;
 }
 
 .booking-container h1 {
   text-align: center;
 
   margin-bottom: 30px;
+
+  color: #003b7a;
 }
 
-.booking-flight-card {
+/* =========================
+   THÔNG TIN CHUYẾN BAY
+========================= */
+
+.flight-info {
   background: white;
 
-  border-radius: 15px;
-
-  padding: 30px;
-
-  max-width: 900px;
+  max-width: 1000px;
 
   margin: auto;
 
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+  padding: 25px;
+
+  border-radius: 16px;
+
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
 }
 
-.booking-flight-card h2 {
-  color: #005bea;
+.flight-info h2 {
+  color: #0066ff;
 }
 
-.booking-route {
-  display: flex;
+/* =========================
+   SƠ ĐỒ GHẾ
+========================= */
+
+.booking-container h2 {
+  max-width: 1000px;
+
+  margin: 30px auto 15px;
+}
+
+.seat-container {
+  max-width: 1000px;
+
+  margin: auto;
+
+  background: white;
+
+  padding: 35px;
+
+  border-radius: 20px;
+
+  display: grid;
+
+  grid-template-columns: repeat(4, 70px);
+
+  gap: 18px;
 
   justify-content: center;
 
-  align-items: center;
-
-  gap: 60px;
-
-  margin: 30px 0;
-
-  text-align: center;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
 }
 
-.booking-route h3 {
-  font-size: 30px;
-}
+.seat {
+  width: 70px;
 
-.booking-route p {
-  font-size: 25px;
+  height: 60px;
+
+  border: none;
+
+  border-radius: 10px;
+
+  background: #e8f1ff;
+
+  color: #003b7a;
 
   font-weight: bold;
+
+  cursor: pointer;
+
+  transition: 0.2s;
 }
 
-.arrow {
-  font-size: 35px;
+.seat:hover {
+  transform: scale(1.08);
+
+  background: #b8dcff;
 }
 
-.booking-price {
-  font-size: 22px;
+/* GHẾ BUSINESS */
 
-  text-align: right;
+.seat:nth-child(-n + 8) {
+  background: #ffe7a3;
+
+  color: #8a5a00;
 }
 
-.booking-price strong {
-  color: #e53935;
+/* GHẾ ĐƯỢC CHỌN */
+
+.seat.selected {
+  background: #ff8c00;
+
+  color: white;
+
+  transform: scale(1.1);
 }
+
+/* GHẾ ĐÃ ĐẶT */
+
+.seat.disabled {
+  background: #ccc;
+
+  color: #777;
+
+  cursor: not-allowed;
+}
+
+/* =========================
+   GHẾ THÔNG TIN
+========================= */
+
+.selected-seat-info {
+  max-width: 1000px;
+
+  margin: 20px auto;
+
+  background: white;
+
+  padding: 20px;
+
+  border-radius: 15px;
+}
+
+/* =========================
+   FORM KHÁCH HÀNG
+========================= */
 
 .customer-form {
   background: white;
 
-  max-width: 900px;
+  max-width: 1000px;
 
   margin: 30px auto;
 
   padding: 30px;
 
-  border-radius: 15px;
+  border-radius: 16px;
+
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
 }
 
 .customer-form input {
@@ -90,6 +168,8 @@
   border-radius: 8px;
 
   border: 1px solid #ddd;
+
+  font-size: 15px;
 }
 
 .customer-form button {
@@ -101,17 +181,13 @@
 
   border: none;
 
-  border-radius: 8px;
+  border-radius: 10px;
 
   cursor: pointer;
 
   font-size: 16px;
 }
 
-.booking-empty {
-  padding: 50px;
-
-  text-align: center;
-
-  font-size: 25px;
+.customer-form button:hover {
+  background: #004dcc;
 }

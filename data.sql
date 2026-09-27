@@ -698,3 +698,78 @@ ON flights(flight_number);
 CREATE INDEX idx_airport_code
 
 ON airports(code);
+CREATE TABLE booking_temp (
+
+    id SERIAL PRIMARY KEY,
+
+    user_id INT NOT NULL,
+
+    flight_id INT NOT NULL,
+
+    seat_id INT NOT NULL,
+
+
+    passenger_name VARCHAR(100),
+
+    email VARCHAR(100),
+
+    phone VARCHAR(20),
+
+
+    seat_class seat_class NOT NULL,
+
+
+    price NUMERIC(12,2) NOT NULL,
+
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+
+    expired_at TIMESTAMP NOT NULL,
+
+
+    FOREIGN KEY(user_id)
+    REFERENCES users(id),
+
+
+    FOREIGN KEY(flight_id)
+    REFERENCES flights(id),
+
+
+    FOREIGN KEY(seat_id)
+    REFERENCES seats(id)
+
+);
+CREATE TABLE booking_details (
+
+    id SERIAL PRIMARY KEY,
+
+    booking_id INT NOT NULL,
+
+    flight_id INT NOT NULL,
+
+    seat_id INT NOT NULL,
+
+    passenger_name VARCHAR(100),
+
+    email VARCHAR(100),
+
+    phone VARCHAR(20),
+
+    seat_class seat_class NOT NULL,
+
+    price NUMERIC(12,2) NOT NULL,
+
+
+    FOREIGN KEY (booking_id)
+    REFERENCES bookings(id),
+
+
+    FOREIGN KEY (flight_id)
+    REFERENCES flights(id),
+
+
+    FOREIGN KEY (seat_id)
+    REFERENCES seats(id)
+
+);

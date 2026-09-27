@@ -1,8 +1,8 @@
-// =====================================
-// AUTO GENERATE FLIGHT SEARCH SYSTEM
-// =====================================
+const pool = require("../config/database");
 
-// Danh sách hãng bay giả lập
+// =====================================
+// AUTO GENERATE FLIGHT SEARCH
+// =====================================
 
 const airlines = [
   "Vietnam Airlines",
@@ -10,10 +10,6 @@ const airlines = [
   "Bamboo Airways",
   "Pacific Airlines",
 ];
-
-// =====================================
-// Tạo mã chuyến bay
-// =====================================
 
 function generateFlightNumber() {
   const prefix = ["VN", "VJ", "QH", "BL"];
@@ -24,26 +20,16 @@ function generateFlightNumber() {
   );
 }
 
-// =====================================
-// Sinh giờ bay
-// =====================================
-
 function generateDepartureTime() {
   const times = ["06:30", "08:45", "10:20", "13:00", "15:30", "18:45", "21:00"];
 
   return times[Math.floor(Math.random() * times.length)];
 }
 
-// =====================================
-// Tính giờ đến
-// =====================================
-
 function calculateArrival(time) {
   let hour = Number(time.split(":")[0]);
 
   let minute = Number(time.split(":")[1]);
-
-  // giả lập thời gian bay 2 tiếng
 
   hour += 2;
 
@@ -56,67 +42,25 @@ function calculateArrival(time) {
   );
 }
 
-// =====================================
-// Tự sinh chuyến bay
-// =====================================
+// lấy máy bay
 
-function generateFlights(from, to, date) {
-  const flights = [];
+function getAirplaneId(airline) {
+  if (airline === "Vietnam Airlines") return 1;
 
-  // tạo 2-4 chuyến mỗi lần tìm
+  if (airline === "Vietjet Air") return 3;
 
-  const total = Math.floor(Math.random() * 3) + 2;
+  if (airline === "Bamboo Airways") return 4;
 
-  for (let i = 0; i < total; i++) {
-    const departure = generateDepartureTime();
-
-    const arrival = calculateArrival(departure);
-
-    const airline = airlines[Math.floor(Math.random() * airlines.length)];
-
-    flights.push({
-      id: Date.now() + i,
-
-      flight_number: generateFlightNumber(),
-
-      airline,
-
-      from,
-
-      to,
-
-      date,
-
-      departure_time: departure,
-
-      arrival_time: arrival,
-
-      departure_datetime: `${date} ${departure}`,
-
-      arrival_datetime: `${date} ${arrival}`,
-
-      price: 1200000 + Math.floor(Math.random() * 3500000),
-
-      type: "Bay thẳng",
-    });
-  }
-
-  return flights;
+  return 2;
 }
 
 // =====================================
-// API SEARCH
+// SEARCH FLIGHT
 // =====================================
 
 exports.searchFlight = async (req, res) => {
   try {
-    const {
-      from,
-
-      to,
-
-      date,
-    } = req.query;
+    const { from, to, date } = req.query;
 
     if (!from || !to || !date) {
       return res.status(400).json({
@@ -124,13 +68,68 @@ exports.searchFlight = async (req, res) => {
       });
     }
 
-    const result = generateFlights(
-      from,
+    // lấy chuyến bay mẫu từ database
 
-      to,
+    const dbFlights = await pool.query(
+      `
+SELECT 
+f.id,
+f.flight_number,
+a.name AS airline,
+f.airplane_id,
+f.departure_time,
+f.arrival_time,
+f.price
 
-      date,
+FROM flights f
+
+JOIN airlines a
+ON f.airline_id=a.id
+
+LIMIT 10
+`,
     );
+
+    let result = [];
+
+    dbFlights.rows.forEach((flight, index) => {
+      result.push({
+        /*
+ QUAN TRỌNG:
+ id này là id thật database
+*/
+
+        id: flight.id,
+
+        flight_number: flight.flight_number,
+
+        airline: flight.airline,
+
+        airplane_id: flight.airplane_id,
+
+        from,
+
+        to,
+
+        date,
+
+        departure_time: flight.departure_time
+          ? flight.departure_time.toString().substring(11, 16)
+          : generateDepartureTime(),
+
+        arrival_time: flight.arrival_time
+          ? flight.arrival_time.toString().substring(11, 16)
+          : calculateArrival(generateDepartureTime()),
+
+        departure_datetime: `${date} ${flight.departure_time}`,
+
+        arrival_datetime: `${date} ${flight.arrival_time}`,
+
+        price: Number(flight.price),
+
+        type: "Bay thẳng",
+      });
+    });
 
     res.json({
       message: "Tìm chuyến bay thành công",
