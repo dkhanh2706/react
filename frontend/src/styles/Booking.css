@@ -1,193 +1,362 @@
+/* =========================
+   RESET & LAYOUT
+========================= */
 .booking-container {
-  padding: 40px;
-
-  background: #f5f7fb;
-
   min-height: 100vh;
+  padding: 40px 20px 60px;
+  background: linear-gradient(180deg, #eef4ff 0%, #f7f9fc 100%);
+  font-family: "Segoe UI", Arial, sans-serif;
+  color: #1f2d3d;
+}
 
-  font-family: Arial, sans-serif;
+.booking-wrapper {
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
 .booking-container h1 {
   text-align: center;
-
-  margin-bottom: 30px;
-
+  margin-bottom: 32px;
   color: #003b7a;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.booking-container h2 {
+  color: #003b7a;
+  font-size: 20px;
+  margin: 0;
 }
 
 /* =========================
    THÔNG TIN CHUYẾN BAY
 ========================= */
-
 .flight-info {
-  background: white;
-
-  max-width: 1000px;
-
-  margin: auto;
-
-  padding: 25px;
-
+  background: #ffffff;
+  padding: 28px 32px;
   border-radius: 16px;
-
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 59, 122, 0.08);
+  border: 1px solid #e6eefb;
 }
 
-.flight-info h2 {
+.flight-info-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-bottom: 18px;
+  border-bottom: 1px dashed #d9e4f5;
+}
+
+.flight-info-header h2 {
   color: #0066ff;
+  font-size: 22px;
+}
+
+.flight-number {
+  background: #e8f1ff;
+  color: #003b7a;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+}
+
+.flight-route {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  margin: 22px 0;
+}
+
+.route-point {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 130px;
+}
+
+.route-point strong {
+  font-size: 20px;
+  color: #003b7a;
+  margin-top: 6px;
+}
+
+.route-arrow {
+  font-size: 26px;
+  color: #0066ff;
+  font-weight: 700;
+}
+
+.flight-meta {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  padding-top: 18px;
+  border-top: 1px dashed #d9e4f5;
+}
+
+.flight-meta > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 13px;
+  color: #7b8aa1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.flight-meta strong {
+  font-size: 16px;
+  color: #1f2d3d;
+}
+
+.price {
+  color: #e63946 !important;
+  font-weight: 700;
 }
 
 /* =========================
    SƠ ĐỒ GHẾ
 ========================= */
+.seat-section {
+  margin-top: 36px;
+}
 
-.booking-container h2 {
-  max-width: 1000px;
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+}
 
-  margin: 30px auto 15px;
+.seat-legend {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: #5a6b82;
+}
+
+.seat-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.seat-legend .box {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.seat-legend .business {
+  background: #ffd166;
+}
+.seat-legend .economy {
+  background: #e8f1ff;
+  border: 1px solid #cfe0f8;
+}
+.seat-legend .selected {
+  background: #ff8c00;
+}
+
+.seat-area {
+  background: #ffffff;
+  padding: 28px 24px;
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(0, 59, 122, 0.08);
+  border: 1px solid #e6eefb;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+.seat-group .group-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #5a6b82;
+  margin-bottom: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
 }
 
 .seat-container {
-  max-width: 1000px;
-
-  margin: auto;
-
-  background: white;
-
-  padding: 35px;
-
-  border-radius: 20px;
-
   display: grid;
-
-  grid-template-columns: repeat(4, 70px);
-
-  gap: 18px;
-
+  grid-template-columns: repeat(auto-fill, 72px);
+  gap: 14px;
   justify-content: center;
-
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
 }
 
 .seat {
-  width: 70px;
-
-  height: 60px;
-
-  border: none;
-
+  width: 72px;
+  height: 64px;
+  border: 1px solid transparent;
   border-radius: 10px;
-
   background: #e8f1ff;
-
   color: #003b7a;
-
-  font-weight: bold;
-
+  font-weight: 700;
   cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 14px;
+}
 
-  transition: 0.2s;
+.seat small {
+  font-size: 10px;
+  font-weight: 500;
+  opacity: 0.8;
+  letter-spacing: 0.3px;
 }
 
 .seat:hover {
-  transform: scale(1.08);
-
-  background: #b8dcff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 102, 255, 0.18);
 }
 
-/* GHẾ BUSINESS */
-
-.seat:nth-child(-n + 8) {
+.seat.business {
   background: #ffe7a3;
-
   color: #8a5a00;
 }
 
-/* GHẾ ĐƯỢC CHỌN */
+.seat.economy {
+  background: #e8f1ff;
+  color: #003b7a;
+  border-color: #cfe0f8;
+}
 
 .seat.selected {
-  background: #ff8c00;
-
-  color: white;
-
-  transform: scale(1.1);
+  background: #ff8c00 !important;
+  color: #ffffff !important;
+  border-color: #ff8c00 !important;
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 8px 18px rgba(255, 140, 0, 0.35);
 }
 
-/* GHẾ ĐÃ ĐẶT */
-
-.seat.disabled {
-  background: #ccc;
-
-  color: #777;
-
-  cursor: not-allowed;
+.seat.selected small {
+  color: #fff;
 }
 
 /* =========================
-   GHẾ THÔNG TIN
+   THÔNG TIN GHẾ ĐÃ CHỌN
 ========================= */
-
-.selected-seat-info {
-  max-width: 1000px;
-
-  margin: 20px auto;
-
-  background: white;
-
-  padding: 20px;
-
-  border-radius: 15px;
-}
-
-/* =========================
-   FORM KHÁCH HÀNG
-========================= */
-
-.customer-form {
-  background: white;
-
-  max-width: 1000px;
-
-  margin: 30px auto;
-
-  padding: 30px;
-
+.seat-info {
+  margin-top: 26px;
+  background: #ffffff;
+  padding: 22px 28px;
   border-radius: 16px;
-
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 59, 122, 0.08);
+  border: 1px solid #e6eefb;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
 }
 
-.customer-form input {
-  width: 100%;
-
-  padding: 15px;
-
-  margin-bottom: 15px;
-
-  border-radius: 8px;
-
-  border: 1px solid #ddd;
-
-  font-size: 15px;
+.seat-info > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.customer-form button {
-  background: #0066ff;
+.seat-info strong {
+  font-size: 18px;
+  color: #003b7a;
+}
 
-  color: white;
+/* =========================
+   BUTTON
+========================= */
+.booking-actions {
+  margin-top: 30px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
 
-  padding: 15px 40px;
-
+.back-button,
+.payment-button {
+  padding: 14px 28px;
   border: none;
-
   border-radius: 10px;
-
+  font-size: 15px;
+  font-weight: 600;
   cursor: pointer;
-
-  font-size: 16px;
+  transition: all 0.2s ease;
 }
 
-.customer-form button:hover {
-  background: #004dcc;
+.back-button {
+  background: #ffffff;
+  color: #003b7a;
+  border: 1px solid #cfe0f8;
+}
+
+.back-button:hover {
+  background: #eef4ff;
+}
+
+.payment-button {
+  background: linear-gradient(135deg, #0066ff, #004dcc);
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(0, 102, 255, 0.3);
+}
+
+.payment-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(0, 102, 255, 0.4);
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+@media (max-width: 768px) {
+  .booking-container {
+    padding: 24px 14px 40px;
+  }
+
+  .flight-route {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .route-arrow {
+    transform: rotate(90deg);
+  }
+
+  .flight-meta,
+  .seat-info {
+    grid-template-columns: 1fr;
+  }
+
+  .seat-container {
+    grid-template-columns: repeat(auto-fill, 64px);
+    gap: 10px;
+  }
+
+  .seat {
+    width: 64px;
+    height: 58px;
+    font-size: 13px;
+  }
+
+  .booking-actions {
+    flex-direction: column-reverse;
+  }
+
+  .back-button,
+  .payment-button {
+    width: 100%;
+  }
 }
