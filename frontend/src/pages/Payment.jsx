@@ -1,4 +1,7 @@
+import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+
 import "../styles/Payment.css";
 
 function Payment() {
@@ -7,6 +10,22 @@ function Payment() {
   const navigate = useNavigate();
 
   const data = location.state;
+
+  // ==========================
+  // KIỂM TRA ĐĂNG NHẬP
+  // ==========================
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      toast.error("Vui lòng đăng nhập để thanh toán");
+
+      setTimeout(() => {
+        navigate("/login");
+      }, 1000);
+    }
+  }, [navigate]);
 
   if (!data) {
     return (
@@ -17,6 +36,14 @@ function Payment() {
       </div>
     );
   }
+
+  const handlePayment = () => {
+    toast.success("Thanh toán thành công");
+
+    setTimeout(() => {
+      navigate("/home");
+    }, 1200);
+  };
 
   return (
     <div className="payment-container">
@@ -61,10 +88,7 @@ function Payment() {
           {Number(data.price).toLocaleString("vi-VN")}đ
         </h2>
 
-        <button
-          className="confirm-pay"
-          onClick={() => alert("Thanh toán thành công")}
-        >
+        <button className="confirm-pay" onClick={handlePayment}>
           Xác nhận thanh toán
         </button>
 

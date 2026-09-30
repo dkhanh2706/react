@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+
 import api from "../api/axios";
 import AuthLayout from "../components/AuthLayout";
 
@@ -10,24 +12,48 @@ const labelClass = "block text-base font-medium text-slate-700 mb-2";
 
 function ResetPassword() {
   const navigate = useNavigate();
+
   const [form, setForm] = useState({
     email: localStorage.getItem("resetEmail") || "",
+
     code: "",
+
     newPassword: "",
   });
 
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    setForm({
+      ...form,
+
+      [e.target.name]: e.target.value,
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     try {
-      const response = await api.post("/auth/reset-password", form);
-      alert(response.data.message);
+      const response = await api.post(
+        "/auth/reset-password",
+
+        form,
+      );
+
+      toast.success(response.data.message);
+
       localStorage.removeItem("resetEmail");
-      navigate("/login");
+
+      setTimeout(() => {
+        navigate("/login");
+      }, 800);
     } catch (error) {
-      alert(error.response.data.message);
+      console.log(error);
+
+      if (error.response) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error("Không kết nối được server");
+      }
     }
   };
 
@@ -40,6 +66,7 @@ function ResetPassword() {
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label className={labelClass}>Email</label>
+
           <input
             name="email"
             placeholder="you@example.com"
@@ -51,6 +78,7 @@ function ResetPassword() {
 
         <div>
           <label className={labelClass}>Mã xác nhận</label>
+
           <input
             name="code"
             placeholder="Nhập mã 6 số"
@@ -62,6 +90,7 @@ function ResetPassword() {
 
         <div>
           <label className={labelClass}>Mật khẩu mới</label>
+
           <input
             name="newPassword"
             type="password"

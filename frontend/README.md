@@ -1,10 +1,1 @@
-React + Vite
-React Router
-Axios
-TailwindCSS
-Node.js
-Express.js
-PostgreSQL
-Prisma ORM
-JWT Authentication
-Docker
+Xem hướng dẫn cài đặt và chạy dự án tại [README ở thư mục gốc](../README.md).

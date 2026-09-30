@@ -16,6 +16,12 @@ const seatRoutes = require("./routes/seat.routes");
 
 const bookingRoutes = require("./routes/booking.routes");
 
+const userRoutes = require("./routes/user.routes");
+
+// =======================
+// CREATE APP
+// =======================
+
 const app = express();
 
 // =======================
@@ -73,6 +79,13 @@ app.use("/api/seats", seatRoutes);
 app.use("/api/bookings", bookingRoutes);
 
 // =======================
+// USER MANAGEMENT ROUTES
+// ADMIN
+// =======================
+
+app.use("/api/users", userRoutes);
+
+// =======================
 // TEST API
 // =======================
 
@@ -83,7 +96,7 @@ app.get("/api/test", (req, res) => {
 });
 
 // =======================
-// ERROR HANDLING
+// ERROR HANDLER
 // =======================
 
 app.use((err, req, res, next) => {

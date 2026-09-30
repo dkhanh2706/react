@@ -1,18 +1,47 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
+// =====================
+// AUTH
+// =====================
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import Home from "./pages/Home";
-
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+
+// =====================
+// HOME
+// =====================
+
+import Home from "./pages/Home";
+
+// =====================
+// FLIGHT
+// =====================
 
 import FlightResult from "./pages/FlightResult";
 import FlightList from "./pages/FlightList";
 
-import Booking from "./pages/Booking";
+// =====================
+// BOOKING + PAYMENT
+// =====================
 
+import Booking from "./pages/Booking";
 import Payment from "./pages/Payment";
+
+// =====================
+// ADMIN
+// =====================
+
+import AdminDashboard from "./admin/AdminDashboard";
+import UserManagement from "./admin/UserManagement";
+import FlightManagement from "./admin/FlightManagement";
+
+// =====================
+// PROTECTED
+// =====================
+
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   return (
@@ -31,40 +60,79 @@ function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* =====================
-            HOME
+            HOME PUBLIC
         ====================== */}
+
+        <Route path="/" element={<Navigate to="/home" />} />
 
         <Route path="/home" element={<Home />} />
 
         {/* =====================
-            FLIGHT
+            FLIGHT SEARCH PUBLIC
         ====================== */}
 
-        {/* Kết quả tìm kiếm cũ */}
-
         <Route path="/flights" element={<FlightResult />} />
-
-        {/* Danh sách chuyến bay */}
 
         <Route path="/flight-list" element={<FlightList />} />
 
         {/* =====================
-            BOOKING
+            CUSTOMER PRIVATE
         ====================== */}
 
-        <Route path="/booking" element={<Booking />} />
+        <Route
+          path="/booking"
+          element={
+            <ProtectedRoute>
+              <Booking />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/payment"
+          element={
+            <ProtectedRoute>
+              <Payment />
+            </ProtectedRoute>
+          }
+        />
 
         {/* =====================
-            PAYMENT
+            ADMIN
         ====================== */}
 
-        <Route path="/payment" element={<Payment />} />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute>
+              <UserManagement />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/flights"
+          element={
+            <ProtectedRoute>
+              <FlightManagement />
+            </ProtectedRoute>
+          }
+        />
 
         {/* =====================
-            DEFAULT
+            NOT FOUND
         ====================== */}
 
-        <Route path="*" element={<Login />} />
+        <Route path="*" element={<Navigate to="/home" />} />
       </Routes>
     </BrowserRouter>
   );

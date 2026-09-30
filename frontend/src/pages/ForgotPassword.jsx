@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+
 import api from "../api/axios";
 import AuthLayout from "../components/AuthLayout";
 
@@ -10,16 +12,33 @@ const labelClass = "block text-base font-medium text-slate-700 mb-2";
 
 function ForgotPassword() {
   const navigate = useNavigate();
+
   const [email, setEmail] = useState("");
 
   const handleForgot = async (e) => {
     e.preventDefault();
+
     try {
-      const res = await api.post("/auth/forgot-password", { email });
-      alert("Mã reset của bạn là: " + res.data.code);
-      navigate("/reset-password");
+      await api.post("/auth/forgot-password", {
+        email,
+      });
+
+      // Lưu email để qua trang reset lấy lại
+      localStorage.setItem("resetEmail", email);
+
+      toast.success("Đã gửi mã khôi phục");
+
+      setTimeout(() => {
+        navigate("/reset-password");
+      }, 800);
     } catch (error) {
-      alert(error.response.data.message);
+      console.log(error);
+
+      if (error.response) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error("Không kết nối được server");
+      }
     }
   };
 
@@ -32,6 +51,7 @@ function ForgotPassword() {
       <form onSubmit={handleForgot} className="space-y-5">
         <div>
           <label className={labelClass}>Email</label>
+
           <input
             type="email"
             placeholder="you@example.com"

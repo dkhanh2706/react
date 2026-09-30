@@ -1,4 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+
 import "../styles/FlightList.css";
 
 function FlightList() {
@@ -12,7 +14,26 @@ function FlightList() {
     return money.toLocaleString("vi-VN") + " VNĐ";
   };
 
+  // ==========================
+  // CHỌN CHUYẾN BAY
+  // ==========================
+
   const chooseFlight = (flight) => {
+    const token = localStorage.getItem("token");
+
+    // Chưa đăng nhập
+    if (!token) {
+      toast.error("Vui lòng đăng nhập để đặt vé");
+
+      setTimeout(() => {
+        navigate("/login");
+      }, 1000);
+
+      return;
+    }
+
+    // Đã đăng nhập
+
     navigate(
       "/booking",
 

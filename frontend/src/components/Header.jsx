@@ -1,7 +1,7 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
-// Đọc user an toàn: nếu dữ liệu trong localStorage bị hỏng thì không làm sập trang
+// đọc user an toàn
 const readUser = () => {
   try {
     return JSON.parse(localStorage.getItem("user"));
@@ -13,59 +13,33 @@ const readUser = () => {
 function Header() {
   const navigate = useNavigate();
 
-  const [language, setLanguage] = useState(
-    localStorage.getItem("language") || "vi",
-  );
-
   const token = localStorage.getItem("token");
 
   const user = readUser();
-
-  const changeLanguage = (e) => {
-    const lang = e.target.value;
-
-    setLanguage(lang);
-
-    localStorage.setItem("language", lang);
-
-    window.location.reload();
-  };
 
   const logout = () => {
     localStorage.removeItem("token");
 
     localStorage.removeItem("user");
 
+    toast.success("Đã đăng xuất");
+
     navigate("/login");
   };
 
-  const text = {
-    vi: {
-      ticket: "Vé máy bay",
-      promotion: "thuê xe ",
-      booking: "Quản lý đặt chỗ",
-      support: "Hỗ trợ",
-      blog: "Blog",
-      login: "Đăng nhập",
-      register: "Đăng ký",
-      logout: "Đăng xuất",
-      hello: "Xin chào",
-    },
+  const requireLogin = (path) => {
+    if (!token) {
+      toast.error("Vui lòng đăng nhập để sử dụng chức năng này");
 
-    en: {
-      ticket: "Flight Tickets",
-      promotion: "Promotion",
-      booking: "Manage Booking",
-      support: "Support",
-      blog: "Blog",
-      login: "Login",
-      register: "Register",
-      logout: "Logout",
-      hello: "Hello",
-    },
+      setTimeout(() => {
+        navigate("/login");
+      }, 1000);
+
+      return;
+    }
+
+    navigate(path);
   };
-
-  const t = text[language];
 
   return (
     <header className="header">
@@ -74,47 +48,36 @@ function Header() {
       </div>
 
       <nav>
-        <span>{t.ticket}</span>
+        <span onClick={() => navigate("/home")}>Vé máy bay</span>
 
-        <span>{t.promotion}</span>
+        <span>Khuyến mãi</span>
 
-        <span>{t.booking}</span>
+        <span onClick={() => requireLogin("/my-bookings")}>
+          Quản lý đặt chỗ
+        </span>
 
-        <span>{t.support}</span>
+        <span>Hỗ trợ</span>
 
-        <span>{t.blog}</span>
+        <span>Blog</span>
       </nav>
 
       <div className="header-action">
-        <select
-          value={language}
-          onChange={changeLanguage}
-          aria-label="Ngôn ngữ / Language"
-        >
-          <option value="vi">🇻🇳 VN</option>
-
-          <option value="en">🇬🇧 EN</option>
-        </select>
-
-        <select aria-label="Currency">
-          <option>VND</option>
-
-          <option>USD</option>
-        </select>
+        <span className="currency">🇻🇳 VNĐ</span>
 
         {token && user ? (
           <div className="user-box">
             <span>
-              {t.hello},<b>{" " + user.full_name}</b>
+              Xin chào,
+              <b>{" " + user.full_name}</b>
             </span>
 
-            <button onClick={logout}>{t.logout}</button>
+            <button onClick={logout}>Đăng xuất</button>
           </div>
         ) : (
           <>
-            <button onClick={() => navigate("/login")}>{t.login}</button>
+            <button onClick={() => navigate("/login")}>Đăng nhập</button>
 
-            <button onClick={() => navigate("/register")}>{t.register}</button>
+            <button onClick={() => navigate("/register")}>Đăng ký</button>
           </>
         )}
       </div>

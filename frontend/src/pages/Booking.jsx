@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
+import toast from "react-hot-toast";
 
 import "../styles/Booking.css";
 
@@ -14,6 +15,22 @@ function Booking() {
   const [seats, setSeats] = useState([]);
 
   const [selectedSeat, setSelectedSeat] = useState(null);
+
+  // ==========================
+  // KIỂM TRA ĐĂNG NHẬP
+  // ==========================
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      toast.error("Vui lòng đăng nhập để đặt vé");
+
+      setTimeout(() => {
+        navigate("/login");
+      }, 1000);
+    }
+  }, [navigate]);
 
   // ==========================
   // LOAD GHẾ BAN ĐẦU
@@ -61,7 +78,7 @@ function Booking() {
 
   const chooseSeat = async (seat) => {
     if (seat.status === "BOOKED") {
-      alert("Ghế này đã có người đặt");
+      toast.error("Ghế này đã có người đặt");
 
       return;
     }
@@ -83,7 +100,7 @@ function Booking() {
 
       reloadSeats();
     } catch (error) {
-      alert(error.response?.data?.message || "Ghế này đã được chọn");
+      toast.error(error.response?.data?.message || "Ghế này đã được chọn");
 
       reloadSeats();
     }
@@ -104,22 +121,24 @@ function Booking() {
   };
 
   // ==========================
-  // ĐẶT VÉ + SANG PAYMENT
+  // ĐẶT VÉ + PAYMENT
   // ==========================
 
   const goPayment = async () => {
     if (!selectedSeat) {
-      alert("Vui lòng chọn ghế");
+      toast.error("Vui lòng chọn ghế");
 
       return;
     }
 
     try {
+      const user = JSON.parse(localStorage.getItem("user"));
+
       const res = await axios.post(
         "http://localhost:5000/api/bookings",
 
         {
-          user_id: 1,
+          user_id: user.id,
 
           flight_id: flight.id,
 
@@ -147,7 +166,7 @@ function Booking() {
         },
       );
     } catch (error) {
-      alert(error.response?.data?.message || "Không thể tạo booking");
+      toast.error(error.response?.data?.message || "Không thể tạo booking");
 
       reloadSeats();
     }
@@ -193,7 +212,7 @@ function Booking() {
           <h2>{flight.airline}</h2>
 
           <p>
-            {flight.from}→{flight.to}
+            {flight.from} → {flight.to}
           </p>
 
           <p>
