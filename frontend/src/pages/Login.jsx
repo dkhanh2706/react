@@ -5,6 +5,8 @@ import toast from "react-hot-toast";
 import api from "../api/axios";
 import AuthLayout from "../components/AuthLayout";
 
+const ADMIN_EMAIL = "adminhdk@gmail.com";
+
 const inputClass =
   "w-full px-5 py-4 rounded-xl border border-slate-200 bg-white text-slate-800 text-base placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-500 transition";
 
@@ -14,55 +16,58 @@ function Login() {
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
-
   const [password, setPassword] = useState("");
 
   const handleLogin = async (e) => {
     e.preventDefault();
 
     try {
-      const response = await api.post(
-        "/auth/login",
+      const response = await api.post("/auth/login", {
+        email,
+        password,
+      });
 
-        {
-          email,
+      const token = response.data.token;
+      const user = response.data.user;
 
-          password,
-        },
-      );
+      if (!token || !user) {
+        toast.error("Dữ liệu đăng nhập không hợp lệ");
+        return;
+      }
 
-      // Lưu token
+      // =============================
+      // LƯU THÔNG TIN ĐĂNG NHẬP
+      // =============================
 
-      localStorage.setItem(
-        "token",
-
-        response.data.token,
-      );
-
-      // Lưu thông tin user
-
-      localStorage.setItem(
-        "user",
-
-        JSON.stringify(response.data.user),
-      );
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
 
       toast.success("Đăng nhập thành công");
 
-      // Phân quyền
+      // =============================
+      // KIỂM TRA ADMIN
+      // =============================
+
+      const isAdmin =
+        user?.role === "ADMIN" ||
+        user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
+      // =============================
+      // CHUYỂN TRANG
+      // =============================
 
       setTimeout(() => {
-        if (response.data.user.email === "adminhdk@gmail.com") {
-          navigate("/admin");
+        if (isAdmin) {
+          navigate("/admin", { replace: true });
         } else {
-          navigate("/home");
+          navigate("/home", { replace: true });
         }
-      }, 800);
+      }, 500);
     } catch (error) {
-      console.log(error);
+      console.error("LOGIN ERROR:", error);
 
       if (error.response) {
-        toast.error(error.response.data.message);
+        toast.error(error.response.data?.message || "Đăng nhập thất bại");
       } else {
         toast.error("Không kết nối được server");
       }

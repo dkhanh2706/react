@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 
-const API_URL = "http://localhost:5000/api/flights";
+import api from "../api/axios";
 
 function FlightManagement() {
   const [flights, setFlights] = useState([]);
@@ -28,15 +27,11 @@ function FlightManagement() {
     try {
       const token = localStorage.getItem("token");
 
-      const response = await axios.get(
-        API_URL,
-
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+      const response = await api.get("/flights", {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      );
+      });
 
       console.log(response.data);
 
@@ -85,23 +80,11 @@ function FlightManagement() {
       };
 
       if (editId) {
-        await axios.put(
-          `${API_URL}/${editId}`,
-
-          form,
-
-          config,
-        );
+        await api.put(`/flights/${editId}`, form, config);
 
         alert("Cập nhật chuyến bay thành công");
       } else {
-        await axios.post(
-          API_URL,
-
-          form,
-
-          config,
-        );
+        await api.post("/flights", form, config);
 
         alert("Thêm chuyến bay thành công");
       }
@@ -153,20 +136,18 @@ function FlightManagement() {
   // =========================
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc muốn xóa chuyến bay?")) return;
+    if (!window.confirm("Bạn có chắc muốn xóa chuyến bay?")) {
+      return;
+    }
 
     try {
       const token = localStorage.getItem("token");
 
-      await axios.delete(
-        `${API_URL}/${id}`,
-
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+      await api.delete(`/flights/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      );
+      });
 
       alert("Xóa chuyến bay thành công");
 

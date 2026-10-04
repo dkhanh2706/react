@@ -1,0 +1,748 @@
+/* =========================================================
+   PROMOTION / ADVERTISEMENT SLIDER
+   ========================================================= */
+
+.promotion-slider-section {
+  width: 100%;
+  padding: 65px 0 80px;
+  background: #f5f8fc;
+  overflow: hidden;
+}
+
+/* =========================
+   TITLE
+   ========================= */
+
+.promotion-heading {
+  width: min(1200px, calc(100% - 40px));
+  margin: 0 auto 30px;
+  text-align: center;
+}
+
+.promotion-small-title {
+  display: inline-block;
+  margin-bottom: 10px;
+  color: #0067b1;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.promotion-heading h2 {
+  margin: 0 0 10px;
+  color: #152944;
+  font-size: 34px;
+  font-weight: 800;
+}
+
+.promotion-heading p {
+  max-width: 650px;
+  margin: 0 auto;
+  color: #69798c;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+/* =========================
+   SLIDER
+   ========================= */
+
+.promotion-slider {
+  position: relative;
+
+  width: min(1280px, calc(100% - 40px));
+  height: 510px;
+
+  margin: 0 auto;
+
+  overflow: hidden;
+
+  border-radius: 28px;
+
+  background: #0e355d;
+
+  box-shadow:
+    0 25px 60px rgba(21, 55, 88, 0.18),
+    0 5px 20px rgba(21, 55, 88, 0.1);
+}
+
+/* =========================
+   SLIDE
+   ========================= */
+
+.promotion-slide {
+  position: absolute;
+  inset: 0;
+
+  opacity: 0;
+  visibility: hidden;
+
+  transform: scale(1.03);
+
+  transition:
+    opacity 0.8s ease,
+    visibility 0.8s ease,
+    transform 1.2s ease;
+
+  pointer-events: none;
+}
+
+.promotion-slide.active {
+  opacity: 1;
+  visibility: visible;
+
+  transform: scale(1);
+
+  pointer-events: auto;
+
+  z-index: 2;
+}
+
+/* =========================
+   BACKGROUND
+   ========================= */
+
+.promotion-background {
+  position: absolute;
+  inset: 0;
+
+  background-size: cover;
+  background-position: center;
+
+  transform: scale(1.1);
+
+  transition: transform 6s ease;
+}
+
+.promotion-slide.active .promotion-background {
+  transform: scale(1);
+}
+
+/* =========================
+   OVERLAY
+   ========================= */
+
+.promotion-overlay {
+  position: absolute;
+  inset: 0;
+
+  background: linear-gradient(
+    90deg,
+    rgba(5, 29, 53, 0.94) 0%,
+    rgba(5, 37, 68, 0.85) 33%,
+    rgba(5, 37, 68, 0.48) 60%,
+    rgba(0, 0, 0, 0.15) 100%
+  );
+}
+
+/* =========================
+   GLOW DECORATION
+   ========================= */
+
+.promotion-glow {
+  position: absolute;
+
+  border-radius: 50%;
+
+  filter: blur(5px);
+
+  pointer-events: none;
+}
+
+.promotion-glow-1 {
+  width: 280px;
+  height: 280px;
+
+  top: -130px;
+  left: -80px;
+
+  background: rgba(0, 181, 255, 0.17);
+}
+
+.promotion-glow-2 {
+  width: 350px;
+  height: 350px;
+
+  right: -160px;
+  bottom: -180px;
+
+  background: rgba(255, 190, 0, 0.17);
+}
+
+/* =========================
+   CONTENT
+   ========================= */
+
+.promotion-content {
+  position: relative;
+  z-index: 5;
+
+  display: flex;
+  align-items: center;
+
+  width: 100%;
+  height: 100%;
+
+  padding: 50px 100px;
+}
+
+.promotion-content-inner {
+  max-width: 620px;
+
+  opacity: 0;
+
+  transform: translateY(40px);
+
+  transition:
+    opacity 0.8s ease 0.15s,
+    transform 0.8s ease 0.15s;
+}
+
+.promotion-slide.active .promotion-content-inner {
+  opacity: 1;
+
+  transform: translateY(0);
+}
+
+/* =========================
+   BADGE
+   ========================= */
+
+.promotion-badge {
+  display: inline-flex;
+  align-items: center;
+
+  margin-bottom: 20px;
+
+  padding: 9px 16px;
+
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 100px;
+
+  color: #ffffff;
+
+  background: rgba(255, 255, 255, 0.14);
+
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* =========================
+   TITLE
+   ========================= */
+
+.promotion-content h3 {
+  max-width: 620px;
+
+  margin: 0 0 17px;
+
+  color: #ffffff;
+
+  font-size: clamp(38px, 4vw, 59px);
+
+  font-weight: 850;
+
+  line-height: 1.08;
+
+  letter-spacing: -1.5px;
+
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* =========================
+   DESCRIPTION
+   ========================= */
+
+.promotion-description {
+  max-width: 550px;
+
+  margin: 0 0 15px;
+
+  color: rgba(255, 255, 255, 0.87);
+
+  font-size: 17px;
+
+  line-height: 1.7;
+}
+
+/* =========================
+   PRICE
+   ========================= */
+
+.promotion-price {
+  margin-bottom: 23px;
+
+  color: #ffd438;
+
+  font-size: 26px;
+
+  font-weight: 850;
+
+  text-shadow: 0 2px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* =========================
+   BOOK BUTTON
+   ========================= */
+
+.promotion-book-button {
+  position: relative;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 12px;
+
+  min-width: 170px;
+
+  padding: 14px 23px;
+
+  border: none;
+  border-radius: 12px;
+
+  color: #103456;
+
+  background: #ffffff;
+
+  font-size: 15px;
+  font-weight: 800;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease,
+    background 0.3s ease;
+
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.18);
+}
+
+.promotion-book-button:hover {
+  transform: translateY(-3px);
+
+  background: #ffd438;
+
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.25);
+}
+
+.promotion-button-arrow {
+  display: inline-block;
+
+  font-size: 23px;
+
+  transition: transform 0.25s ease;
+}
+
+.promotion-book-button:hover .promotion-button-arrow {
+  transform: translateX(6px);
+}
+
+/* =========================
+   LEFT / RIGHT BUTTON
+   ========================= */
+
+.promotion-arrow {
+  position: absolute;
+  z-index: 20;
+
+  top: 50%;
+
+  width: 48px;
+  height: 48px;
+
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+
+  color: white;
+
+  background: rgba(7, 34, 60, 0.35);
+
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  font-size: 32px;
+  font-weight: 300;
+  line-height: 40px;
+
+  cursor: pointer;
+
+  transform: translateY(-50%);
+
+  transition:
+    background 0.3s ease,
+    transform 0.3s ease,
+    border-color 0.3s ease;
+}
+
+.promotion-arrow:hover {
+  background: #ffffff;
+
+  color: #163b5f;
+
+  border-color: #ffffff;
+}
+
+.promotion-arrow-left {
+  left: 23px;
+}
+
+.promotion-arrow-right {
+  right: 23px;
+}
+
+.promotion-arrow-left:hover {
+  transform: translateY(-50%) translateX(-3px);
+}
+
+.promotion-arrow-right:hover {
+  transform: translateY(-50%) translateX(3px);
+}
+
+/* =========================
+   DOTS
+   ========================= */
+
+.promotion-dots {
+  position: absolute;
+  z-index: 20;
+
+  left: 50%;
+  bottom: 25px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 9px;
+
+  transform: translateX(-50%);
+}
+
+.promotion-dot {
+  width: 9px;
+  height: 9px;
+
+  padding: 0;
+
+  border: none;
+  border-radius: 20px;
+
+  background: rgba(255, 255, 255, 0.45);
+
+  cursor: pointer;
+
+  transition:
+    width 0.35s ease,
+    background 0.35s ease,
+    transform 0.35s ease;
+}
+
+.promotion-dot:hover {
+  background: rgba(255, 255, 255, 0.8);
+
+  transform: scale(1.15);
+}
+
+.promotion-dot.active {
+  width: 32px;
+
+  background: #ffffff;
+}
+
+/* =========================
+   COUNTER
+   ========================= */
+
+.promotion-counter {
+  position: absolute;
+
+  z-index: 20;
+
+  right: 32px;
+  bottom: 25px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  color: rgba(255, 255, 255, 0.92);
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.promotion-counter-line {
+  width: 25px;
+  height: 1px;
+
+  background: rgba(255, 255, 255, 0.45);
+}
+
+/* =========================
+   PROGRESS BAR
+   ========================= */
+
+.promotion-progress {
+  position: absolute;
+
+  z-index: 30;
+
+  left: 0;
+  bottom: 0;
+
+  width: 0;
+  height: 4px;
+
+  background: #ffd438;
+
+  animation: promotionProgress 4.5s linear forwards;
+}
+
+@keyframes promotionProgress {
+  from {
+    width: 0%;
+  }
+
+  to {
+    width: 100%;
+  }
+}
+
+/* =========================
+   CONTENT ANIMATION
+   ========================= */
+
+.promotion-slide.active .promotion-badge {
+  animation: promotionFadeUp 0.7s ease 0.1s both;
+}
+
+.promotion-slide.active h3 {
+  animation: promotionFadeUp 0.8s ease 0.2s both;
+}
+
+.promotion-slide.active .promotion-description {
+  animation: promotionFadeUp 0.8s ease 0.3s both;
+}
+
+.promotion-slide.active .promotion-price {
+  animation: promotionFadeUp 0.8s ease 0.4s both;
+}
+
+.promotion-slide.active .promotion-book-button {
+  animation: promotionFadeUp 0.8s ease 0.5s both;
+}
+
+@keyframes promotionFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(25px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 992px) {
+  .promotion-slider-section {
+    padding: 50px 0 65px;
+  }
+
+  .promotion-slider {
+    height: 480px;
+  }
+
+  .promotion-content {
+    padding: 45px 80px;
+  }
+
+  .promotion-content-inner {
+    max-width: 560px;
+  }
+
+  .promotion-overlay {
+    background: linear-gradient(
+      90deg,
+      rgba(5, 29, 53, 0.93) 0%,
+      rgba(5, 37, 68, 0.77) 55%,
+      rgba(5, 37, 68, 0.35) 100%
+    );
+  }
+
+  .promotion-content h3 {
+    font-size: 45px;
+  }
+}
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 768px) {
+  .promotion-slider-section {
+    padding: 40px 0 50px;
+  }
+
+  .promotion-heading {
+    width: calc(100% - 30px);
+
+    margin-bottom: 22px;
+  }
+
+  .promotion-heading h2 {
+    font-size: 28px;
+  }
+
+  .promotion-heading p {
+    font-size: 14px;
+  }
+
+  .promotion-slider {
+    width: calc(100% - 24px);
+
+    height: 500px;
+
+    border-radius: 22px;
+  }
+
+  .promotion-background {
+    background-position: center;
+  }
+
+  .promotion-overlay {
+    background: linear-gradient(
+      0deg,
+      rgba(5, 29, 53, 0.97) 0%,
+      rgba(5, 29, 53, 0.85) 48%,
+      rgba(5, 29, 53, 0.28) 100%
+    );
+  }
+
+  .promotion-content {
+    align-items: flex-end;
+
+    padding: 40px 25px 75px;
+  }
+
+  .promotion-content-inner {
+    max-width: 100%;
+  }
+
+  .promotion-badge {
+    margin-bottom: 14px;
+
+    padding: 7px 12px;
+
+    font-size: 11px;
+  }
+
+  .promotion-content h3 {
+    margin-bottom: 12px;
+
+    font-size: 34px;
+
+    line-height: 1.08;
+  }
+
+  .promotion-description {
+    margin-bottom: 10px;
+
+    font-size: 14px;
+
+    line-height: 1.55;
+  }
+
+  .promotion-price {
+    margin-bottom: 18px;
+
+    font-size: 21px;
+  }
+
+  .promotion-book-button {
+    min-width: 150px;
+
+    padding: 12px 18px;
+
+    font-size: 14px;
+  }
+
+  .promotion-arrow {
+    top: 35%;
+
+    width: 40px;
+    height: 40px;
+
+    font-size: 28px;
+  }
+
+  .promotion-arrow-left {
+    left: 12px;
+  }
+
+  .promotion-arrow-right {
+    right: 12px;
+  }
+
+  .promotion-dots {
+    left: 25px;
+    bottom: 24px;
+
+    transform: none;
+  }
+
+  .promotion-counter {
+    right: 25px;
+    bottom: 25px;
+  }
+}
+
+/* =========================================================
+   SMALL MOBILE
+   ========================================================= */
+
+@media (max-width: 480px) {
+  .promotion-slider {
+    height: 470px;
+  }
+
+  .promotion-content {
+    padding: 35px 20px 70px;
+  }
+
+  .promotion-content h3 {
+    font-size: 30px;
+  }
+
+  .promotion-description {
+    font-size: 13px;
+  }
+
+  .promotion-arrow {
+    width: 36px;
+    height: 36px;
+
+    font-size: 25px;
+  }
+
+  .promotion-counter {
+    display: none;
+  }
+
+  .promotion-dots {
+    left: 50%;
+
+    transform: translateX(-50%);
+  }
+}

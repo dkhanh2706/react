@@ -360,3 +360,30 @@
     width: 100%;
   }
 }
+/* ==========================
+   GHẾ ĐANG ĐƯỢC HOLD
+========================== */
+
+.seat.held {
+  background-color: #f59e0b;
+  color: white;
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+/* ==========================
+   GHẾ ĐÃ BOOKED
+========================== */
+
+.seat.booked {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ==========================
+   GHẾ USER ĐANG CHỌN
+========================== */
+
+.seat.selected {
+  transform: scale(1.05);
+}
