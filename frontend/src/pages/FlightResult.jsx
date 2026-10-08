@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 import Header from "../components/Header";
 
@@ -40,33 +41,35 @@ const PlaneIcon = () => (
 const CalendarIcon = () => (
   <Icon size={17}>
     <rect x="3" y="5" width="18" height="16" rx="2" />
-
     <path d="M16 3v4M8 3v4M3 10h18" />
   </Icon>
 );
 
 // =====================================================
-// FORMAT DATE
+// FORMAT TIME
 // =====================================================
 
-const safeDate = (value) => {
+const formatTime = (value) => {
   if (!value) {
-    return null;
+    return "--:--";
   }
 
+  const stringValue = String(value);
+
+  // Backend mới trả HH:mm
+  if (/^\d{2}:\d{2}$/.test(stringValue)) {
+    return stringValue;
+  }
+
+  // Nếu backend trả HH:mm:ss
+  if (/^\d{2}:\d{2}:\d{2}/.test(stringValue)) {
+    return stringValue.slice(0, 5);
+  }
+
+  // Nếu là datetime
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date;
-};
-
-const formatTime = (value) => {
-  const date = safeDate(value);
-
-  if (!date) {
     return "--:--";
   }
 
@@ -76,11 +79,26 @@ const formatTime = (value) => {
   });
 };
 
-const formatDate = (value) => {
-  const date = safeDate(value);
+// =====================================================
+// FORMAT DATE
+// =====================================================
 
-  if (!date) {
+const formatDate = (value) => {
+  if (!value) {
     return "Chưa cập nhật";
+  }
+
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+    const [year, month, day] = String(value).split("-");
+
+    return `${day}/${month}/${year}`;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
   }
 
   return date.toLocaleDateString("vi-VN");
@@ -94,9 +112,26 @@ function FlightResult() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // =====================================================
+  // DATA
+  // =====================================================
+
   const flights = location.state?.flights || [];
 
+  const searchInfo = location.state?.searchInfo || null;
+
+  const source = location.state?.source || "home";
+
+  // =====================================================
+  // BACK
+  // =====================================================
+
   const handleBack = () => {
+    if (source === "destinations") {
+      navigate("/destinations");
+      return;
+    }
+
     if (window.history.length > 1) {
       navigate(-1);
       return;
@@ -105,15 +140,44 @@ function FlightResult() {
     navigate("/home");
   };
 
-  const handleSelectFlight = (item) => {
-    console.log("Flight selected:", item);
+  // =====================================================
+  // TÌM LẠI
+  // =====================================================
+
+  const handleSearchAgain = () => {
+    if (source === "destinations") {
+      navigate("/destinations");
+      return;
+    }
+
+    navigate("/home");
+  };
+
+  // =====================================================
+  // MUA VÉ
+  // =====================================================
+
+  const handleBuyFlight = (flight) => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      toast.error("Vui lòng đăng nhập để đặt vé");
+
+      navigate("/login");
+
+      return;
+    }
 
     navigate("/booking", {
       state: {
-        flight: item,
+        flight,
       },
     });
   };
+
+  // =====================================================
+  // UI
+  // =====================================================
 
   return (
     <div className="flight-result-page">
@@ -121,7 +185,10 @@ function FlightResult() {
 
       <main className="flight-result-main">
         <div className="flight-result-inner">
-          {/* TOP BAR */}
+          {/* =================================================
+              TOP BAR
+          ================================================= */}
+
           <div className="flight-result-topbar">
             <button
               type="button"
@@ -134,7 +201,10 @@ function FlightResult() {
             </button>
           </div>
 
-          {/* HEADING */}
+          {/* =================================================
+              HEADING
+          ================================================= */}
+
           <div className="flight-result-heading">
             <div className="flight-result-heading-icon">
               <PlaneIcon />
@@ -147,7 +217,42 @@ function FlightResult() {
             </div>
           </div>
 
-          {/* EMPTY */}
+          {/* =================================================
+              THÔNG TIN TÌM KIẾM
+          ================================================= */}
+
+          {searchInfo && (
+            <div className="flight-search-summary">
+              <div className="flight-search-summary-item">
+                <span>Điểm đi</span>
+
+                <strong>{searchInfo.from || "---"}</strong>
+              </div>
+
+              <div className="flight-search-summary-arrow">→</div>
+
+              <div className="flight-search-summary-item">
+                <span>Điểm đến</span>
+
+                <strong>{searchInfo.to || "---"}</strong>
+              </div>
+
+              <div className="flight-search-summary-date">
+                <CalendarIcon />
+
+                <div>
+                  <span>Ngày bay</span>
+
+                  <strong>{formatDate(searchInfo.departDate)}</strong>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* =================================================
+              EMPTY
+          ================================================= */}
+
           {flights.length === 0 ? (
             <div className="flight-empty-state">
               <div className="flight-empty-icon">✈</div>
@@ -156,18 +261,18 @@ function FlightResult() {
 
               <p>Hãy quay lại và thử tìm với ngày bay hoặc hành trình khác.</p>
 
-              <button type="button" onClick={() => navigate("/home")}>
+              <button type="button" onClick={handleSearchAgain}>
                 Tìm chuyến bay khác
               </button>
             </div>
           ) : (
             <div className="flight-result-list">
               {flights.map((item) => (
-                <article
-                  className="flight-result-card"
-                  key={item.id || item.flight_number}
-                >
-                  {/* AIRLINE */}
+                <article className="flight-result-card" key={item.id}>
+                  {/* ==========================================
+                      AIRLINE
+                  ========================================== */}
+
                   <div className="flight-airline-block">
                     <div className="flight-airline-icon">✈</div>
 
@@ -182,22 +287,29 @@ function FlightResult() {
                     </div>
                   </div>
 
-                  {/* ROUTE */}
+                  {/* ==========================================
+                      ROUTE
+                  ========================================== */}
+
                   <div className="flight-route-block">
                     {/* DEPARTURE */}
+
                     <div className="flight-airport">
                       <span className="flight-airport-time">
                         {formatTime(item.departure_time)}
                       </span>
 
-                      <h3>{item.departure_code || "---"}</h3>
+                      <h3>{item.departure_code || item.from || "---"}</h3>
 
-                      <p>{item.departure_city || ""}</p>
+                      <p>{item.departure_city || "Điểm đi"}</p>
                     </div>
 
                     {/* LINE */}
+
                     <div className="flight-route-line">
-                      <span className="flight-route-label">Bay thẳng</span>
+                      <span className="flight-route-label">
+                        {item.type || "Bay thẳng"}
+                      </span>
 
                       <div className="flight-route-line-bar">
                         <span className="route-dot" />
@@ -211,18 +323,22 @@ function FlightResult() {
                     </div>
 
                     {/* ARRIVAL */}
+
                     <div className="flight-airport flight-airport-arrival">
                       <span className="flight-airport-time">
                         {formatTime(item.arrival_time)}
                       </span>
 
-                      <h3>{item.arrival_code || "---"}</h3>
+                      <h3>{item.arrival_code || item.to || "---"}</h3>
 
-                      <p>{item.arrival_city || ""}</p>
+                      <p>{item.arrival_city || "Điểm đến"}</p>
                     </div>
                   </div>
 
-                  {/* DATE */}
+                  {/* ==========================================
+                      DATE
+                  ========================================== */}
+
                   <div className="flight-date-block">
                     <div className="flight-date-icon">
                       <CalendarIcon />
@@ -231,11 +347,16 @@ function FlightResult() {
                     <div>
                       <span>Ngày bay</span>
 
-                      <strong>{formatDate(item.departure_time)}</strong>
+                      <strong>
+                        {formatDate(item.date || searchInfo?.departDate)}
+                      </strong>
                     </div>
                   </div>
 
-                  {/* PRICE */}
+                  {/* ==========================================
+                      PRICE
+                  ========================================== */}
+
                   <div className="flight-price-block">
                     <span className="flight-price-label">Giá vé</span>
 
@@ -246,9 +367,9 @@ function FlightResult() {
                     <button
                       type="button"
                       className="flight-select-button"
-                      onClick={() => handleSelectFlight(item)}
+                      onClick={() => handleBuyFlight(item)}
                     >
-                      Chọn chuyến bay
+                      Mua vé ngay
                     </button>
                   </div>
                 </article>

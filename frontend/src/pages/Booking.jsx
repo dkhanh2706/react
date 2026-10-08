@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-
 import { useLocation, useNavigate } from "react-router-dom";
 
 import toast from "react-hot-toast";
@@ -8,13 +7,93 @@ import api from "../api/axios";
 
 import "../styles/Booking.css";
 
+// =====================================================
+// FORMAT DATE
+// =====================================================
+
+const formatDate = (value) => {
+  if (!value) {
+    return "Chưa cập nhật";
+  }
+
+  const stringValue = String(value);
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(stringValue)) {
+    const [year, month, day] = stringValue.split("-");
+
+    return `${day}/${month}/${year}`;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return stringValue;
+  }
+
+  return date.toLocaleDateString("vi-VN");
+};
+
+// =====================================================
+// FORMAT TIME
+// =====================================================
+
+const formatTime = (value) => {
+  if (!value) {
+    return "--:--";
+  }
+
+  const stringValue = String(value);
+
+  if (/^\d{2}:\d{2}$/.test(stringValue)) {
+    return stringValue;
+  }
+
+  if (/^\d{2}:\d{2}:\d{2}/.test(stringValue)) {
+    return stringValue.slice(0, 5);
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return stringValue;
+  }
+
+  return date.toLocaleTimeString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+// =====================================================
+// NORMALIZE CLASS
+// =====================================================
+
+const normalizeSeatClass = (value) => {
+  return String(value || "")
+    .trim()
+    .toUpperCase();
+};
+
+// =====================================================
+// NORMALIZE STATUS
+// =====================================================
+
+const normalizeSeatStatus = (value) => {
+  return String(value || "AVAILABLE")
+    .trim()
+    .toUpperCase();
+};
+
+// =====================================================
+// BOOKING
+// =====================================================
+
 function Booking() {
   const location = useLocation();
-
   const navigate = useNavigate();
 
   // =====================================================
-  // CHUYẾN BAY ĐƯỢC CHỌN TỪ FLIGHT LIST
+  // CHUYẾN BAY ĐƯỢC CHỌN
   // =====================================================
 
   const flight = location.state?.flight;
@@ -32,7 +111,7 @@ function Booking() {
   const [creatingBooking, setCreatingBooking] = useState(false);
 
   // =====================================================
-  // KIỂM TRA LOGIN
+  // LOGIN
   // =====================================================
 
   useEffect(() => {
@@ -48,6 +127,24 @@ function Booking() {
   }, [navigate]);
 
   // =====================================================
+  // NORMALIZE DANH SÁCH GHẾ
+  // =====================================================
+
+  const normalizeSeats = (seatData) => {
+    if (!Array.isArray(seatData)) {
+      return [];
+    }
+
+    return seatData.map((seat) => ({
+      ...seat,
+
+      class: normalizeSeatClass(seat.class),
+
+      status: normalizeSeatStatus(seat.status),
+    }));
+  };
+
+  // =====================================================
   // LOAD GHẾ
   // =====================================================
 
@@ -60,26 +157,36 @@ function Booking() {
       try {
         setLoadingSeats(true);
 
-        const res = await api.get(`/seats/flight/${flight.id}`);
+        console.log("Đang tải ghế flight:", flight.id);
 
-        console.log("Danh sách ghế:", res.data);
+        const response = await api.get(`/seats/flight/${flight.id}`);
 
-        const seatData = Array.isArray(res.data)
-          ? res.data
-          : res.data?.data || [];
+        console.log("API seats response:", response.data);
 
-        setSeats(seatData);
+        const rawSeats = Array.isArray(response.data)
+          ? response.data
+          : response.data?.data || [];
+
+        const normalized = normalizeSeats(rawSeats);
+
+        console.log("Danh sách ghế sau normalize:", normalized);
+
+        setSeats(normalized);
       } catch (error) {
         console.error("Lỗi tải danh sách ghế:", error.response?.data || error);
 
-        toast.error("Không thể tải danh sách ghế");
+        setSeats([]);
+
+        toast.error(
+          error.response?.data?.message || "Không thể tải danh sách ghế",
+        );
       } finally {
         setLoadingSeats(false);
       }
     };
 
     fetchSeats();
-  }, [flight]);
+  }, [flight?.id]);
 
   // =====================================================
   // RELOAD GHẾ
@@ -91,13 +198,13 @@ function Booking() {
     }
 
     try {
-      const res = await api.get(`/seats/flight/${flight.id}`);
+      const response = await api.get(`/seats/flight/${flight.id}`);
 
-      const seatData = Array.isArray(res.data)
-        ? res.data
-        : res.data?.data || [];
+      const rawSeats = Array.isArray(response.data)
+        ? response.data
+        : response.data?.data || [];
 
-      setSeats(seatData);
+      setSeats(normalizeSeats(rawSeats));
     } catch (error) {
       console.error("Lỗi reload ghế:", error.response?.data || error);
     }
@@ -105,50 +212,46 @@ function Booking() {
 
   // =====================================================
   // CHỌN GHẾ
-  // HOLD 15 PHÚT
   // =====================================================
 
   const chooseSeat = async (seat) => {
-    if (seat.status === "BOOKED") {
+    const seatStatus = normalizeSeatStatus(seat.status);
+
+    if (seatStatus === "BOOKED") {
       toast.error("Ghế này đã có người đặt");
 
       return;
     }
 
-    if (seat.status === "HOLD") {
+    if (seatStatus === "HOLD") {
       toast.error("Ghế này đang được người khác giữ");
 
       return;
     }
 
     try {
-      // ==========================================
-      // BODY KHÔNG CẦN USER_ID
-      // BACKEND LẤY TỪ JWT
-      // ==========================================
-
       const holdData = {
         flight_id: flight.id,
 
         seat_id: seat.id,
 
-        seat_class: seat.class,
+        seat_class: normalizeSeatClass(seat.class),
       };
 
       console.log("HOLD PAYLOAD:", holdData);
 
-      const res = await api.post("/bookings/hold-seat", holdData);
+      const response = await api.post("/bookings/hold-seat", holdData);
 
-      console.log("HOLD SUCCESS:", res.data);
-
-      // ==========================================
-      // GHẾ ĐANG CHỌN
-      // ==========================================
+      console.log("HOLD SUCCESS:", response.data);
 
       setSelectedSeat({
         ...seat,
 
-        hold_expires_at: res.data?.hold_expires_at,
+        class: normalizeSeatClass(seat.class),
+
+        status: "HOLD",
+
+        hold_expires_at: response.data?.hold_expires_at,
       });
 
       toast.success(`Đã giữ ghế ${seat.seat_number} trong 15 phút`);
@@ -164,15 +267,14 @@ function Booking() {
   };
 
   // =====================================================
-  // TÍNH GIÁ
+  // GIÁ
   // =====================================================
 
   const totalPrice = () => {
     let price = Number(flight?.price || 0);
 
-    // BUSINESS = 150%
-    if (selectedSeat?.class === "BUSINESS") {
-      price = price * 1.5;
+    if (normalizeSeatClass(selectedSeat?.class) === "BUSINESS") {
+      price *= 1.5;
     }
 
     return price;
@@ -196,36 +298,24 @@ function Booking() {
     try {
       setCreatingBooking(true);
 
-      // ==========================================
-      // DỮ LIỆU GỬI BACKEND
-      // ==========================================
-
       const bookingData = {
-        // ----------------------------------------
-        // ID
-        // ----------------------------------------
-
         flight_id: flight.id,
 
         seat_id: selectedSeat.id,
 
-        seat_class: selectedSeat.class,
+        seat_class: normalizeSeatClass(selectedSeat.class),
 
         price: totalPrice(),
 
-        // ----------------------------------------
-        // SNAPSHOT CHUYẾN BAY
-        // ----------------------------------------
-
         flight_date: flight.date || null,
 
-        departure_place: flight.from || null,
+        departure_place: flight.departure_code || flight.from || null,
 
-        arrival_place: flight.to || null,
+        arrival_place: flight.arrival_code || flight.to || null,
 
-        departure_time: flight.departure_time || null,
+        departure_time: formatTime(flight.departure_time),
 
-        arrival_time: flight.arrival_time || null,
+        arrival_time: formatTime(flight.arrival_time),
 
         airline: flight.airline || null,
 
@@ -236,17 +326,9 @@ function Booking() {
 
       console.log("BOOKING PAYLOAD:", bookingData);
 
-      // ==========================================
-      // CREATE BOOKING
-      // ==========================================
+      const response = await api.post("/bookings", bookingData);
 
-      const res = await api.post("/bookings", bookingData);
-
-      console.log("BOOKING SUCCESS:", res.data);
-
-      // ==========================================
-      // PAYMENT PAGE
-      // ==========================================
+      console.log("BOOKING SUCCESS:", response.data);
 
       navigate("/payment", {
         state: {
@@ -254,12 +336,12 @@ function Booking() {
 
           seat: selectedSeat,
 
-          booking: res.data.booking,
+          booking: response.data.booking,
 
           price: totalPrice(),
 
           hold_expires_at:
-            res.data.hold_expires_at || selectedSeat.hold_expires_at,
+            response.data?.hold_expires_at || selectedSeat?.hold_expires_at,
         },
       });
     } catch (error) {
@@ -274,7 +356,7 @@ function Booking() {
   };
 
   // =====================================================
-  // KHÔNG CÓ CHUYẾN BAY
+  // KHÔNG CÓ FLIGHT
   // =====================================================
 
   if (!flight) {
@@ -292,25 +374,37 @@ function Booking() {
   }
 
   // =====================================================
-  // PHÂN LOẠI GHẾ
+  // PHÂN LOẠI
   // =====================================================
 
-  const businessSeats = seats.filter((seat) => seat.class === "BUSINESS");
+  const businessSeats = seats.filter(
+    (seat) => normalizeSeatClass(seat.class) === "BUSINESS",
+  );
 
-  const economySeats = seats.filter((seat) => seat.class === "ECONOMY");
+  const economySeats = seats.filter(
+    (seat) => normalizeSeatClass(seat.class) === "ECONOMY",
+  );
+
+  const firstSeats = seats.filter(
+    (seat) => normalizeSeatClass(seat.class) === "FIRST",
+  );
 
   // =====================================================
-  // RENDER GHẾ
+  // RENDER SEAT
   // =====================================================
 
   const renderSeat = (seat) => {
-    const isBooked = seat.status === "BOOKED";
+    const seatStatus = normalizeSeatStatus(seat.status);
 
-    const isHold = seat.status === "HOLD";
+    const seatClassValue = normalizeSeatClass(seat.class);
+
+    const isBooked = seatStatus === "BOOKED";
+
+    const isHold = seatStatus === "HOLD";
 
     const isSelected = selectedSeat?.id === seat.id;
 
-    let seatClass;
+    let seatClass = "seat economy";
 
     if (isSelected) {
       seatClass = "seat selected";
@@ -318,10 +412,10 @@ function Booking() {
       seatClass = "seat booked";
     } else if (isHold) {
       seatClass = "seat held";
-    } else if (seat.class === "BUSINESS") {
+    } else if (seatClassValue === "BUSINESS") {
       seatClass = "seat business";
-    } else {
-      seatClass = "seat economy";
+    } else if (seatClassValue === "FIRST") {
+      seatClass = "seat business";
     }
 
     return (
@@ -331,7 +425,7 @@ function Booking() {
         disabled={(isBooked || isHold) && !isSelected}
         className={seatClass}
         onClick={() => {
-          if (!isSelected) {
+          if (!isSelected && !isBooked && !isHold) {
             chooseSeat(seat);
           }
         }}
@@ -345,7 +439,7 @@ function Booking() {
               ? "Đã đặt"
               : isHold
                 ? "Đang giữ"
-                : seat.class}
+                : seatClassValue}
         </small>
       </button>
     );
@@ -360,88 +454,117 @@ function Booking() {
       <div className="booking-wrapper">
         <h1>✈ Đặt chỗ chuyến bay</h1>
 
-        {/* ==========================================
-            THÔNG TIN CHUYẾN
-        ========================================== */}
+        {/* ===============================================
+            FLIGHT INFO
+        =============================================== */}
 
         <div className="flight-info">
-          <h2>{flight.airline}</h2>
+          <h2>{flight.airline || "Airline"}</h2>
 
           <p>
-            {flight.from}
+            <strong>{flight.departure_code || flight.from || "---"}</strong>
+
             {" → "}
-            {flight.to}
+
+            <strong>{flight.arrival_code || flight.to || "---"}</strong>
           </p>
 
           <p>
-            Mã chuyến: <strong>{flight.flight_number}</strong>
+            Mã chuyến: <strong>{flight.flight_number || "---"}</strong>
           </p>
 
           <p>
-            Ngày bay: <strong>{flight.date}</strong>
+            Ngày bay: <strong>{formatDate(flight.date)}</strong>
           </p>
 
           <p>
-            Giờ bay: <strong>{flight.departure_time}</strong>
-            {flight.arrival_time && (
-              <>
-                {" → "}
-
-                <strong>{flight.arrival_time}</strong>
-              </>
-            )}
+            Giờ bay: <strong>{formatTime(flight.departure_time)}</strong>
+            {" → "}
+            <strong>{formatTime(flight.arrival_time)}</strong>
           </p>
 
           <h3>{Number(flight.price || 0).toLocaleString("vi-VN")}đ</h3>
         </div>
 
-        {/* ==========================================
+        {/* ===============================================
             CHỌN GHẾ
-        ========================================== */}
+        =============================================== */}
 
         <div className="seat-section">
-          <h2>Chọn ghế</h2>
+          <div className="seat-section-title">
+            <div>
+              <h2>Chọn ghế</h2>
+
+              {!loadingSeats && seats.length > 0 && (
+                <p>Có {seats.length} ghế trên chuyến bay này</p>
+              )}
+            </div>
+          </div>
 
           {loadingSeats ? (
-            <p>Đang tải danh sách ghế...</p>
+            <div className="seat-loading">Đang tải danh sách ghế...</div>
+          ) : seats.length === 0 ? (
+            <div className="seat-empty">
+              <h3>Không tìm thấy ghế</h3>
+
+              <p>Máy bay của chuyến này hiện chưa có dữ liệu ghế.</p>
+            </div>
           ) : (
             <>
-              {/* BUSINESS */}
+              {/* =========================================
+                  FIRST
+              ========================================= */}
 
-              <h3>BUSINESS</h3>
+              {firstSeats.length > 0 && (
+                <div className="seat-class-group">
+                  <h3>FIRST CLASS</h3>
 
-              {businessSeats.length > 0 ? (
-                <div className="seat-container">
-                  {businessSeats.map(renderSeat)}
+                  <div className="seat-container">
+                    {firstSeats.map(renderSeat)}
+                  </div>
                 </div>
-              ) : (
-                <p>Không có ghế Business.</p>
               )}
 
-              {/* ECONOMY */}
+              {/* =========================================
+                  BUSINESS
+              ========================================= */}
 
-              <h3>ECONOMY</h3>
+              {businessSeats.length > 0 && (
+                <div className="seat-class-group">
+                  <h3>BUSINESS</h3>
 
-              {economySeats.length > 0 ? (
-                <div className="seat-container">
-                  {economySeats.map(renderSeat)}
+                  <div className="seat-container">
+                    {businessSeats.map(renderSeat)}
+                  </div>
                 </div>
-              ) : (
-                <p>Không có ghế Economy.</p>
+              )}
+
+              {/* =========================================
+                  ECONOMY
+              ========================================= */}
+
+              {economySeats.length > 0 && (
+                <div className="seat-class-group">
+                  <h3>ECONOMY</h3>
+
+                  <div className="seat-container">
+                    {economySeats.map(renderSeat)}
+                  </div>
+                </div>
               )}
             </>
           )}
         </div>
 
-        {/* ==========================================
+        {/* ===============================================
             GHẾ ĐÃ CHỌN
-        ========================================== */}
+        =============================================== */}
 
         {selectedSeat && (
           <div className="seat-info">
-            <h3>Ghế: {selectedSeat.seat_number}</h3>
+            <h3>Ghế {selectedSeat.seat_number}</h3>
 
-            <p>Hạng: {selectedSeat.class}</p>
+            <p>Hạng: {normalizeSeatClass(selectedSeat.class)}</p>
 
             <p>Giá: {totalPrice().toLocaleString("vi-VN")}đ</p>
 
@@ -449,9 +572,9 @@ function Booking() {
           </div>
         )}
 
-        {/* ==========================================
+        {/* ===============================================
             ACTION
-        ========================================== */}
+        =============================================== */}
 
         <div className="booking-actions">
           <button

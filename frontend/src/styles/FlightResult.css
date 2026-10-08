@@ -725,3 +725,105 @@
     font-size: 14px;
   }
 }
+/* =====================================================
+   SEARCH SUMMARY
+===================================================== */
+
+.flight-search-summary {
+  margin-bottom: 26px;
+  padding: 15px 20px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 18px;
+
+  border: 1px solid #e4e9f0;
+
+  border-radius: 14px;
+
+  background: #ffffff;
+
+  box-shadow: 0 6px 20px rgba(16, 24, 40, 0.04);
+}
+
+.flight-search-summary-item {
+  display: flex;
+  flex-direction: column;
+
+  gap: 3px;
+}
+
+.flight-search-summary-item span,
+.flight-search-summary-date span {
+  color: #98a2b3;
+
+  font-size: 11px;
+
+  font-weight: 600;
+}
+
+.flight-search-summary-item strong {
+  color: #344054;
+
+  font-size: 16px;
+
+  font-weight: 800;
+}
+
+.flight-search-summary-arrow {
+  color: #0a66c2;
+
+  font-size: 20px;
+
+  font-weight: 800;
+}
+
+.flight-search-summary-date {
+  margin-left: auto;
+
+  padding-left: 18px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 9px;
+
+  border-left: 1px solid #e7ebf1;
+
+  color: #0a66c2;
+}
+
+.flight-search-summary-date div {
+  display: flex;
+  flex-direction: column;
+
+  gap: 3px;
+}
+
+.flight-search-summary-date strong {
+  color: #344054;
+
+  font-size: 14px;
+}
+
+/* MOBILE */
+
+@media (max-width: 650px) {
+  .flight-search-summary {
+    align-items: flex-start;
+
+    flex-wrap: wrap;
+  }
+
+  .flight-search-summary-date {
+    width: 100%;
+
+    margin-left: 0;
+    padding-left: 0;
+    padding-top: 12px;
+
+    border-left: 0;
+    border-top: 1px solid #e7ebf1;
+  }
+}

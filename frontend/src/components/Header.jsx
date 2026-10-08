@@ -46,6 +46,7 @@ const Icon = ({ children }) => (
 const UserIcon = () => (
   <Icon>
     <circle cx="12" cy="8" r="4" />
+
     <path d="M4 20c0-4 3.6-6 8-6s8 2 8 6" />
   </Icon>
 );
@@ -59,6 +60,7 @@ const PlaneIcon = () => (
 const ClipboardIcon = () => (
   <Icon>
     <rect x="5" y="4" width="14" height="17" rx="2" />
+
     <path d="M9 4.5h6M9 11h6M9 15h4" />
   </Icon>
 );
@@ -66,6 +68,7 @@ const ClipboardIcon = () => (
 const LogoutIcon = () => (
   <Icon>
     <path d="M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3" />
+
     <path d="M16 17l5-5-5-5M21 12H9" />
   </Icon>
 );
@@ -76,11 +79,13 @@ const LogoutIcon = () => (
 
 function Header() {
   const navigate = useNavigate();
+
   const location = useLocation();
 
   const menuRef = useRef(null);
 
   const token = localStorage.getItem("token");
+
   const user = readUser();
 
   const [openProfile, setOpenProfile] = useState(false);
@@ -103,6 +108,7 @@ function Header() {
     };
 
     document.addEventListener("mousedown", handleOutside);
+
     document.addEventListener("keydown", handleEscape);
 
     return () => {
@@ -118,6 +124,7 @@ function Header() {
 
   const logout = () => {
     localStorage.removeItem("token");
+
     localStorage.removeItem("user");
 
     setOpenProfile(false);
@@ -153,6 +160,13 @@ function Header() {
 
   const avatarLetter = userName.trim().charAt(0).toUpperCase() || "U";
 
+  // ==========================================
+  // ACTIVE MENU
+  // ==========================================
+
+  const isHomeActive =
+    location.pathname === "/" || location.pathname === "/home";
+
   const isActive = (path) => location.pathname.startsWith(path);
 
   // ==========================================
@@ -161,15 +175,32 @@ function Header() {
 
   return (
     <header className="header">
-      {/* LOGO */}
+      {/* ======================================
+          LOGO
+      ====================================== */}
+
       <div className="logo" onClick={() => navigate("/home")}>
         <span className="logo-mark">✈</span>
 
         <span className="logo-text">Airline Booking</span>
       </div>
 
-      {/* NAVIGATION */}
+      {/* ======================================
+          NAVIGATION
+      ====================================== */}
+
       <nav>
+        {/* HOME */}
+
+        <span
+          className={isHomeActive ? "active" : ""}
+          onClick={() => navigate("/home")}
+        >
+          Home
+        </span>
+
+        {/* VÉ MÁY BAY */}
+
         <span
           className={isActive("/my-tickets") ? "active" : ""}
           onClick={() => requireLogin("/my-tickets")}
@@ -177,12 +208,16 @@ function Header() {
           Vé máy bay
         </span>
 
+        {/* ĐIỂM ĐẾN */}
+
         <span
-          className={isActive("/flights") ? "active" : ""}
-          onClick={() => navigate("/flights")}
+          className={isActive("/destinations") ? "active" : ""}
+          onClick={() => navigate("/destinations")}
         >
-          Chuyến bay
+          Điểm đến
         </span>
+
+        {/* DỊCH VỤ THÊM */}
 
         <span
           className={isActive("/my-bookings") ? "active" : ""}
@@ -191,16 +226,20 @@ function Header() {
           Dịch vụ thêm
         </span>
 
-        <span>Hỗ trợ</span>
+        {/* BLOG */}
 
         <span>Blog</span>
       </nav>
 
-      {/* ACTION */}
+      {/* ======================================
+          ACTION
+      ====================================== */}
+
       <div className="header-action">
         {token && user ? (
           <div className="profile-wrapper" ref={menuRef}>
             {/* PROFILE BUTTON */}
+
             <button
               type="button"
               className={`profile-button ${openProfile ? "is-open" : ""}`}
@@ -232,10 +271,14 @@ function Header() {
               </svg>
             </button>
 
-            {/* DROPDOWN */}
+            {/* ==================================
+                DROPDOWN
+            ================================== */}
+
             {openProfile && (
               <div className="profile-menu" role="menu">
                 {/* USER INFO */}
+
                 <div className="profile-menu-head">
                   <span className="profile-avatar large">{avatarLetter}</span>
 
@@ -246,9 +289,13 @@ function Header() {
                   </div>
                 </div>
 
-                {/* MENU */}
+                {/* ==================================
+                    MENU
+                ================================== */}
+
                 <div className="profile-menu-list">
                   {/* PROFILE */}
+
                   <button
                     type="button"
                     role="menuitem"
@@ -265,6 +312,7 @@ function Header() {
                   </button>
 
                   {/* MY TICKETS */}
+
                   <button
                     type="button"
                     role="menuitem"
@@ -281,6 +329,7 @@ function Header() {
                   </button>
 
                   {/* BOOKING */}
+
                   <button
                     type="button"
                     role="menuitem"
@@ -297,7 +346,10 @@ function Header() {
                   </button>
                 </div>
 
-                {/* LOGOUT */}
+                {/* ==================================
+                    LOGOUT
+                ================================== */}
+
                 <button
                   type="button"
                   role="menuitem"

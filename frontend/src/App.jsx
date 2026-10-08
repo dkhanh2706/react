@@ -16,6 +16,12 @@ import ResetPassword from "./pages/ResetPassword";
 import Home from "./pages/Home";
 
 // =====================================================
+// DESTINATIONS
+// =====================================================
+
+import Destinations from "./pages/Destinations";
+
+// =====================================================
 // FLIGHT
 // =====================================================
 
@@ -161,6 +167,22 @@ function HomeRoute() {
 }
 
 // =====================================================
+// CUSTOMER PUBLIC ROUTE
+// Dùng cho các trang khách có thể xem mà không cần đăng nhập
+// =====================================================
+
+function CustomerPublicRoute({ children }) {
+  const { token, user } = getAuth();
+
+  // Admin không vào giao diện customer
+  if (token && checkIsAdmin(user)) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return children;
+}
+
+// =====================================================
 // ADMIN ROUTE
 // =====================================================
 
@@ -213,12 +235,39 @@ function App() {
         <Route path="/home" element={<HomeRoute />} />
 
         {/* =================================================
+            DESTINATIONS
+        ================================================= */}
+
+        <Route
+          path="/destinations"
+          element={
+            <CustomerPublicRoute>
+              <Destinations />
+            </CustomerPublicRoute>
+          }
+        />
+
+        {/* =================================================
             FLIGHT SEARCH
         ================================================= */}
 
-        <Route path="/flights" element={<FlightResult />} />
+        <Route
+          path="/flights"
+          element={
+            <CustomerPublicRoute>
+              <FlightResult />
+            </CustomerPublicRoute>
+          }
+        />
 
-        <Route path="/flight-list" element={<FlightList />} />
+        <Route
+          path="/flight-list"
+          element={
+            <CustomerPublicRoute>
+              <FlightList />
+            </CustomerPublicRoute>
+          }
+        />
 
         {/* =================================================
             BOOKING
