@@ -1,52 +1,68 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-// =====================
+// =====================================================
 // AUTH
-// =====================
+// =====================================================
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 
-// =====================
+// =====================================================
 // HOME
-// =====================
+// =====================================================
 
 import Home from "./pages/Home";
 
-// =====================
+// =====================================================
 // FLIGHT
-// =====================
+// =====================================================
 
 import FlightResult from "./pages/FlightResult";
 import FlightList from "./pages/FlightList";
 
-// =====================
+// =====================================================
 // BOOKING + PAYMENT
-// =====================
+// =====================================================
 
 import Booking from "./pages/Booking";
 import Payment from "./pages/Payment";
 
-// =====================
+// =====================================================
+// MY TICKETS
+// =====================================================
+
+import MyTickets from "./pages/MyTickets";
+
+// =====================================================
+// PROFILE
+// =====================================================
+
+import Profile from "./pages/Profile";
+
+// =====================================================
 // ADMIN
-// =====================
+// =====================================================
 
 import AdminDashboard from "./admin/AdminDashboard";
 import UserManagement from "./admin/UserManagement";
 import FlightManagement from "./admin/FlightManagement";
 
-// =====================
-// PROTECTED
-// =====================
+// =====================================================
+// PROTECTED ROUTE
+// =====================================================
 
 import ProtectedRoute from "./components/ProtectedRoute";
+
+// =====================================================
+// ADMIN EMAIL
+// =====================================================
 
 const ADMIN_EMAIL = "adminhdk@gmail.com";
 
 // =====================================================
-// LẤY THÔNG TIN USER TỪ LOCAL STORAGE
+// LẤY THÔNG TIN ĐĂNG NHẬP TỪ LOCALSTORAGE
 // =====================================================
 
 const getAuth = () => {
@@ -89,7 +105,6 @@ const checkIsAdmin = (user) => {
 
 // =====================================================
 // ROUTE GỐC
-// Khi mở localhost:5173
 // =====================================================
 
 function RootRedirect() {
@@ -100,42 +115,44 @@ function RootRedirect() {
     return <Navigate to="/home" replace />;
   }
 
-  // Đã đăng nhập ADMIN
+  // Admin
   if (checkIsAdmin(user)) {
     return <Navigate to="/admin" replace />;
   }
 
-  // CUSTOMER
+  // Customer
   return <Navigate to="/home" replace />;
 }
 
 // =====================================================
 // LOGIN ROUTE
-// Nếu đã login rồi thì không cho quay lại login
 // =====================================================
 
 function LoginRoute() {
   const { token, user } = getAuth();
 
+  // Chưa đăng nhập
   if (!token) {
     return <Login />;
   }
 
+  // Admin đã đăng nhập
   if (checkIsAdmin(user)) {
     return <Navigate to="/admin" replace />;
   }
 
+  // Customer đã đăng nhập
   return <Navigate to="/home" replace />;
 }
 
 // =====================================================
 // HOME ROUTE
-// ADMIN vào /home sẽ quay lại /admin
 // =====================================================
 
 function HomeRoute() {
   const { token, user } = getAuth();
 
+  // Admin không vào trang customer
   if (token && checkIsAdmin(user)) {
     return <Navigate to="/admin" replace />;
   }
@@ -145,18 +162,17 @@ function HomeRoute() {
 
 // =====================================================
 // ADMIN ROUTE
-// Chỉ ADMIN mới được truy cập
 // =====================================================
 
 function AdminRoute({ children }) {
   const { token, user } = getAuth();
 
-  // Chưa login
+  // Chưa đăng nhập
   if (!token) {
     return <Navigate to="/login" replace />;
   }
 
-  // Có login nhưng không phải admin
+  // Không phải admin
   if (!checkIsAdmin(user)) {
     return <Navigate to="/home" replace />;
   }
@@ -172,9 +188,9 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* =====================
+        {/* =================================================
             AUTH
-        ====================== */}
+        ================================================= */}
 
         <Route path="/login" element={<LoginRoute />} />
 
@@ -184,29 +200,29 @@ function App() {
 
         <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* =====================
+        {/* =================================================
             ROOT
-        ====================== */}
+        ================================================= */}
 
         <Route path="/" element={<RootRedirect />} />
 
-        {/* =====================
+        {/* =================================================
             HOME
-        ====================== */}
+        ================================================= */}
 
         <Route path="/home" element={<HomeRoute />} />
 
-        {/* =====================
-            FLIGHT SEARCH PUBLIC
-        ====================== */}
+        {/* =================================================
+            FLIGHT SEARCH
+        ================================================= */}
 
         <Route path="/flights" element={<FlightResult />} />
 
         <Route path="/flight-list" element={<FlightList />} />
 
-        {/* =====================
-            CUSTOMER PRIVATE
-        ====================== */}
+        {/* =================================================
+            BOOKING
+        ================================================= */}
 
         <Route
           path="/booking"
@@ -217,6 +233,10 @@ function App() {
           }
         />
 
+        {/* =================================================
+            PAYMENT
+        ================================================= */}
+
         <Route
           path="/payment"
           element={
@@ -226,9 +246,35 @@ function App() {
           }
         />
 
-        {/* =====================
-            ADMIN
-        ====================== */}
+        {/* =================================================
+            PROFILE
+        ================================================= */}
+
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* =================================================
+            VÉ MÁY BAY CỦA TÔI
+        ================================================= */}
+
+        <Route
+          path="/my-tickets"
+          element={
+            <ProtectedRoute>
+              <MyTickets />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* =================================================
+            ADMIN DASHBOARD
+        ================================================= */}
 
         <Route
           path="/admin"
@@ -239,6 +285,10 @@ function App() {
           }
         />
 
+        {/* =================================================
+            ADMIN - USERS
+        ================================================= */}
+
         <Route
           path="/admin/users"
           element={
@@ -247,6 +297,10 @@ function App() {
             </AdminRoute>
           }
         />
+
+        {/* =================================================
+            ADMIN - FLIGHTS
+        ================================================= */}
 
         <Route
           path="/admin/flights"
@@ -257,9 +311,9 @@ function App() {
           }
         />
 
-        {/* =====================
+        {/* =================================================
             NOT FOUND
-        ====================== */}
+        ================================================= */}
 
         <Route path="*" element={<RootRedirect />} />
       </Routes>

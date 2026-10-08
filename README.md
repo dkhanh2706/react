@@ -113,3 +113,4 @@ terminal1:
 - node server.js
 
 => mở port: http://localhost:5173/
+Chạy nội bộ: npm run dev -- --host 0.0.0.0
