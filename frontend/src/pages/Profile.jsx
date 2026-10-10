@@ -1,11 +1,8 @@
 import { useEffect, useState } from "react";
-
 import { useNavigate } from "react-router-dom";
-
 import toast from "react-hot-toast";
 
 import Header from "../components/Header";
-
 import "../styles/Profile.css";
 
 // =====================================================
@@ -38,7 +35,6 @@ const Icon = ({ children, size = 20 }) => (
 const UserIcon = () => (
   <Icon>
     <circle cx="12" cy="8" r="4" />
-
     <path d="M4 20c0-4 3.6-6 8-6s8 2 8 6" />
   </Icon>
 );
@@ -52,7 +48,6 @@ const PlaneIcon = () => (
 const BookingIcon = () => (
   <Icon>
     <rect x="5" y="4" width="14" height="17" rx="2" />
-
     <path d="M9 4.5h6M9 11h6M9 15h4" />
   </Icon>
 );
@@ -60,7 +55,6 @@ const BookingIcon = () => (
 const LockIcon = () => (
   <Icon>
     <rect x="4" y="10" width="16" height="11" rx="2" />
-
     <path d="M8 10V7a4 4 0 0 1 8 0v3" />
   </Icon>
 );
@@ -68,7 +62,6 @@ const LockIcon = () => (
 const EditIcon = () => (
   <Icon size={18}>
     <path d="M12 20h9" />
-
     <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" />
   </Icon>
 );
@@ -76,7 +69,6 @@ const EditIcon = () => (
 const MailIcon = () => (
   <Icon size={18}>
     <rect x="3" y="5" width="18" height="14" rx="2" />
-
     <path d="m3 7 9 6 9-6" />
   </Icon>
 );
@@ -90,7 +82,6 @@ const PhoneIcon = () => (
 const CalendarIcon = () => (
   <Icon size={18}>
     <rect x="3" y="5" width="18" height="16" rx="2" />
-
     <path d="M16 3v4M8 3v4M3 10h18" />
   </Icon>
 );
@@ -114,6 +105,60 @@ const getStoredUser = () => {
 };
 
 // =====================================================
+// XÓA PHIÊN ĐĂNG NHẬP
+// =====================================================
+
+const clearAuthStorage = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+};
+
+// =====================================================
+// KIỂM TRA TOKEN HẾT HẠN Ở FRONTEND
+// =====================================================
+
+const isTokenExpired = (token) => {
+  try {
+    if (!token) {
+      return true;
+    }
+
+    const parts = token.split(".");
+
+    if (parts.length !== 3) {
+      return true;
+    }
+
+    const payloadPart = parts[1];
+
+    const normalizedPayload = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
+
+    const decodedPayload = JSON.parse(
+      decodeURIComponent(
+        atob(normalizedPayload)
+          .split("")
+          .map(
+            (char) => "%" + ("00" + char.charCodeAt(0).toString(16)).slice(-2),
+          )
+          .join(""),
+      ),
+    );
+
+    if (!decodedPayload.exp) {
+      return false;
+    }
+
+    const currentTime = Math.floor(Date.now() / 1000);
+
+    return decodedPayload.exp <= currentTime;
+  } catch (error) {
+    console.error("TOKEN PARSE ERROR:", error);
+
+    return true;
+  }
+};
+
+// =====================================================
 // PROFILE
 // =====================================================
 
@@ -124,27 +169,18 @@ function Profile() {
 
   const [user, setUser] = useState({
     id: storedUser.id || null,
-
     full_name: storedUser.full_name || storedUser.name || "",
-
     email: storedUser.email || "",
-
     phone: storedUser.phone || "",
-
     birth_date: storedUser.birth_date || "",
-
     gender: storedUser.gender || "",
-
     role: storedUser.role || "CUSTOMER",
   });
 
   const [form, setForm] = useState({
     full_name: storedUser.full_name || storedUser.name || "",
-
     phone: storedUser.phone || "",
-
     birth_date: storedUser.birth_date || "",
-
     gender: storedUser.gender || "",
   });
 
@@ -155,15 +191,62 @@ function Profile() {
   const [saving, setSaving] = useState(false);
 
   // =====================================================
+  // XỬ LÝ PHIÊN ĐĂNG NHẬP HẾT HẠN / TOKEN SAI
+  // =====================================================
+
+  const handleInvalidSession = (
+    message = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+  ) => {
+    clearAuthStorage();
+
+    toast.error(message);
+
+    navigate("/login", {
+      replace: true,
+    });
+  };
+
+  // =====================================================
   // LOAD PROFILE TỪ DATABASE
   // =====================================================
 
   useEffect(() => {
+    let active = true;
+
+    const controller = new AbortController();
+
     const loadProfile = async () => {
       const token = localStorage.getItem("token");
 
+      // Không có token
       if (!token) {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
+
+        clearAuthStorage();
+
+        navigate("/login", {
+          replace: true,
+        });
+
+        return;
+      }
+
+      // Token hết hạn ngay từ frontend
+      if (isTokenExpired(token)) {
+        if (active) {
+          setLoading(false);
+        }
+
+        clearAuthStorage();
+
+        toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+
+        navigate("/login", {
+          replace: true,
+        });
+
         return;
       }
 
@@ -174,12 +257,51 @@ function Profile() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
+
+          signal: controller.signal,
         });
 
-        const data = await response.json();
+        let data = {};
+
+        try {
+          data = await response.json();
+        } catch {
+          data = {};
+        }
+
+        // =====================================================
+        // TOKEN HẾT HẠN / KHÔNG HỢP LỆ
+        // =====================================================
+
+        if (response.status === 401 || response.status === 403) {
+          if (!active) {
+            return;
+          }
+
+          clearAuthStorage();
+
+          toast.error(
+            data.message ||
+              "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+          );
+
+          navigate("/login", {
+            replace: true,
+          });
+
+          return;
+        }
+
+        // =====================================================
+        // LỖI KHÁC
+        // =====================================================
 
         if (!response.ok) {
           throw new Error(data.message || "Không thể tải hồ sơ");
+        }
+
+        if (!active) {
+          return;
         }
 
         const profile = data.user || {};
@@ -188,26 +310,37 @@ function Profile() {
 
         setForm({
           full_name: profile.full_name || "",
-
           phone: profile.phone || "",
-
           birth_date: profile.birth_date || "",
-
           gender: profile.gender || "",
         });
 
         localStorage.setItem("user", JSON.stringify(profile));
       } catch (error) {
+        if (error.name === "AbortError") {
+          return;
+        }
+
         console.error("LOAD PROFILE ERROR:", error);
 
-        toast.error(error.message || "Không thể tải hồ sơ");
+        if (active) {
+          toast.error(error.message || "Không thể tải hồ sơ");
+        }
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
 
     loadProfile();
-  }, []);
+
+    return () => {
+      active = false;
+
+      controller.abort();
+    };
+  }, [navigate]);
 
   // =====================================================
   // INPUT
@@ -229,11 +362,8 @@ function Profile() {
   const handleEdit = () => {
     setForm({
       full_name: user.full_name || "",
-
       phone: user.phone || "",
-
       birth_date: user.birth_date || "",
-
       gender: user.gender || "",
     });
 
@@ -247,11 +377,8 @@ function Profile() {
   const handleCancel = () => {
     setForm({
       full_name: user.full_name || "",
-
       phone: user.phone || "",
-
       birth_date: user.birth_date || "",
-
       gender: user.gender || "",
     });
 
@@ -271,11 +398,19 @@ function Profile() {
 
     const phone = form.phone.trim();
 
+    // =====================================================
+    // VALIDATE NAME
+    // =====================================================
+
     if (!fullName) {
       toast.error("Vui lòng nhập họ và tên");
 
       return;
     }
+
+    // =====================================================
+    // VALIDATE PHONE
+    // =====================================================
 
     if (!/^0\d{9}$/.test(phone)) {
       toast.error("Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0");
@@ -285,10 +420,24 @@ function Profile() {
 
     const token = localStorage.getItem("token");
 
-    if (!token) {
-      toast.error("Phiên đăng nhập đã hết");
+    // =====================================================
+    // KHÔNG CÓ TOKEN
+    // =====================================================
 
-      navigate("/login");
+    if (!token) {
+      handleInvalidSession("Phiên đăng nhập đã hết. Vui lòng đăng nhập lại.");
+
+      return;
+    }
+
+    // =====================================================
+    // TOKEN HẾT HẠN
+    // =====================================================
+
+    if (isTokenExpired(token)) {
+      handleInvalidSession(
+        "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+      );
 
       return;
     }
@@ -301,22 +450,40 @@ function Profile() {
 
         headers: {
           "Content-Type": "application/json",
-
           Authorization: `Bearer ${token}`,
         },
 
         body: JSON.stringify({
           full_name: fullName,
-
           phone: phone,
-
           birth_date: form.birth_date || null,
-
           gender: form.gender || null,
         }),
       });
 
-      const data = await response.json();
+      let data = {};
+
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
+
+      // =====================================================
+      // TOKEN HẾT HẠN / TOKEN SAI
+      // =====================================================
+
+      if (response.status === 401 || response.status === 403) {
+        handleInvalidSession(
+          data.message || "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+        );
+
+        return;
+      }
+
+      // =====================================================
+      // LỖI KHÁC
+      // =====================================================
 
       if (!response.ok) {
         throw new Error(data.message || "Không thể cập nhật thông tin");
@@ -324,21 +491,27 @@ function Profile() {
 
       const updatedUser = data.user;
 
-      // Lưu dữ liệu mới từ DB
+      if (!updatedUser) {
+        throw new Error("Server không trả về thông tin người dùng");
+      }
+
+      // =====================================================
+      // CẬP NHẬT STATE
+      // =====================================================
+
       setUser(updatedUser);
 
       setForm({
         full_name: updatedUser.full_name || "",
-
         phone: updatedUser.phone || "",
-
         birth_date: updatedUser.birth_date || "",
-
         gender: updatedUser.gender || "",
       });
 
-      // Đồng bộ localStorage
-      // Header sẽ đọc được tên mới
+      // =====================================================
+      // ĐỒNG BỘ LOCAL STORAGE
+      // =====================================================
+
       localStorage.setItem("user", JSON.stringify(updatedUser));
 
       setEditing(false);
@@ -385,7 +558,10 @@ function Profile() {
 
       <main className="profile-page">
         <div className="profile-page-container">
-          {/* SIDEBAR */}
+          {/* =====================================================
+              SIDEBAR
+          ===================================================== */}
+
           <aside className="account-sidebar">
             <div className="account-sidebar-user">
               <div className="account-avatar">{avatarLetter}</div>
@@ -440,9 +616,15 @@ function Profile() {
             </div>
           </aside>
 
-          {/* CONTENT */}
+          {/* =====================================================
+              CONTENT
+          ===================================================== */}
+
           <section className="account-content">
-            {/* HEADING */}
+            {/* =====================================================
+                HEADING
+            ===================================================== */}
+
             <div className="account-page-heading">
               <div>
                 <h1>Hồ sơ cá nhân</h1>
@@ -463,7 +645,10 @@ function Profile() {
               )}
             </div>
 
-            {/* PROFILE CARD */}
+            {/* =====================================================
+                PROFILE CARD
+            ===================================================== */}
+
             <div className="account-profile-card">
               <div className="account-profile-top">
                 <div className="account-profile-avatar">{avatarLetter}</div>
@@ -480,7 +665,10 @@ function Profile() {
               </div>
             </div>
 
-            {/* PERSONAL INFO */}
+            {/* =====================================================
+                PERSONAL INFO
+            ===================================================== */}
+
             <div className="account-card">
               <div className="account-card-header">
                 <div>
@@ -494,7 +682,10 @@ function Profile() {
                 <div className="profile-loading">Đang tải thông tin...</div>
               ) : (
                 <div className="account-info-grid">
-                  {/* FULL NAME */}
+                  {/* =====================================================
+                      FULL NAME
+                  ===================================================== */}
+
                   <div className="account-info-item">
                     <div className="account-info-icon">
                       <UserIcon />
@@ -517,7 +708,10 @@ function Profile() {
                     </div>
                   </div>
 
-                  {/* EMAIL */}
+                  {/* =====================================================
+                      EMAIL
+                  ===================================================== */}
+
                   <div className="account-info-item">
                     <div className="account-info-icon">
                       <MailIcon />
@@ -536,7 +730,10 @@ function Profile() {
                     </div>
                   </div>
 
-                  {/* PHONE */}
+                  {/* =====================================================
+                      PHONE
+                  ===================================================== */}
+
                   <div className="account-info-item">
                     <div className="account-info-icon">
                       <PhoneIcon />
@@ -560,7 +757,10 @@ function Profile() {
                     </div>
                   </div>
 
-                  {/* BIRTH */}
+                  {/* =====================================================
+                      BIRTH
+                  ===================================================== */}
+
                   <div className="account-info-item">
                     <div className="account-info-icon">
                       <CalendarIcon />
@@ -587,7 +787,10 @@ function Profile() {
                     </div>
                   </div>
 
-                  {/* GENDER */}
+                  {/* =====================================================
+                      GENDER
+                  ===================================================== */}
+
                   <div className="account-info-item">
                     <div className="account-info-icon">
                       <UserIcon />
@@ -619,7 +822,10 @@ function Profile() {
                 </div>
               )}
 
-              {/* SAVE / CANCEL */}
+              {/* =====================================================
+                  SAVE / CANCEL
+              ===================================================== */}
+
               {editing && (
                 <div className="profile-edit-actions">
                   <button
@@ -643,7 +849,10 @@ function Profile() {
               )}
             </div>
 
-            {/* SECURITY */}
+            {/* =====================================================
+                SECURITY
+            ===================================================== */}
+
             <div className="account-card">
               <div className="account-card-header">
                 <div>
