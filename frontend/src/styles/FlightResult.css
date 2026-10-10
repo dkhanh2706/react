@@ -4,6 +4,8 @@
 
 .flight-result-page {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: #f6f8fb;
   color: #1d2939;
 }
@@ -17,8 +19,7 @@
 ===================================================== */
 
 .flight-result-main {
-  min-height: calc(100vh - 72px);
-
+  flex: 1;
   padding: 32px 6% 60px;
 }
 

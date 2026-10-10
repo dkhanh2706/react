@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import Header from "../components/Header";
+import Footer from "../components/Footer";
 import "../styles/Profile.css";
 
 // =====================================================
@@ -883,6 +884,7 @@ function Profile() {
           </section>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

@@ -4,11 +4,13 @@
 
 .profile-page-wrapper {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: #f6f8fb;
 }
 
 .profile-page {
-  min-height: calc(100vh - 72px);
+  flex: 1;
   padding: 38px 6% 60px;
 }
 

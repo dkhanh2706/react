@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import Header from "../components/Header";
+import Footer from "../components/Footer";
 
 import "../styles/FlightResult.css";
 
@@ -378,6 +379,7 @@ function FlightResult() {
           )}
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

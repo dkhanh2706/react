@@ -1,195 +1,297 @@
 import { useEffect, useState } from "react";
-
 import { useLocation, useNavigate } from "react-router-dom";
-
 import toast from "react-hot-toast";
 
 import api from "../api/axios";
+import Header from "../components/Header";
+import Footer from "../components/Footer";
 
 import "../styles/Payment.css";
 
 function Payment() {
   const location = useLocation();
-
   const navigate = useNavigate();
 
   const data = location.state;
-
   const [paying, setPaying] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState("qr");
 
-  // =====================================================
-  // KIỂM TRA ĐĂNG NHẬP
-  // =====================================================
-
+  // CHECK LOGIN
   useEffect(() => {
     const token = localStorage.getItem("token");
-
     if (!token) {
       toast.error("Vui lòng đăng nhập để thanh toán");
-
-      navigate("/login", {
-        replace: true,
-      });
+      navigate("/login", { replace: true });
     }
   }, [navigate]);
 
-  // =====================================================
-  // KHÔNG CÓ DATA
-  // =====================================================
-
   if (!data) {
     return (
-      <div className="payment-container">
-        <div className="payment-card">
-          <h2>Không có thông tin thanh toán</h2>
-
-          <button type="button" onClick={() => navigate("/home")}>
-            Về trang chủ
-          </button>
-        </div>
+      <div className="payment-page">
+        <Header />
+        <main className="payment-main">
+          <div className="payment-empty-box">
+            <span className="payment-empty-icon">⚠️</span>
+            <h2>Không tìm thấy thông tin thanh toán</h2>
+            <p>Phiên giao dịch có thể đã hết hạn hoặc chưa được tạo.</p>
+            <button
+              type="button"
+              className="btn-pay-return"
+              onClick={() => navigate("/home")}
+            >
+              Về trang chủ
+            </button>
+          </div>
+        </main>
+        <Footer />
       </div>
     );
   }
 
-  // =====================================================
   // XÁC NHẬN THANH TOÁN
-  // =====================================================
-
   const handlePayment = async () => {
-    if (paying) {
-      return;
-    }
+    if (paying) return;
 
     const bookingId = data.booking?.id;
-
     if (!bookingId) {
-      toast.error("Không tìm thấy mã booking");
-
+      toast.error("Không tìm thấy mã đặt chỗ (booking ID)");
       return;
     }
 
     try {
       setPaying(true);
-
-      console.log("PAY BOOKING ID:", bookingId);
-
       const response = await api.post(`/bookings/${bookingId}/pay`);
-
-      console.log("PAYMENT SUCCESS:", response.data);
-
-      toast.success(response.data?.message || "Đặt vé thành công");
-
-      // ==========================================
-      // THANH TOÁN XONG -> TRANG VÉ
-      // ==========================================
-
-      navigate("/my-tickets", {
-        replace: true,
-      });
+      toast.success(response.data?.message || "Thanh toán vé thành công!");
+      navigate("/my-tickets", { replace: true });
     } catch (error) {
       console.error("PAYMENT ERROR:", error.response?.data || error);
-
       toast.error(
-        error.response?.data?.message || "Không thể hoàn thành đặt vé",
+        error.response?.data?.message || "Không thể hoàn thành giao dịch"
       );
     } finally {
       setPaying(false);
     }
   };
 
-  // =====================================================
-  // UI
-  // =====================================================
+  const flight = data.flight || {};
+  const seat = data.seat || {};
+  const totalPrice = Number(data.price || 0);
 
   return (
-    <div className="payment-container">
-      <div className="payment-card">
-        <h1>Thanh toán vé máy bay</h1>
+    <div className="payment-page">
+      <Header />
 
-        {/* ==========================================
-            CHUYẾN BAY
-        ========================================== */}
+      <main className="payment-main">
+        <div className="payment-inner">
+          {/* STEP INDICATOR */}
+          <div className="payment-steps-bar">
+            <div className="step-badge completed">
+              <span>✓</span> Chọn chuyến bay
+            </div>
+            <div className="step-separator active" />
+            <div className="step-badge completed">
+              <span>✓</span> Chọn ghế ngồi
+            </div>
+            <div className="step-separator active" />
+            <div className="step-badge current">
+              <span>3</span> Thanh toán an toàn
+            </div>
+          </div>
 
-        <h2>Thông tin chuyến bay</h2>
+          <div className="payment-header-title">
+            <h1>Xác nhận & Thanh toán vé máy bay</h1>
+            <p>Vui lòng kiểm tra lại thông tin hành trình và chọn phương thức thanh toán</p>
+          </div>
 
-        <p>
-          Hãng bay: <b>{data.flight?.airline}</b>
-        </p>
+          <div className="payment-grid">
+            {/* CỘT TRÁI: CHỌN PHƯƠNG THỨC THANH TOÁN */}
+            <div className="payment-left-column">
+              <div className="payment-methods-card">
+                <h2>Chọn phương thức thanh toán</h2>
+                <p className="methods-subtitle">Mọi giao dịch đều được mã hóa bảo mật 256-bit SSL</p>
 
-        <p>
-          Chuyến:{" "}
-          <b>
-            {data.flight?.from}
-            {" → "}
-            {data.flight?.to}
-          </b>
-        </p>
+                <div className="methods-list">
+                  {/* VIETQR */}
+                  <label
+                    className={`method-option ${selectedMethod === "qr" ? "active" : ""}`}
+                    onClick={() => setSelectedMethod("qr")}
+                  >
+                    <input
+                      type="radio"
+                      name="payment_method"
+                      value="qr"
+                      checked={selectedMethod === "qr"}
+                      onChange={() => setSelectedMethod("qr")}
+                    />
+                    <div className="method-info">
+                      <div className="method-top">
+                        <strong>Chuyển khoản VietQR tức thì</strong>
+                        <span className="method-tag recommend">Khuyên dùng</span>
+                      </div>
+                      <p>Quét mã QR qua ứng dụng ngân hàng bất kỳ, xác nhận tự động trong 30 giây</p>
+                    </div>
+                    <span className="method-icon-glyph">📲</span>
+                  </label>
 
-        <p>
-          Mã chuyến: <b>{data.flight?.flight_number}</b>
-        </p>
+                  {/* THẺ TÍN DỤNG QUỐC TẾ */}
+                  <label
+                    className={`method-option ${selectedMethod === "card" ? "active" : ""}`}
+                    onClick={() => setSelectedMethod("card")}
+                  >
+                    <input
+                      type="radio"
+                      name="payment_method"
+                      value="card"
+                      checked={selectedMethod === "card"}
+                      onChange={() => setSelectedMethod("card")}
+                    />
+                    <div className="method-info">
+                      <div className="method-top">
+                        <strong>Thẻ thanh toán Quốc tế (Visa, Mastercard, JCB)</strong>
+                      </div>
+                      <p>Hỗ trợ thẻ tín dụng và thẻ ghi nợ quốc tế phát hành toàn cầu</p>
+                    </div>
+                    <span className="method-icon-glyph">💳</span>
+                  </label>
 
-        <p>
-          Ngày bay: <b>{data.flight?.date}</b>
-        </p>
+                  {/* VÍ ĐIỆN TỬ */}
+                  <label
+                    className={`method-option ${selectedMethod === "ewallet" ? "active" : ""}`}
+                    onClick={() => setSelectedMethod("ewallet")}
+                  >
+                    <input
+                      type="radio"
+                      name="payment_method"
+                      value="ewallet"
+                      checked={selectedMethod === "ewallet"}
+                      onChange={() => setSelectedMethod("ewallet")}
+                    />
+                    <div className="method-info">
+                      <div className="method-top">
+                        <strong>Ví điện tử (MoMo / ZaloPay / ShopeePay)</strong>
+                      </div>
+                      <p>Thanh toán nhanh chóng liên kết qua ví điện tử thông minh</p>
+                    </div>
+                    <span className="method-icon-glyph">👛</span>
+                  </label>
 
-        <p>
-          Giờ bay:{" "}
-          <b>
-            {data.flight?.departure_time}
+                  {/* ATM NỘI ĐỊA */}
+                  <label
+                    className={`method-option ${selectedMethod === "atm" ? "active" : ""}`}
+                    onClick={() => setSelectedMethod("atm")}
+                  >
+                    <input
+                      type="radio"
+                      name="payment_method"
+                      value="atm"
+                      checked={selectedMethod === "atm"}
+                      onChange={() => setSelectedMethod("atm")}
+                    />
+                    <div className="method-info">
+                      <div className="method-top">
+                        <strong>Thẻ ATM Nội địa (Internet Banking)</strong>
+                      </div>
+                      <p>Hỗ trợ hơn 35+ ngân hàng thành viên NAPAS tại Việt Nam</p>
+                    </div>
+                    <span className="method-icon-glyph">🏛️</span>
+                  </label>
+                </div>
 
-            {data.flight?.arrival_time && (
-              <>
-                {" → "}
-                {data.flight.arrival_time}
-              </>
-            )}
-          </b>
-        </p>
+                <div className="sandbox-notice">
+                  <span className="notice-icon">ℹ️</span>
+                  <div>
+                    <strong>Chế độ mô phỏng thanh toán (Sandbox Demo)</strong>
+                    <p>Nhấp vào nút "Xác nhận thanh toán ngay" bên dưới để hoàn tất đặt vé mà không bị trừ tiền thật.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-        <hr />
+            {/* CỘT PHẢI: TÓM TẮT ĐƠN HÀNG & NÚT THANH TOÁN */}
+            <div className="payment-right-column">
+              <div className="order-summary-card">
+                <h2>Tóm tắt vé máy bay</h2>
 
-        {/* ==========================================
-            GHẾ
-        ========================================== */}
+                <div className="summary-flight-block">
+                  <div className="flight-title-row">
+                    <span className="airline-name">{flight.airline || "Hãng bay"}</span>
+                    <span className="flight-no">Chuyến {flight.flight_number || "---"}</span>
+                  </div>
 
-        <h2>Thông tin ghế</h2>
+                  <div className="flight-route-display">
+                    <div>
+                      <strong>{flight.from || flight.departure_code || "---"}</strong>
+                      <small>{flight.departure_time || "--:--"}</small>
+                    </div>
+                    <div className="route-arrow-icon">✈</div>
+                    <div className="text-right">
+                      <strong>{flight.to || flight.arrival_code || "---"}</strong>
+                      <small>{flight.arrival_time || "--:--"}</small>
+                    </div>
+                  </div>
 
-        <p>
-          Ghế: <b>{data.seat?.seat_number}</b>
-        </p>
+                  <div className="flight-meta-details">
+                    <div>
+                      <span>Ngày bay:</span>
+                      <strong>{flight.date || "---"}</strong>
+                    </div>
+                    <div>
+                      <span>Ghế đã chọn:</span>
+                      <strong className="seat-highlight">
+                        {seat.seat_number || "---"} ({seat.class || "ECONOMY"})
+                      </strong>
+                    </div>
+                  </div>
+                </div>
 
-        <p>
-          Hạng: <b>{data.seat?.class}</b>
-        </p>
+                <div className="price-calculation">
+                  <div className="price-row">
+                    <span>Giá vé người lớn</span>
+                    <span>{totalPrice.toLocaleString("vi-VN")}đ</span>
+                  </div>
+                  <div className="price-row">
+                    <span>Thuế, phí sân bay</span>
+                    <span className="free-text">Đã bao gồm</span>
+                  </div>
+                  <div className="price-row">
+                    <span>Phí dịch vụ xuất vé</span>
+                    <span className="free-text">Miễn phí</span>
+                  </div>
+                  <div className="price-row grand-total">
+                    <span>Tổng số tiền thanh toán</span>
+                    <strong>{totalPrice.toLocaleString("vi-VN")}đ</strong>
+                  </div>
+                </div>
 
-        <hr />
+                <button
+                  type="button"
+                  className="btn-submit-payment"
+                  disabled={paying}
+                  onClick={handlePayment}
+                >
+                  {paying ? "Đang xử lý thanh toán..." : `Xác nhận thanh toán ngay (${totalPrice.toLocaleString("vi-VN")}đ)`}
+                </button>
 
-        {/* ==========================================
-            GIÁ
-        ========================================== */}
+                <button
+                  type="button"
+                  className="btn-cancel-payment"
+                  disabled={paying}
+                  onClick={() => navigate(-1)}
+                >
+                  ← Quay lại thay đổi ghế
+                </button>
 
-        <h2>Tổng tiền: {Number(data.price || 0).toLocaleString("vi-VN")}đ</h2>
+                <div className="security-guarantee">
+                  <span>🔒</span>
+                  <small>Bảo mật giao dịch bằng chuẩn PCI-DSS Level 1 & SSL</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
 
-        <p>Đây là thanh toán giả lập. Bấm xác nhận để hoàn thành đặt vé.</p>
-
-        {/* ==========================================
-            BUTTON
-        ========================================== */}
-
-        <button
-          type="button"
-          className="confirm-pay"
-          disabled={paying}
-          onClick={handlePayment}
-        >
-          {paying ? "Đang xử lý..." : "Xác nhận thanh toán"}
-        </button>
-
-        <button type="button" disabled={paying} onClick={() => navigate(-1)}>
-          Quay lại
-        </button>
-      </div>
+      <Footer />
     </div>
   );
 }

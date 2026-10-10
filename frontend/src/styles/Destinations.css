@@ -1,7 +1,13 @@
 .destinations-page {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: #f7f9fc;
   color: #1d2939;
+}
+
+.destinations-page main {
+  flex: 1;
 }
 
 .destinations-page * {
