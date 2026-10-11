@@ -41,6 +41,7 @@ import FlightList from "./pages/FlightList";
 
 import Booking from "./pages/Booking";
 import Payment from "./pages/Payment";
+import PaymentResult from "./pages/PaymentResult";
 
 // =====================================================
 // MY TICKETS
@@ -320,6 +321,19 @@ function App() {
           element={
             <ProtectedRoute>
               <Payment />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* =================================================
+            MOMO PAYMENT RESULT
+        ================================================= */}
+
+        <Route
+          path="/payment-result"
+          element={
+            <ProtectedRoute>
+              <PaymentResult />
             </ProtectedRoute>
           }
         />
