@@ -104,3 +104,13 @@ coverage/
 *.temp
 *.bak
 *.cache
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Backend env
+backend/.env
+
+# Frontend env
+frontend/.env
