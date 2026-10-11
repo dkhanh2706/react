@@ -22,6 +22,13 @@ import Home from "./pages/Home";
 import Destinations from "./pages/Destinations";
 
 // =====================================================
+// BLOG
+// =====================================================
+
+import Blog from "./pages/Blog";
+import BlogDetail from "./pages/BlogDetail";
+
+// =====================================================
 // FLIGHT
 // =====================================================
 
@@ -243,6 +250,28 @@ function App() {
           element={
             <CustomerPublicRoute>
               <Destinations />
+            </CustomerPublicRoute>
+          }
+        />
+
+        {/* =================================================
+            BLOG
+        ================================================= */}
+
+        <Route
+          path="/blog"
+          element={
+            <CustomerPublicRoute>
+              <Blog />
+            </CustomerPublicRoute>
+          }
+        />
+
+        <Route
+          path="/blog/:slug"
+          element={
+            <CustomerPublicRoute>
+              <BlogDetail />
             </CustomerPublicRoute>
           }
         />

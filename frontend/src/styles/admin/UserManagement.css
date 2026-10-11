@@ -1,5 +1,5 @@
 /* =========================================================
-   USER MANAGEMENT PAGE STYLES - AVIATION CONTROL
+   USER MANAGEMENT PAGE STYLES - WHITE, PURPLE & BLACK
 ========================================================= */
 
 .adm-users-page {
@@ -8,7 +8,7 @@
   gap: 24px;
 }
 
-/* ================= STATS ROW ================= */
+/* ================= STATS ROW (WHITE CARDS) ================= */
 .adm-user-stats-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -16,14 +16,14 @@
 }
 
 .u-stat-card {
-  background: #0f1c3f;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #ffffff;
+  border: 1px solid #e8ecf4;
   border-radius: 16px;
   padding: 18px 20px;
   display: flex;
   align-items: center;
   gap: 14px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
 }
 
 .u-stat-icon {
@@ -37,31 +37,31 @@
 }
 
 .u-stat-icon.blue {
-  background: rgba(0, 210, 255, 0.15);
-  color: #00d2ff;
+  background: #f3f0ff;
+  color: #7c3aed;
 }
 
 .u-stat-icon.green {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
+  background: #ecfdf5;
+  color: #059669;
 }
 
 .u-stat-icon.purple {
-  background: rgba(168, 85, 247, 0.15);
-  color: #c084fc;
+  background: #faf5ff;
+  color: #9333ea;
 }
 
 .u-stat-label {
   display: block;
-  font-size: 12px;
-  color: #8ea1c7;
+  font-size: 12.5px;
+  color: #64748b;
   margin-bottom: 2px;
 }
 
 .u-stat-val {
   font-size: 22px;
   font-weight: 800;
-  color: #ffffff;
+  color: #0f172a;
 }
 
 /* ================= USER CELL ================= */
@@ -72,8 +72,8 @@
 }
 
 .user-table-avatar {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 10px;
   background: linear-gradient(135deg, #0284c7, #0369a1);
   color: #ffffff;
@@ -82,27 +82,31 @@
   font-weight: 800;
   font-size: 14px;
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.2);
 }
 
 .user-table-avatar.admin-avatar {
-  background: linear-gradient(135deg, #a855f7, #7c3aed);
+  background: linear-gradient(135deg, #7c3aed, #9333ea);
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
 }
 
 .user-name-text {
   display: block;
   font-size: 14px;
-  color: #ffffff;
+  font-weight: 700;
+  color: #0f172a;
 }
 
 .user-email-text {
   font-size: 12px;
-  color: #8ea1c7;
+  color: #64748b;
 }
 
 .phone-text,
 .date-text {
-  color: #94a3b8;
+  color: #475569;
   font-size: 13px;
+  font-weight: 500;
 }
 
 /* ROLE BADGE */
@@ -116,38 +120,40 @@
 }
 
 .role-badge.admin {
-  background: rgba(168, 85, 247, 0.18);
-  color: #c084fc;
-  border: 1px solid rgba(168, 85, 247, 0.3);
+  background: #f3f0ff;
+  color: #7c3aed;
+  border: 1px solid #ddd6fe;
 }
 
 .role-badge.customer {
-  background: rgba(0, 210, 255, 0.12);
-  color: #38bdf8;
-  border: 1px solid rgba(0, 210, 255, 0.25);
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
 }
 
 /* ROLE SELECT */
 .role-select-input {
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
   border-radius: 8px;
   padding: 6px 10px;
-  color: #ffffff;
+  color: #0f172a;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 700;
   outline: none;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .role-select-input:focus {
-  border-color: #00d2ff;
+  background: #ffffff;
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
 }
 
 .role-select-input option {
-  background: #0f1c3f;
-  color: #ffffff;
+  background: #ffffff;
+  color: #0f172a;
 }
 
 /* RESPONSIVE */

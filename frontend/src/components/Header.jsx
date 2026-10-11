@@ -11,9 +11,11 @@ import "../styles/Header.css";
 const readUser = () => {
   try {
     const value = localStorage.getItem("user");
+
     if (!value) {
       return null;
     }
+
     return JSON.parse(value);
   } catch {
     return null;
@@ -21,7 +23,7 @@ const readUser = () => {
 };
 
 // ==========================================
-// ICONS
+// ICON CHUNG
 // ==========================================
 
 const Icon = ({ children, size = 18 }) => (
@@ -41,6 +43,10 @@ const Icon = ({ children, size = 18 }) => (
   </svg>
 );
 
+// ==========================================
+// USER ICON
+// ==========================================
+
 const UserIcon = () => (
   <Icon>
     <circle cx="12" cy="8" r="4" />
@@ -48,23 +54,53 @@ const UserIcon = () => (
   </Icon>
 );
 
+// ==========================================
+// PLANE ICON
+// ==========================================
+
 const PlaneIcon = () => (
   <Icon>
     <path d="M10.5 13.5 3 11l1.5-1.5 9 .5 4.5-4.5a1.8 1.8 0 0 1 2.6 2.6L15.1 12.6l.5 9L14 22.9l-2.5-7.4" />
   </Icon>
 );
 
+// ==========================================
+// LOGOUT ICON
+// ==========================================
+
 const LogoutIcon = () => (
   <Icon>
     <path d="M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3" />
+
     <path d="M16 17l5-5-5-5M21 12H9" />
   </Icon>
 );
 
+// ==========================================
+// COMPASS ICON
+// ==========================================
+
 const CompassIcon = () => (
   <Icon>
     <circle cx="12" cy="12" r="10" />
+
     <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+  </Icon>
+);
+
+// ==========================================
+// BLOG ICON
+// ==========================================
+
+const BlogIcon = () => (
+  <Icon>
+    <path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" />
+
+    <path d="M8 7h8" />
+
+    <path d="M8 11h8" />
+
+    <path d="M8 15h5" />
   </Icon>
 );
 
@@ -74,16 +110,24 @@ const CompassIcon = () => (
 
 function Header() {
   const navigate = useNavigate();
+
   const location = useLocation();
+
   const menuRef = useRef(null);
 
   const token = localStorage.getItem("token");
+
   const user = readUser();
 
   const [openProfile, setOpenProfile] = useState(false);
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Đóng dropdown khi click ra ngoài / ESC
+  // ==========================================
+  // ĐÓNG PROFILE DROPDOWN KHI CLICK RA NGOÀI
+  // HOẶC NHẤN ESC
+  // ==========================================
+
   useEffect(() => {
     const handleOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -94,67 +138,119 @@ function Header() {
     const handleEscape = (event) => {
       if (event.key === "Escape") {
         setOpenProfile(false);
+
         setMobileMenuOpen(false);
       }
     };
 
     document.addEventListener("mousedown", handleOutside);
+
     document.addEventListener("keydown", handleEscape);
 
     return () => {
       document.removeEventListener("mousedown", handleOutside);
+
       document.removeEventListener("keydown", handleEscape);
     };
   }, []);
 
-  // Đóng mobile menu khi chuyển route
-  useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [location.pathname]);
-
+  // ==========================================
   // LOGOUT
+  // ==========================================
+
   const logout = () => {
     localStorage.removeItem("token");
+
     localStorage.removeItem("user");
+
     setOpenProfile(false);
+
+    setMobileMenuOpen(false);
+
     toast.success("Đã đăng xuất thành công");
+
     navigate("/home");
   };
 
+  // ==========================================
   // BẮT ĐĂNG NHẬP
+  // ==========================================
+
   const requireLogin = (path) => {
     if (!token) {
       toast.error("Vui lòng đăng nhập để sử dụng tính năng này");
+
       navigate("/login");
+
       return;
     }
+
     navigate(path);
   };
 
+  // ==========================================
+  // CHUYỂN TRANG + ĐÓNG MOBILE MENU
+  // ==========================================
+
+  const navigateMobile = (path) => {
+    setMobileMenuOpen(false);
+
+    navigate(path);
+  };
+
+  // ==========================================
+  // CHUYỂN TRANG CẦN LOGIN + ĐÓNG MOBILE MENU
+  // ==========================================
+
+  const requireLoginMobile = (path) => {
+    setMobileMenuOpen(false);
+
+    requireLogin(path);
+  };
+
+  // ==========================================
   // USER INFO
+  // ==========================================
+
   const userName = user?.full_name || user?.name || user?.email || "Tài khoản";
+
   const userEmail = user?.email || "";
+
   const avatarLetter = userName.trim().charAt(0).toUpperCase() || "U";
 
+  // ==========================================
   // ACTIVE MENU
-  const isHomeActive = location.pathname === "/" || location.pathname === "/home";
-  const isTicketsActive = location.pathname === "/my-tickets";
+  // ==========================================
+
+  const isHomeActive =
+    location.pathname === "/" || location.pathname === "/home";
+
   const isDestinationsActive = location.pathname === "/destinations";
+
+  const isBlogActive =
+    location.pathname === "/blog" || location.pathname.startsWith("/blog/");
+
+  const isTicketsActive = location.pathname === "/my-tickets";
 
   return (
     <header className="header">
       {/* ======================================
           LOGO
       ====================================== */}
+
       <div className="logo" onClick={() => navigate("/home")}>
         <span className="logo-mark">✈</span>
+
         <span className="logo-text">Airline Booking</span>
       </div>
 
       {/* ======================================
           DESKTOP NAVIGATION
       ====================================== */}
+
       <nav className="desktop-nav">
+        {/* TRANG CHỦ */}
+
         <span
           className={isHomeActive ? "active" : ""}
           onClick={() => navigate("/home")}
@@ -162,12 +258,25 @@ function Header() {
           Trang chủ
         </span>
 
+        {/* ĐIỂM ĐẾN */}
+
         <span
           className={isDestinationsActive ? "active" : ""}
           onClick={() => navigate("/destinations")}
         >
           Điểm đến
         </span>
+
+        {/* BLOG */}
+
+        <span
+          className={isBlogActive ? "active" : ""}
+          onClick={() => navigate("/blog")}
+        >
+          Blog
+        </span>
+
+        {/* VÉ CỦA TÔI */}
 
         <span
           className={isTicketsActive ? "active" : ""}
@@ -180,10 +289,14 @@ function Header() {
       {/* ======================================
           ACTION
       ====================================== */}
+
       <div className="header-action">
         {token && user ? (
           <div className="profile-wrapper" ref={menuRef}>
-            {/* PROFILE BUTTON */}
+            {/* ==================================
+                PROFILE BUTTON
+            ================================== */}
+
             <button
               type="button"
               className={`profile-button ${openProfile ? "is-open" : ""}`}
@@ -195,6 +308,7 @@ function Header() {
 
               <span className="profile-text">
                 <small>Xin chào,</small>
+
                 <strong>{userName}</strong>
               </span>
 
@@ -215,24 +329,34 @@ function Header() {
             </button>
 
             {/* ==================================
-                DROPDOWN
+                PROFILE DROPDOWN
             ================================== */}
+
             {openProfile && (
               <div className="profile-menu" role="menu">
+                {/* USER INFO */}
+
                 <div className="profile-menu-head">
                   <span className="profile-avatar large">{avatarLetter}</span>
+
                   <div className="profile-menu-info">
                     <strong>{userName}</strong>
+
                     {userEmail && <small>{userEmail}</small>}
                   </div>
                 </div>
 
+                {/* MENU LIST */}
+
                 <div className="profile-menu-list">
+                  {/* PROFILE */}
+
                   <button
                     type="button"
                     role="menuitem"
                     onClick={() => {
                       setOpenProfile(false);
+
                       navigate("/profile");
                     }}
                   >
@@ -242,11 +366,14 @@ function Header() {
                     Thông tin tài khoản
                   </button>
 
+                  {/* MY TICKETS */}
+
                   <button
                     type="button"
                     role="menuitem"
                     onClick={() => {
                       setOpenProfile(false);
+
                       navigate("/my-tickets");
                     }}
                   >
@@ -256,11 +383,14 @@ function Header() {
                     Vé máy bay đã đặt
                   </button>
 
+                  {/* DESTINATIONS */}
+
                   <button
                     type="button"
                     role="menuitem"
                     onClick={() => {
                       setOpenProfile(false);
+
                       navigate("/destinations");
                     }}
                   >
@@ -269,7 +399,28 @@ function Header() {
                     </span>
                     Khám phá chuyến bay
                   </button>
+
+                  {/* BLOG */}
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setOpenProfile(false);
+
+                      navigate("/blog");
+                    }}
+                  >
+                    <span className="menu-icon">
+                      <BlogIcon />
+                    </span>
+                    Blog du lịch
+                  </button>
                 </div>
+
+                {/* ==================================
+                    LOGOUT
+                ================================== */}
 
                 <button
                   type="button"
@@ -287,6 +438,8 @@ function Header() {
           </div>
         ) : (
           <div className="auth-buttons">
+            {/* LOGIN */}
+
             <button
               type="button"
               className="btn-outline"
@@ -294,6 +447,8 @@ function Header() {
             >
               Đăng nhập
             </button>
+
+            {/* REGISTER */}
 
             <button
               type="button"
@@ -305,14 +460,27 @@ function Header() {
           </div>
         )}
 
-        {/* MOBILE MENU TOGGLE */}
+        {/* ======================================
+            MOBILE MENU TOGGLE
+        ====================================== */}
+
         <button
           type="button"
           className="mobile-menu-toggle"
-          aria-label="Toggle navigation menu"
-          onClick={() => setMobileMenuOpen((v) => !v)}
+          aria-label={mobileMenuOpen ? "Đóng menu" : "Mở menu"}
+          aria-expanded={mobileMenuOpen}
+          onClick={() => setMobileMenuOpen((value) => !value)}
         >
-          <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" fill="none" strokeWidth="2">
+          <svg
+            viewBox="0 0 24 24"
+            width="22"
+            height="22"
+            stroke="currentColor"
+            fill="none"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             {mobileMenuOpen ? (
               <path d="M18 6L6 18M6 6l12 12" />
             ) : (
@@ -325,33 +493,53 @@ function Header() {
       {/* ======================================
           MOBILE MENU DRAWER
       ====================================== */}
+
       {mobileMenuOpen && (
         <div className="mobile-drawer">
+          {/* HOME */}
+
           <span
             className={isHomeActive ? "mobile-link active" : "mobile-link"}
-            onClick={() => navigate("/home")}
+            onClick={() => navigateMobile("/home")}
           >
             Trang chủ
           </span>
 
+          {/* DESTINATIONS */}
+
           <span
-            className={isDestinationsActive ? "mobile-link active" : "mobile-link"}
-            onClick={() => navigate("/destinations")}
+            className={
+              isDestinationsActive ? "mobile-link active" : "mobile-link"
+            }
+            onClick={() => navigateMobile("/destinations")}
           >
             Điểm đến
           </span>
 
+          {/* BLOG */}
+
+          <span
+            className={isBlogActive ? "mobile-link active" : "mobile-link"}
+            onClick={() => navigateMobile("/blog")}
+          >
+            Blog
+          </span>
+
+          {/* MY TICKETS */}
+
           <span
             className={isTicketsActive ? "mobile-link active" : "mobile-link"}
-            onClick={() => requireLogin("/my-tickets")}
+            onClick={() => requireLoginMobile("/my-tickets")}
           >
             Vé máy bay của tôi
           </span>
 
+          {/* PROFILE */}
+
           {token && user && (
             <span
               className="mobile-link"
-              onClick={() => navigate("/profile")}
+              onClick={() => navigateMobile("/profile")}
             >
               Hồ sơ cá nhân
             </span>
