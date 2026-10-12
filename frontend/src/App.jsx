@@ -62,6 +62,7 @@ import Profile from "./pages/Profile";
 import AdminDashboard from "./admin/AdminDashboard";
 import UserManagement from "./admin/UserManagement";
 import FlightManagement from "./admin/FlightManagement";
+import PaymentManagement from "./admin/PaymentManagement";
 
 // =====================================================
 // PROTECTED ROUTE
@@ -399,6 +400,19 @@ function App() {
           element={
             <AdminRoute>
               <FlightManagement />
+            </AdminRoute>
+          }
+        />
+
+        {/* =================================================
+            ADMIN - PAYMENTS
+        ================================================= */}
+
+        <Route
+          path="/admin/payments"
+          element={
+            <AdminRoute>
+              <PaymentManagement />
             </AdminRoute>
           }
         />

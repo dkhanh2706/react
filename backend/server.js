@@ -26,10 +26,44 @@ const app = express();
 // =======================
 
 // Cho phép frontend React gọi backend
+// Hỗ trợ localhost + 127.0.0.1 + IP LAN
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://192.168.162.23:5173",
+];
+
+// Nếu .env có FRONTEND_URL thì thêm vào danh sách
+if (
+  process.env.FRONTEND_URL &&
+  !allowedOrigins.includes(process.env.FRONTEND_URL)
+) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: function (origin, callback) {
+      // Cho phép request không có origin
+      // Ví dụ: Thunder Client, Postman, MoMo server callback
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      console.warn("CORS BLOCKED ORIGIN:", origin);
+
+      return callback(new Error(`CORS không cho phép origin: ${origin}`));
+    },
+
     credentials: true,
+
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+
+    allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
 
@@ -139,4 +173,6 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log(
     `Frontend URL: ${process.env.FRONTEND_URL || "http://localhost:5173"}`,
   );
+
+  console.log("Allowed CORS origins:", allowedOrigins);
 });

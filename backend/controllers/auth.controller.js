@@ -325,6 +325,12 @@ exports.login = async (req, res) => {
       });
     }
 
+    if (user.is_locked) {
+      return res.status(403).json({
+        message: "Tài khoản của bạn đã bị khóa bởi Quản trị viên",
+      });
+    }
+
     // =====================================================
     // TẠO TOKEN
     // =====================================================

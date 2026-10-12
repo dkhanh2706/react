@@ -304,13 +304,15 @@ function Header() {
               aria-expanded={openProfile}
               onClick={() => setOpenProfile((current) => !current)}
             >
-              <span className="profile-avatar">{avatarLetter}</span>
+              <div className="profile-avatar-wrap">
+                <span className="profile-avatar">{avatarLetter}</span>
+                <span className="profile-online-dot" />
+              </div>
 
-              <span className="profile-text">
-                <small>Xin chào,</small>
-
-                <strong>{userName}</strong>
-              </span>
+              <div className="profile-text">
+                <span className="profile-greeting">Xin chào 👋</span>
+                <strong className="profile-name">{userName}</strong>
+              </div>
 
               <svg
                 className="profile-arrow"

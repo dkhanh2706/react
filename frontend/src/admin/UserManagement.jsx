@@ -11,6 +11,9 @@ import {
   AlertTriangle,
   Mail,
   Calendar,
+  Lock,
+  Unlock,
+  ShieldAlert,
 } from "lucide-react";
 
 import api from "../api/axios";
@@ -24,10 +27,15 @@ function UserManagement() {
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
   // Modal Xóa
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Modal Khóa / Mở khóa
+  const [lockTarget, setLockTarget] = useState(null);
+  const [locking, setLocking] = useState(false);
 
   // FETCH USERS
   const fetchUsers = async () => {
@@ -50,16 +58,28 @@ function UserManagement() {
     fetchUsers();
   }, []);
 
-  // ĐỔI QUYỀN
-  const changeRole = async (id, role) => {
+  // KHÓA / MỞ KHÓA USER (chỉ dành cho khách hàng)
+  const confirmToggleLock = async () => {
+    if (!lockTarget) return;
+
     try {
-      await api.put(`/users/${id}/role`, { role });
-      toast.success(`Đã cập nhật quyền thành: ${role}`);
+      setLocking(true);
+      const newLocked = !lockTarget.is_locked;
+      const response = await api.put(`/users/${lockTarget.id}/toggle-lock`, {
+        is_locked: newLocked,
+      });
+
+      toast.success(
+        response.data?.message ||
+          (newLocked ? "Đã khóa tài khoản thành công" : "Đã mở khóa tài khoản thành công")
+      );
+      setLockTarget(null);
       await fetchUsers();
     } catch (error) {
-      console.error("UPDATE ROLE ERROR:", error);
-      toast.error(error.response?.data?.message || "Không thể cập nhật quyền");
-      await fetchUsers();
+      console.error("TOGGLE LOCK ERROR:", error);
+      toast.error(error.response?.data?.message || "Không thể cập nhật trạng thái");
+    } finally {
+      setLocking(false);
     }
   };
 
@@ -70,7 +90,9 @@ function UserManagement() {
     try {
       setDeleting(true);
       await api.delete(`/users/${deleteTarget.id}`);
-      toast.success(`Đã xóa tài khoản ${deleteTarget.email || deleteTarget.full_name}`);
+      toast.success(
+        `Đã xóa tài khoản ${deleteTarget.email || deleteTarget.full_name}`
+      );
       setDeleteTarget(null);
       await fetchUsers();
     } catch (error) {
@@ -92,20 +114,31 @@ function UserManagement() {
       const matchRole =
         roleFilter === "ALL" || String(u.role || "").toUpperCase() === roleFilter;
 
-      return matchSearch && matchRole;
+      const isLocked = Boolean(u.is_locked);
+      const matchStatus =
+        statusFilter === "ALL" ||
+        (statusFilter === "ACTIVE" && !isLocked) ||
+        (statusFilter === "LOCKED" && isLocked);
+
+      return matchSearch && matchRole && matchStatus;
     });
-  }, [users, searchQuery, roleFilter]);
+  }, [users, searchQuery, roleFilter, statusFilter]);
 
   // STATS
   const totalUsers = users.length;
   const totalCustomers = users.filter((u) => u.role === "CUSTOMER").length;
   const totalAdmins = users.filter((u) => u.role === "ADMIN").length;
+  const totalLocked = users.filter((u) => u.is_locked).length;
 
   const formatDate = (val) => {
     if (!val) return "---";
     const d = new Date(val);
     if (Number.isNaN(d.getTime())) return String(val).substring(0, 10);
-    return d.toLocaleDateString("vi-VN");
+    return d.toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
   };
 
   return (
@@ -116,7 +149,9 @@ function UserManagement() {
           <div>
             <span className="adm-page-tag">IDENTITY & ACCESS CONTROL</span>
             <h1>Quản trị người dùng & Phân quyền</h1>
-            <p>Kiểm soát tài khoản, phân quyền quản trị viên và theo dõi hoạt động đăng ký</p>
+            <p>
+              Tài khoản Quản trị viên được cố định an toàn. Có thể khóa/mở khóa tài khoản khách hàng vi phạm.
+            </p>
           </div>
 
           <button
@@ -196,6 +231,15 @@ function UserManagement() {
                 <option value="CUSTOMER">Khách hàng (CUSTOMER)</option>
                 <option value="ADMIN">Quản trị viên (ADMIN)</option>
               </select>
+
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="ALL">Tất cả trạng thái</option>
+                <option value="ACTIVE">Đang hoạt động</option>
+                <option value="LOCKED">Đã bị khóa ({totalLocked})</option>
+              </select>
             </div>
           </div>
 
@@ -218,9 +262,9 @@ function UserManagement() {
                   <tr>
                     <th>Người dùng / Email</th>
                     <th>Số điện thoại</th>
-                    <th>Vai trò hiện tại</th>
+                    <th>Vai trò</th>
                     <th>Ngày tham gia</th>
-                    <th>Phân quyền</th>
+                    <th>Trạng thái tài khoản</th>
                     <th className="text-right">Hành động</th>
                   </tr>
                 </thead>
@@ -229,12 +273,14 @@ function UserManagement() {
                     const displayName = u.full_name || u.name || "Chưa đặt tên";
                     const initial = displayName.trim().charAt(0).toUpperCase() || "U";
                     const isAdmin = u.role === "ADMIN";
+                    const isLocked = Boolean(u.is_locked);
 
                     return (
-                      <tr key={u.id}>
+                      <tr key={u.id} className={isLocked ? "row-locked" : ""}>
+                        {/* PROFILE */}
                         <td>
                           <div className="user-profile-cell">
-                            <div className={`user-table-avatar ${isAdmin ? "admin-avatar" : ""}`}>
+                            <div className={`user-table-avatar ${isAdmin ? "admin-avatar" : isLocked ? "locked-avatar" : ""}`}>
                               {initial}
                             </div>
                             <div>
@@ -246,39 +292,79 @@ function UserManagement() {
                             </div>
                           </div>
                         </td>
+
+                        {/* PHONE */}
                         <td>
                           <span className="phone-text">{u.phone || "Chưa cập nhật"}</span>
                         </td>
+
+                        {/* ROLE */}
                         <td>
                           <span className={`role-badge ${isAdmin ? "admin" : "customer"}`}>
                             {isAdmin ? "ADMIN" : "CUSTOMER"}
                           </span>
                         </td>
+
+                        {/* NGÀY THAM GIA */}
                         <td>
                           <span className="date-text">
                             <Calendar size={12} style={{ display: "inline", marginRight: 4 }} />
                             {formatDate(u.created_at)}
                           </span>
                         </td>
+
+                        {/* TRẠNG THÁI / KHÓA TÀI KHOẢN */}
                         <td>
-                          <select
-                            className="role-select-input"
-                            value={u.role || "CUSTOMER"}
-                            onChange={(e) => changeRole(u.id, e.target.value)}
-                          >
-                            <option value="CUSTOMER">CUSTOMER</option>
-                            <option value="ADMIN">ADMIN</option>
-                          </select>
+                          {isAdmin ? (
+                            <span className="status-badge admin-protected">
+                              <Shield size={12} style={{ marginRight: 4 }} />
+                              Bảo vệ vĩnh viễn
+                            </span>
+                          ) : isLocked ? (
+                            <span className="status-badge locked">
+                              <Lock size={12} style={{ marginRight: 4 }} />
+                              Đã khóa tài khoản
+                            </span>
+                          ) : (
+                            <span className="status-badge active">
+                              <span className="dot-active" />
+                              Đang hoạt động
+                            </span>
+                          )}
                         </td>
+
+                        {/* HÀNH ĐỘNG */}
                         <td className="text-right">
-                          <button
-                            type="button"
-                            className="btn-action delete"
-                            onClick={() => setDeleteTarget(u)}
-                            title="Xóa tài khoản"
-                          >
-                            <Trash2 size={15} />
-                          </button>
+                          {isAdmin ? (
+                            <span className="admin-locked-hint" title="Tài khoản Admin không được chỉnh sửa">
+                              Cố định
+                            </span>
+                          ) : (
+                            <div className="action-buttons-inline">
+                              {/* NÚT KHÓA / MỞ KHÓA */}
+                              <button
+                                type="button"
+                                className={`btn-action ${isLocked ? "unlock" : "lock"}`}
+                                onClick={() => setLockTarget(u)}
+                                title={isLocked ? "Mở khóa tài khoản này" : "Khóa tài khoản này"}
+                              >
+                                {isLocked ? <Unlock size={15} /> : <Lock size={15} />}
+                                <span className="btn-action-text">
+                                  {isLocked ? "Mở khóa" : "Khóa"}
+                                </span>
+                              </button>
+
+                              {/* NÚT XÓA */}
+                              <button
+                                type="button"
+                                className="btn-action delete"
+                                onClick={() => setDeleteTarget(u)}
+                                title="Xóa tài khoản"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );
@@ -288,6 +374,53 @@ function UserManagement() {
             </div>
           )}
         </div>
+
+        {/* ================= MODAL XÁC NHẬN KHÓA / MỞ KHÓA ================= */}
+        {lockTarget && (
+          <div className="adm-modal-overlay">
+            <div className="adm-modal-card confirm-modal">
+              <div className={`confirm-icon-box ${lockTarget.is_locked ? "unlock-box" : "lock-box"}`}>
+                {lockTarget.is_locked ? <Unlock size={36} /> : <ShieldAlert size={36} />}
+              </div>
+              <h3>
+                {lockTarget.is_locked ? "Mở khóa tài khoản?" : "Khóa tài khoản người dùng?"}
+              </h3>
+              <p>
+                {lockTarget.is_locked ? (
+                  <>
+                    Tài khoản <strong>{lockTarget.email || lockTarget.full_name}</strong> sẽ được phép đăng nhập và đặt vé trở lại.
+                  </>
+                ) : (
+                  <>
+                    Bạn có chắc chắn muốn khóa tài khoản <strong>{lockTarget.email || lockTarget.full_name}</strong>? Người dùng này sẽ không thể đăng nhập hoặc thực hiện thao tác trên hệ thống.
+                  </>
+                )}
+              </p>
+              <div className="confirm-actions">
+                <button
+                  type="button"
+                  className="btn-cancel"
+                  disabled={locking}
+                  onClick={() => setLockTarget(null)}
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="button"
+                  className={lockTarget.is_locked ? "btn-success-confirm" : "btn-warning-confirm"}
+                  disabled={locking}
+                  onClick={confirmToggleLock}
+                >
+                  {locking
+                    ? "Đang xử lý..."
+                    : lockTarget.is_locked
+                    ? "Xác nhận mở khóa"
+                    : "Xác nhận khóa tài khoản"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ================= MODAL XÁC NHẬN XÓA ================= */}
         {deleteTarget && (

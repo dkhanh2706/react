@@ -30,7 +30,6 @@
   --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235a6b86' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 }
 
-.header,
 .hero,
 .promotion,
 .partners,
@@ -41,7 +40,6 @@
   box-sizing: border-box;
 }
 
-.header *,
 .hero *,
 .promotion *,
 .partners *,
@@ -74,7 +72,7 @@
 }
 
 /* Focus rõ ràng cho bàn phím */
-.header :is(button, select):focus-visible,
+/* Focus rõ ràng cho bàn phím */
 .trip button:focus-visible,
 .search-button:focus-visible,
 .support button:focus-visible {
@@ -83,183 +81,9 @@
 }
 
 /* =====================================================
-   HEADER
+   HEADER — Dùng chung từ Header.jsx + Header.css
+   Không override ở đây để đồng bộ với mọi trang
 ===================================================== */
-
-.header {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-
-  min-height: 76px;
-
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px 24px;
-
-  padding: 12px max(24px, calc((100% - 1200px) / 2));
-
-  background: rgba(255, 255, 255, 0.86);
-  -webkit-backdrop-filter: saturate(160%) blur(14px);
-  backdrop-filter: saturate(160%) blur(14px);
-  border-bottom: 1px solid rgba(221, 230, 243, 0.9);
-}
-
-.logo {
-  font-family: var(--font-display);
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--blue-deep);
-  cursor: pointer;
-  user-select: none;
-  transition:
-    opacity 0.25s var(--ease),
-    transform 0.25s var(--ease);
-}
-
-.logo:hover {
-  opacity: 0.85;
-}
-
-.logo:active {
-  transform: scale(0.97);
-}
-
-.header nav {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.header nav span {
-  padding: 9px 15px;
-  border-radius: 999px;
-
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--muted);
-  white-space: nowrap;
-  cursor: pointer;
-
-  transition:
-    background-color 0.25s var(--ease),
-    color 0.25s var(--ease);
-}
-
-.header nav span:hover {
-  background: var(--blue-soft);
-  color: var(--blue-deep);
-}
-
-.header-action {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.header-action select {
-  appearance: none;
-  -webkit-appearance: none;
-
-  height: 40px;
-  padding: 0 32px 0 14px;
-
-  border-radius: 999px;
-  border: 1px solid var(--line);
-
-  background-color: #fff;
-  background-image: var(--chevron);
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 12px;
-
-  font: 500 14px var(--font-body);
-  color: var(--ink);
-  cursor: pointer;
-
-  transition:
-    border-color 0.25s var(--ease),
-    box-shadow 0.25s var(--ease);
-}
-
-.header-action select:hover {
-  border-color: #b9cbe6;
-}
-
-.header-action button {
-  height: 40px;
-  padding: 0 20px;
-
-  border-radius: 999px;
-  border: 1px solid transparent;
-
-  background: var(--blue);
-  color: #fff;
-
-  font: 600 14px var(--font-body);
-  cursor: pointer;
-
-  transition:
-    transform 0.3s var(--ease),
-    box-shadow 0.3s var(--ease),
-    background-color 0.25s var(--ease),
-    color 0.25s var(--ease),
-    border-color 0.25s var(--ease);
-}
-
-.header-action button:hover {
-  transform: translateY(-2px);
-  background: #0f56c9;
-  box-shadow: 0 10px 20px -8px rgba(21, 103, 232, 0.6);
-}
-
-.header-action button:active {
-  transform: translateY(0) scale(0.98);
-}
-
-.header-action > button:first-of-type {
-  background: transparent;
-  color: var(--blue-deep);
-  border-color: var(--line);
-}
-
-.header-action > button:first-of-type:hover {
-  background: var(--blue-soft);
-  border-color: #b9cbe6;
-  box-shadow: none;
-}
-
-.user-box {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.user-box span {
-  font-size: 14.5px;
-  color: var(--muted);
-}
-
-.user-box b {
-  color: var(--blue-deep);
-  font-weight: 700;
-}
-
-.user-box button {
-  background: transparent;
-  color: var(--ink);
-  border-color: var(--line);
-}
-
-.user-box button:hover {
-  background: #fff1f1;
-  color: #c62828;
-  border-color: #f3c4c4;
-  box-shadow: none;
-}
 
 /* =====================================================
    HERO

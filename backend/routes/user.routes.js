@@ -29,6 +29,9 @@ router.get("/:id", verifyToken, isAdmin, userController.getUserById);
 // đổi quyền
 router.put("/:id/role", verifyToken, isAdmin, userController.updateRole);
 
+// khóa / mở khóa user
+router.put("/:id/toggle-lock", verifyToken, isAdmin, userController.toggleLockUser);
+
 // xóa user
 router.delete("/:id", verifyToken, isAdmin, userController.deleteUser);
 

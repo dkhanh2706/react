@@ -4,7 +4,12 @@ const router = express.Router();
 
 const paymentController = require("../controllers/payment.controller");
 
-const { verifyToken } = require("../middleware/auth.middleware");
+const { verifyToken, isAdmin } = require("../middleware/auth.middleware");
+
+// =====================================================
+// ADMIN - LẤY TẤT CẢ GIAO DỊCH / VÉ ĐÃ MUA
+// =====================================================
+router.get("/", verifyToken, isAdmin, paymentController.getAllPayments);
 
 // =====================================================
 // TẠO THANH TOÁN MOMO

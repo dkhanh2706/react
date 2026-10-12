@@ -288,7 +288,9 @@ exports.getAllUsers = async (req, res) => {
           full_name,
           email,
           phone,
-          role
+          role,
+          created_at,
+          COALESCE(is_locked, FALSE) AS is_locked
         FROM users
         ORDER BY id ASC
       `,
@@ -476,3 +478,74 @@ exports.deleteUser = async (req, res) => {
     });
   }
 };
+
+// =====================================================
+// ADMIN - KHÓA / MỞ KHÓA USER
+// =====================================================
+
+exports.toggleLockUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { is_locked } = req.body;
+
+    const checkUser = await db.query(
+      `
+        SELECT id, email, role, is_locked
+        FROM users
+        WHERE id = $1
+      `,
+      [id],
+    );
+
+    if (checkUser.rows.length === 0) {
+      return res.status(404).json({
+        message: "Không tìm thấy user",
+      });
+    }
+
+    const targetUser = checkUser.rows[0];
+
+    // Không cho khóa ADMIN
+    if (
+      targetUser.role === "ADMIN" ||
+      targetUser.email?.toLowerCase() === MAIN_ADMIN.toLowerCase()
+    ) {
+      return res.status(403).json({
+        message: "Không thể khóa tài khoản Quản trị viên",
+      });
+    }
+
+    const newLockedState =
+      is_locked !== undefined ? Boolean(is_locked) : !targetUser.is_locked;
+
+    const result = await db.query(
+      `
+        UPDATE users
+        SET is_locked = $1
+        WHERE id = $2
+        RETURNING
+          id,
+          full_name,
+          email,
+          role,
+          created_at,
+          is_locked
+      `,
+      [newLockedState, id],
+    );
+
+    res.json({
+      message: newLockedState
+        ? "Đã khóa tài khoản thành công"
+        : "Đã mở khóa tài khoản thành công",
+      user: result.rows[0],
+    });
+  } catch (error) {
+    console.error("TOGGLE LOCK USER ERROR:", error);
+    res.status(500).json({
+      message: "Lỗi khi khóa/mở khóa tài khoản",
+      error: error.message,
+    });
+  }
+};
+

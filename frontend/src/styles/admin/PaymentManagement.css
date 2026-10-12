@@ -1,0 +1,229 @@
+/* =========================================================
+   PAYMENT MANAGEMENT PAGE STYLES - WHITE, PURPLE & BLACK
+========================================================= */
+
+.adm-payments-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ================= STATS ROW ================= */
+.adm-payment-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+.p-stat-card {
+  background: #ffffff;
+  border: 1px solid #e8ecf4;
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+}
+
+.p-stat-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.p-stat-icon.purple {
+  background: #faf5ff;
+  color: #7c3aed;
+}
+
+.p-stat-icon.green {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.p-stat-icon.amber {
+  background: #fffbeb;
+  color: #d97706;
+}
+
+.p-stat-icon.blue {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.p-stat-label {
+  display: block;
+  font-size: 12.5px;
+  color: #64748b;
+  margin-bottom: 2px;
+}
+
+.p-stat-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+/* ================= BADGES ================= */
+.pay-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.pay-status-badge.success {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.pay-status-badge.pending {
+  background: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fde68a;
+}
+
+.pay-status-badge.failed {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.method-tag {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.method-tag.momo {
+  background: #fdf2f8;
+  color: #db2777;
+  border: 1px solid #fbcfe8;
+}
+
+.method-tag.mock {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.method-tag.card {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+
+/* ================= CELLS ================= */
+.booking-code-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.booking-code-val {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #7c3aed;
+  letter-spacing: 0.02em;
+}
+
+.flight-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.route-text {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.flight-meta-sub {
+  font-size: 11.5px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.price-text {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.price-unit {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-left: 2px;
+}
+
+.seat-tag {
+  display: inline-block;
+  padding: 2px 7px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #334155;
+}
+
+/* MODAL DETAILS */
+.pay-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 20px 0;
+  text-align: left;
+}
+
+.pay-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pay-detail-item.full-width {
+  grid-column: span 2;
+}
+
+.pay-detail-item label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.pay-detail-item span,
+.pay-detail-item strong {
+  font-size: 14px;
+  color: #0f172a;
+}
+
+/* RESPONSIVE */
+@media (max-width: 1100px) {
+  .adm-payment-stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .adm-payment-stats-row {
+    grid-template-columns: 1fr;
+  }
+}

@@ -631,3 +631,83 @@ exports.momoReturn = async (req, res) => {
     data: req.query,
   });
 };
+
+// =====================================================
+// ADMIN - LẤY TẤT CẢ GIAO DỊCH / VÉ ĐÃ MUA
+// GET /api/payments
+// =====================================================
+exports.getAllPayments = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `
+        SELECT
+          b.id AS booking_id,
+          b.booking_code,
+          b.total_price,
+          b.status::text AS booking_status,
+          b.created_at AS booking_date,
+
+          b.flight_date,
+          b.departure_place,
+          b.arrival_place,
+          b.departure_time_text,
+          b.arrival_time_text,
+          b.airline_name,
+          b.flight_number_snapshot,
+          b.seat_number_snapshot,
+
+          u.id AS user_id,
+          u.full_name AS customer_name,
+          u.email AS customer_email,
+          u.phone AS customer_phone,
+
+          bd.seat_class,
+          bd.seat_status::text AS seat_status,
+
+          COALESCE(p.method, 'MOCK') AS payment_method,
+          COALESCE(p.status::text, CASE WHEN b.status::text = 'CONFIRMED' THEN 'SUCCESS' ELSE 'PENDING' END) AS payment_status,
+          COALESCE(p.amount, b.total_price) AS payment_amount,
+          COALESCE(p.paid_at, b.created_at) AS paid_at,
+          p.transaction_id
+
+        FROM bookings b
+
+        LEFT JOIN users u
+          ON u.id = b.user_id
+
+        LEFT JOIN booking_details bd
+          ON bd.booking_id = b.id
+
+        LEFT JOIN LATERAL (
+          SELECT
+            id,
+            method,
+            status,
+            amount,
+            paid_at,
+            transaction_id
+          FROM payments
+          WHERE booking_id = b.id
+          ORDER BY id DESC
+          LIMIT 1
+        ) p ON TRUE
+
+        WHERE b.booking_code NOT LIKE 'TMP%' OR b.status::text = 'CONFIRMED'
+
+        ORDER BY b.created_at DESC
+      `
+    );
+
+    return res.status(200).json({
+      message: "Lấy danh sách thanh toán thành công",
+      data: result.rows,
+    });
+  } catch (error) {
+    console.error("GET ALL PAYMENTS ERROR:", error);
+    return res.status(500).json({
+      message: "Lỗi tải danh sách thanh toán",
+      error: error.message,
+    });
+  }
+};
+

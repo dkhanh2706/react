@@ -92,8 +92,7 @@ function AdminLayout({ children, pageTitle = "Dashboard" }) {
       title: "Quản lý thanh toán",
       path: "/admin/payments",
       icon: <CreditCard size={19} />,
-      soon: true,
-      onClick: () => toast("Chức năng Quản lý thanh toán đang hoàn thiện"),
+      active: location.pathname === "/admin/payments",
     },
   ];
 

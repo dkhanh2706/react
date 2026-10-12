@@ -153,75 +153,103 @@
 }
 
 .profile-button {
-  padding: 4px 12px 4px 4px;
+  padding: 5px 14px 5px 6px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  border: 1px solid var(--line);
+  gap: 12px;
+  border: 1.5px solid #e1e7f0;
   border-radius: 999px;
-  background: white;
+  background: #ffffff;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: all 0.25s var(--ease);
+  box-shadow: 0 2px 6px rgba(10, 102, 194, 0.05);
 }
 
 .profile-button:hover,
 .profile-button.is-open {
-  border-color: #b9d6f5;
-  background: #f8fbff;
-  box-shadow: 0 6px 18px rgba(10, 102, 194, 0.12);
+  border-color: #0a66c2;
+  background: #f7faff;
+  box-shadow: 0 4px 14px rgba(10, 102, 194, 0.15);
+  transform: translateY(-1px);
+}
+
+.profile-avatar-wrap {
+  position: relative;
+  display: inline-flex;
 }
 
 .profile-avatar {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   flex-shrink: 0;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: linear-gradient(135deg, #2b8cf0, var(--brand-dark));
+  background: linear-gradient(135deg, #1e70e0, #0a4fa3);
   color: white;
   font-size: 15px;
   font-weight: 800;
-  box-shadow: 0 0 0 3px var(--brand-soft);
+  box-shadow: 0 2px 6px rgba(10, 79, 163, 0.3);
+}
+
+.profile-online-dot {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.2);
 }
 
 .profile-avatar.large {
-  width: 44px;
-  height: 44px;
-  font-size: 17px;
+  width: 46px;
+  height: 46px;
+  font-size: 18px;
 }
 
 .profile-text {
-  max-width: 135px;
+  max-width: 140px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  text-align: left;
   line-height: 1.25;
 }
 
-.profile-text small {
-  color: #98a2b3;
+.profile-greeting {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
+  color: #0a66c2;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
 }
 
-.profile-text strong {
-  max-width: 135px;
+.profile-name {
+  max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--ink);
+  color: #1d2939;
   font-size: 13.5px;
   font-weight: 700;
+  margin-top: 1px;
 }
 
 .profile-arrow {
-  color: var(--muted);
-  transition: transform 0.3s var(--ease);
+  color: #667085;
+  transition: transform 0.3s var(--ease), color 0.2s ease;
+}
+
+.profile-button:hover .profile-arrow {
+  color: #0a66c2;
 }
 
 .profile-button.is-open .profile-arrow {
   transform: rotate(180deg);
+  color: #0a66c2;
 }
 
 /* DROPDOWN MENU */

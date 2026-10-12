@@ -156,6 +156,151 @@
   color: #0f172a;
 }
 
+/* STATUS BADGE */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-badge.admin-protected {
+  background: #faf5ff;
+  color: #7c3aed;
+  border: 1px solid #e9d5ff;
+}
+
+.status-badge.active {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.status-badge.locked {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.dot-active {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  margin-right: 6px;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+/* ADMIN HINT */
+.admin-locked-hint {
+  display: inline-block;
+  padding: 4px 10px;
+  background: #f1f5f9;
+  color: #94a3b8;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  user-select: none;
+}
+
+/* ACTION BUTTONS */
+.action-buttons-inline {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn-action.lock {
+  background: #fff1f2;
+  color: #e11d48;
+  border-color: #ffe4e6;
+  padding: 6px 10px;
+  gap: 6px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn-action.lock:hover {
+  background: #e11d48;
+  color: #ffffff;
+}
+
+.btn-action.unlock {
+  background: #ecfdf5;
+  color: #059669;
+  border-color: #a7f3d0;
+  padding: 6px 10px;
+  gap: 6px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn-action.unlock:hover {
+  background: #059669;
+  color: #ffffff;
+}
+
+.btn-action-text {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.user-table-avatar.locked-avatar {
+  background: #94a3b8;
+  filter: grayscale(1);
+}
+
+.row-locked {
+  background: #fef9f9;
+}
+
+/* MODAL CONFIRM BOXES */
+.confirm-icon-box.lock-box {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.confirm-icon-box.unlock-box {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.btn-warning-confirm {
+  padding: 10px 18px;
+  background: #e11d48;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-warning-confirm:hover {
+  background: #be123c;
+}
+
+.btn-success-confirm {
+  padding: 10px 18px;
+  background: #059669;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-success-confirm:hover {
+  background: #047857;
+}
+
 /* RESPONSIVE */
 @media (max-width: 900px) {
   .adm-user-stats-row {
