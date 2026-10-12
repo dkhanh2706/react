@@ -1,8 +1,13 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+
 import toast from "react-hot-toast";
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+
+import api from "../api/axios";
 
 import "../styles/FlightResult.css";
 
@@ -42,6 +47,7 @@ const PlaneIcon = () => (
 const CalendarIcon = () => (
   <Icon size={17}>
     <rect x="3" y="5" width="18" height="16" rx="2" />
+
     <path d="M16 3v4M8 3v4M3 10h18" />
   </Icon>
 );
@@ -57,17 +63,17 @@ const formatTime = (value) => {
 
   const stringValue = String(value);
 
-  // Backend mới trả HH:mm
+  // HH:mm
   if (/^\d{2}:\d{2}$/.test(stringValue)) {
     return stringValue;
   }
 
-  // Nếu backend trả HH:mm:ss
+  // HH:mm:ss
   if (/^\d{2}:\d{2}:\d{2}/.test(stringValue)) {
     return stringValue.slice(0, 5);
   }
 
-  // Nếu là datetime
+  // datetime
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
@@ -89,7 +95,6 @@ const formatDate = (value) => {
     return "Chưa cập nhật";
   }
 
-  // YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
     const [year, month, day] = String(value).split("-");
 
@@ -106,22 +111,120 @@ const formatDate = (value) => {
 };
 
 // =====================================================
+// AIRPORT NAME
+// =====================================================
+
+const getAirportName = (code) => {
+  const airports = {
+    HAN: "Hà Nội",
+    SGN: "TP. Hồ Chí Minh",
+    DAD: "Đà Nẵng",
+    PQC: "Phú Quốc",
+    CXR: "Nha Trang",
+    DLI: "Đà Lạt",
+    HUI: "Huế",
+    VCA: "Cần Thơ",
+    HND: "Tokyo - Haneda",
+    NRT: "Tokyo - Narita",
+    SIN: "Singapore",
+  };
+
+  return airports[code] || code || "---";
+};
+
+// =====================================================
 // FLIGHT RESULT
 // =====================================================
 
 function FlightResult() {
   const location = useLocation();
+
   const navigate = useNavigate();
 
+  const [searchParams] = useSearchParams();
+
   // =====================================================
-  // DATA
+  // STATE
   // =====================================================
 
-  const flights = location.state?.flights || [];
+  const [flights, setFlights] = useState(location.state?.flights || []);
 
-  const searchInfo = location.state?.searchInfo || null;
+  const [searchInfo, setSearchInfo] = useState(
+    location.state?.searchInfo || null,
+  );
 
-  const source = location.state?.source || "home";
+  const [loading, setLoading] = useState(false);
+
+  const source =
+    location.state?.source || (searchParams.get("from") ? "chatbot" : "home");
+
+  // =====================================================
+  // QUERY PARAMS TỪ CHATBOT
+  // =====================================================
+
+  const queryFrom = searchParams.get("from");
+
+  const queryTo = searchParams.get("to");
+
+  const queryDate = searchParams.get("date");
+
+  // =====================================================
+  // TỰ ĐỘNG SEARCH KHI ĐI TỪ CHATBOT
+  // =====================================================
+
+  useEffect(() => {
+    // Nếu đã được truyền kết quả từ FlightSearch
+    // thì không gọi API lần nữa
+    if (location.state?.flights) {
+      return;
+    }
+
+    // Không có query params
+    if (!queryFrom || !queryTo || !queryDate) {
+      return;
+    }
+
+    const fetchFlights = async () => {
+      try {
+        setLoading(true);
+
+        setSearchInfo({
+          from: queryFrom,
+          to: queryTo,
+          departDate: queryDate,
+        });
+
+        const response = await api.get("/flights/search", {
+          params: {
+            from: queryFrom,
+            to: queryTo,
+            date: queryDate,
+          },
+        });
+
+        const flightData = Array.isArray(response.data)
+          ? response.data
+          : response.data?.data || [];
+
+        setFlights(flightData);
+      } catch (error) {
+        console.error(
+          "CHATBOT SEARCH FLIGHT ERROR:",
+          error.response?.data || error,
+        );
+
+        setFlights([]);
+
+        toast.error(
+          error.response?.data?.message || "Không thể tìm chuyến bay",
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFlights();
+  }, [location.state, queryFrom, queryTo, queryDate]);
 
   // =====================================================
   // BACK
@@ -130,6 +233,11 @@ function FlightResult() {
   const handleBack = () => {
     if (source === "destinations") {
       navigate("/destinations");
+      return;
+    }
+
+    if (source === "chatbot") {
+      navigate("/home");
       return;
     }
 
@@ -186,9 +294,9 @@ function FlightResult() {
 
       <main className="flight-result-main">
         <div className="flight-result-inner">
-          {/* =================================================
+          {/* ================================
               TOP BAR
-          ================================================= */}
+          ================================= */}
 
           <div className="flight-result-topbar">
             <button
@@ -202,9 +310,9 @@ function FlightResult() {
             </button>
           </div>
 
-          {/* =================================================
+          {/* ================================
               HEADING
-          ================================================= */}
+          ================================= */}
 
           <div className="flight-result-heading">
             <div className="flight-result-heading-icon">
@@ -218,16 +326,18 @@ function FlightResult() {
             </div>
           </div>
 
-          {/* =================================================
-              THÔNG TIN TÌM KIẾM
-          ================================================= */}
+          {/* ================================
+              SEARCH INFO
+          ================================= */}
 
           {searchInfo && (
             <div className="flight-search-summary">
               <div className="flight-search-summary-item">
                 <span>Điểm đi</span>
 
-                <strong>{searchInfo.from || "---"}</strong>
+                <strong>{getAirportName(searchInfo.from)}</strong>
+
+                <small>{searchInfo.from}</small>
               </div>
 
               <div className="flight-search-summary-arrow">→</div>
@@ -235,7 +345,9 @@ function FlightResult() {
               <div className="flight-search-summary-item">
                 <span>Điểm đến</span>
 
-                <strong>{searchInfo.to || "---"}</strong>
+                <strong>{getAirportName(searchInfo.to)}</strong>
+
+                <small>{searchInfo.to}</small>
               </div>
 
               <div className="flight-search-summary-date">
@@ -250,11 +362,25 @@ function FlightResult() {
             </div>
           )}
 
-          {/* =================================================
-              EMPTY
-          ================================================= */}
+          {/* ================================
+              LOADING
+          ================================= */}
 
-          {flights.length === 0 ? (
+          {loading ? (
+            <div className="flight-empty-state">
+              <div className="flight-empty-icon">✈</div>
+
+              <h2>Đang tìm chuyến bay...</h2>
+
+              <p>
+                Hệ thống đang tìm các chuyến bay phù hợp với hành trình của bạn.
+              </p>
+            </div>
+          ) : flights.length === 0 ? (
+            /* ================================
+                EMPTY
+            ================================= */
+
             <div className="flight-empty-state">
               <div className="flight-empty-icon">✈</div>
 
@@ -267,12 +393,14 @@ function FlightResult() {
               </button>
             </div>
           ) : (
+            /* ================================
+                RESULT LIST
+            ================================= */
+
             <div className="flight-result-list">
               {flights.map((item) => (
                 <article className="flight-result-card" key={item.id}>
-                  {/* ==========================================
-                      AIRLINE
-                  ========================================== */}
+                  {/* AIRLINE */}
 
                   <div className="flight-airline-block">
                     <div className="flight-airline-icon">✈</div>
@@ -288,9 +416,7 @@ function FlightResult() {
                     </div>
                   </div>
 
-                  {/* ==========================================
-                      ROUTE
-                  ========================================== */}
+                  {/* ROUTE */}
 
                   <div className="flight-route-block">
                     {/* DEPARTURE */}
@@ -336,9 +462,7 @@ function FlightResult() {
                     </div>
                   </div>
 
-                  {/* ==========================================
-                      DATE
-                  ========================================== */}
+                  {/* DATE */}
 
                   <div className="flight-date-block">
                     <div className="flight-date-icon">
@@ -354,9 +478,7 @@ function FlightResult() {
                     </div>
                   </div>
 
-                  {/* ==========================================
-                      PRICE
-                  ========================================== */}
+                  {/* PRICE */}
 
                   <div className="flight-price-block">
                     <span className="flight-price-label">Giá vé</span>
@@ -379,6 +501,7 @@ function FlightResult() {
           )}
         </div>
       </main>
+
       <Footer />
     </div>
   );

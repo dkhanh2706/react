@@ -65,10 +65,11 @@ import FlightManagement from "./admin/FlightManagement";
 import PaymentManagement from "./admin/PaymentManagement";
 
 // =====================================================
-// PROTECTED ROUTE
+// COMPONENTS
 // =====================================================
 
 import ProtectedRoute from "./components/ProtectedRoute";
+import ChatbotWrapper from "./components/ChatbotWrapper";
 
 // =====================================================
 // ADMIN EMAIL
@@ -177,7 +178,8 @@ function HomeRoute() {
 
 // =====================================================
 // CUSTOMER PUBLIC ROUTE
-// Dùng cho các trang khách có thể xem mà không cần đăng nhập
+// Dùng cho các trang khách có thể xem
+// mà không cần đăng nhập
 // =====================================================
 
 function CustomerPublicRoute({ children }) {
@@ -423,6 +425,19 @@ function App() {
 
         <Route path="*" element={<RootRedirect />} />
       </Routes>
+
+      {/* =================================================
+          CHATBOT TOÀN WEBSITE CUSTOMER
+
+          Tự động ẩn ở:
+          - /login
+          - /register
+          - /forgot-password
+          - /reset-password
+          - toàn bộ /admin/*
+      ================================================= */}
+
+      <ChatbotWrapper />
     </BrowserRouter>
   );
 }

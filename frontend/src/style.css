@@ -14,18 +14,7 @@ body {
 /* =====================
    AUTH PAGE
 ===================== */
-
-.auth-container {
-  min-height: 100vh;
-
-  display: flex;
-
-  justify-content: center;
-
-  align-items: center;
-
-  padding: 20px;
-}
+/* legacy auth styles removed to avoid conflict with AuthLayout */
 
 .auth-box {
   width: 420px;
