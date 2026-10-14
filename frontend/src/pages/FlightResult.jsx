@@ -277,7 +277,12 @@ function FlightResult() {
       return;
     }
 
-    navigate("/booking", {
+    // Chọn chuyến bay
+    // -> nhập thông tin hành khách
+    // -> chọn ghế
+    // -> thanh toán
+
+    navigate("/passenger-info", {
       state: {
         flight,
       },

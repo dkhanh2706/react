@@ -36,9 +36,10 @@ import FlightResult from "./pages/FlightResult";
 import FlightList from "./pages/FlightList";
 
 // =====================================================
-// BOOKING + PAYMENT
+// BOOKING + PASSENGER + PAYMENT
 // =====================================================
 
+import PassengerInfo from "./pages/PassengerInfo";
 import Booking from "./pages/Booking";
 import Payment from "./pages/Payment";
 import PaymentResult from "./pages/PaymentResult";
@@ -126,17 +127,14 @@ const checkIsAdmin = (user) => {
 function RootRedirect() {
   const { token, user } = getAuth();
 
-  // Chưa đăng nhập
   if (!token) {
     return <Navigate to="/home" replace />;
   }
 
-  // Admin
   if (checkIsAdmin(user)) {
     return <Navigate to="/admin" replace />;
   }
 
-  // Customer
   return <Navigate to="/home" replace />;
 }
 
@@ -147,17 +145,14 @@ function RootRedirect() {
 function LoginRoute() {
   const { token, user } = getAuth();
 
-  // Chưa đăng nhập
   if (!token) {
     return <Login />;
   }
 
-  // Admin đã đăng nhập
   if (checkIsAdmin(user)) {
     return <Navigate to="/admin" replace />;
   }
 
-  // Customer đã đăng nhập
   return <Navigate to="/home" replace />;
 }
 
@@ -168,7 +163,6 @@ function LoginRoute() {
 function HomeRoute() {
   const { token, user } = getAuth();
 
-  // Admin không vào trang customer
   if (token && checkIsAdmin(user)) {
     return <Navigate to="/admin" replace />;
   }
@@ -178,14 +172,11 @@ function HomeRoute() {
 
 // =====================================================
 // CUSTOMER PUBLIC ROUTE
-// Dùng cho các trang khách có thể xem
-// mà không cần đăng nhập
 // =====================================================
 
 function CustomerPublicRoute({ children }) {
   const { token, user } = getAuth();
 
-  // Admin không vào giao diện customer
   if (token && checkIsAdmin(user)) {
     return <Navigate to="/admin" replace />;
   }
@@ -200,12 +191,10 @@ function CustomerPublicRoute({ children }) {
 function AdminRoute({ children }) {
   const { token, user } = getAuth();
 
-  // Chưa đăng nhập
   if (!token) {
     return <Navigate to="/login" replace />;
   }
 
-  // Không phải admin
   if (!checkIsAdmin(user)) {
     return <Navigate to="/home" replace />;
   }
@@ -221,9 +210,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* =================================================
-            AUTH
-        ================================================= */}
+        {/* AUTH */}
 
         <Route path="/login" element={<LoginRoute />} />
 
@@ -233,21 +220,15 @@ function App() {
 
         <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* =================================================
-            ROOT
-        ================================================= */}
+        {/* ROOT */}
 
         <Route path="/" element={<RootRedirect />} />
 
-        {/* =================================================
-            HOME
-        ================================================= */}
+        {/* HOME */}
 
         <Route path="/home" element={<HomeRoute />} />
 
-        {/* =================================================
-            DESTINATIONS
-        ================================================= */}
+        {/* DESTINATIONS */}
 
         <Route
           path="/destinations"
@@ -258,9 +239,7 @@ function App() {
           }
         />
 
-        {/* =================================================
-            BLOG
-        ================================================= */}
+        {/* BLOG */}
 
         <Route
           path="/blog"
@@ -280,9 +259,7 @@ function App() {
           }
         />
 
-        {/* =================================================
-            FLIGHT SEARCH
-        ================================================= */}
+        {/* FLIGHT SEARCH */}
 
         <Route
           path="/flights"
@@ -303,8 +280,19 @@ function App() {
         />
 
         {/* =================================================
-            BOOKING
+            PASSENGER INFO
         ================================================= */}
+
+        <Route
+          path="/passenger-info"
+          element={
+            <ProtectedRoute>
+              <PassengerInfo />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* BOOKING / CHỌN GHẾ */}
 
         <Route
           path="/booking"
@@ -315,9 +303,7 @@ function App() {
           }
         />
 
-        {/* =================================================
-            PAYMENT
-        ================================================= */}
+        {/* PAYMENT */}
 
         <Route
           path="/payment"
@@ -328,9 +314,7 @@ function App() {
           }
         />
 
-        {/* =================================================
-            MOMO PAYMENT RESULT
-        ================================================= */}
+        {/* MOMO RESULT */}
 
         <Route
           path="/payment-result"
@@ -341,9 +325,7 @@ function App() {
           }
         />
 
-        {/* =================================================
-            PROFILE
-        ================================================= */}
+        {/* PROFILE */}
 
         <Route
           path="/profile"
@@ -354,9 +336,7 @@ function App() {
           }
         />
 
-        {/* =================================================
-            VÉ MÁY BAY CỦA TÔI
-        ================================================= */}
+        {/* MY TICKETS */}
 
         <Route
           path="/my-tickets"
@@ -367,9 +347,7 @@ function App() {
           }
         />
 
-        {/* =================================================
-            ADMIN DASHBOARD
-        ================================================= */}
+        {/* ADMIN */}
 
         <Route
           path="/admin"
@@ -380,10 +358,6 @@ function App() {
           }
         />
 
-        {/* =================================================
-            ADMIN - USERS
-        ================================================= */}
-
         <Route
           path="/admin/users"
           element={
@@ -392,10 +366,6 @@ function App() {
             </AdminRoute>
           }
         />
-
-        {/* =================================================
-            ADMIN - FLIGHTS
-        ================================================= */}
 
         <Route
           path="/admin/flights"
@@ -406,10 +376,6 @@ function App() {
           }
         />
 
-        {/* =================================================
-            ADMIN - PAYMENTS
-        ================================================= */}
-
         <Route
           path="/admin/payments"
           element={
@@ -419,23 +385,10 @@ function App() {
           }
         />
 
-        {/* =================================================
-            NOT FOUND
-        ================================================= */}
+        {/* NOT FOUND */}
 
         <Route path="*" element={<RootRedirect />} />
       </Routes>
-
-      {/* =================================================
-          CHATBOT TOÀN WEBSITE CUSTOMER
-
-          Tự động ẩn ở:
-          - /login
-          - /register
-          - /forgot-password
-          - /reset-password
-          - toàn bộ /admin/*
-      ================================================= */}
 
       <ChatbotWrapper />
     </BrowserRouter>

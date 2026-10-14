@@ -62,20 +62,63 @@ const formatTime = (value) => {
 };
 
 // =====================================================
-// PAYMENT
+// MONEY
+// =====================================================
+
+const formatMoney = (value) => {
+  return Number(value || 0).toLocaleString("vi-VN") + "đ";
+};
+
+// =====================================================
+// MEAL
+// =====================================================
+
+const getMealName = (value) => {
+  const meals = {
+    NONE: "Không chọn",
+    CHICKEN_RICE: "Cơm gà",
+    BEEF_RICE: "Cơm bò",
+    NOODLES: "Mì",
+  };
+
+  return meals[value] || value || "Không chọn";
+};
+
+// =====================================================
+// GENDER
+// =====================================================
+
+const getGenderName = (value) => {
+  const normalized = String(value || "").toUpperCase();
+
+  if (normalized === "MALE") {
+    return "Nam";
+  }
+
+  if (normalized === "FEMALE") {
+    return "Nữ";
+  }
+
+  return "Khác";
+};
+
+// =====================================================
+// COMPONENT
 // =====================================================
 
 function Payment() {
   const location = useLocation();
+
   const navigate = useNavigate();
 
   const data = location.state;
 
   const [paying, setPaying] = useState(false);
+
   const [mockPaying, setMockPaying] = useState(false);
 
   // ===================================================
-  // CHECK LOGIN
+  // LOGIN
   // ===================================================
 
   useEffect(() => {
@@ -91,7 +134,7 @@ function Payment() {
   }, [navigate]);
 
   // ===================================================
-  // KHÔNG CÓ DỮ LIỆU BOOKING
+  // NO DATA
   // ===================================================
 
   if (!data) {
@@ -127,21 +170,46 @@ function Payment() {
   // ===================================================
 
   const flight = data.flight || {};
+
   const seat = data.seat || {};
+
+  const passenger = data.passenger || {};
+
+  const services = data.services || {};
+
+  const pricing = data.pricing || {};
+
   const booking = data.booking || {};
 
-  const totalPrice = Number(data.price || booking.total_price || 0);
+  const totalPrice = Number(
+    booking.total_price || data.price || pricing.total_price || 0,
+  );
+
+  const basePrice = Number(pricing.base_price || flight.price || 0);
+
+  const seatSurcharge = Number(pricing.seat_surcharge || 0);
+
+  const baggagePrice = Number(
+    pricing.baggage_price || services.baggage_price || 0,
+  );
+
+  const mealPrice = Number(pricing.meal_price || services.meal_price || 0);
+
+  const insurancePrice = Number(
+    pricing.insurance_price || services.insurance_price || 0,
+  );
 
   const holdExpiresAt = data.hold_expires_at || seat.hold_expires_at || null;
 
   // ===================================================
-  // XỬ LÝ TOKEN HẾT HẠN
+  // UNAUTHORIZED
   // ===================================================
 
   const handleUnauthorized = () => {
     toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
 
     localStorage.removeItem("token");
+
     localStorage.removeItem("user");
 
     navigate("/login", {
@@ -150,7 +218,7 @@ function Payment() {
   };
 
   // ===================================================
-  // MOMO PAYMENT
+  // MOMO
   // ===================================================
 
   const handleMomoPayment = async () => {
@@ -162,24 +230,18 @@ function Payment() {
 
     if (!bookingId) {
       toast.error("Không tìm thấy mã đặt chỗ");
+
       return;
     }
 
     if (!totalPrice || totalPrice <= 0) {
       toast.error("Số tiền thanh toán không hợp lệ");
+
       return;
     }
 
     try {
       setPaying(true);
-
-      /*
-        Backend:
-        POST /api/payments/momo/create
-
-        Không gửi amount từ FE.
-        Backend tự lấy total_price trong DB.
-      */
 
       const response = await api.post("/payments/momo/create", {
         bookingId,
@@ -195,17 +257,9 @@ function Payment() {
         return;
       }
 
-      // =================================================
-      // LƯU BOOKING ID
-      // =================================================
-
       sessionStorage.setItem("momo_booking_id", String(bookingId));
 
       sessionStorage.setItem("momo_booking_code", booking.booking_code || "");
-
-      // =================================================
-      // CHUYỂN SANG MOMO SANDBOX
-      // =================================================
 
       window.location.href = payUrl;
     } catch (error) {
@@ -213,6 +267,7 @@ function Payment() {
 
       if (error.response?.status === 401) {
         handleUnauthorized();
+
         return;
       }
 
@@ -225,8 +280,7 @@ function Payment() {
   };
 
   // ===================================================
-  // GIẢ LẬP THANH TOÁN THÀNH CÔNG
-  // DÙNG CHO TEST / DEMO ĐỒ ÁN
+  // MOCK PAYMENT
   // ===================================================
 
   const handleMockPayment = async () => {
@@ -251,25 +305,12 @@ function Payment() {
     try {
       setMockPaying(true);
 
-      /*
-        API mock payment đã có sẵn trong backend:
-
-        POST /api/bookings/:bookingId/pay
-
-        Backend sẽ:
-        - booking -> CONFIRMED
-        - seat -> BOOKED
-        - payment -> SUCCESS
-      */
-
       const response = await api.post(`/bookings/${bookingId}/pay`);
 
       toast.success(response.data?.message || "Giả lập thanh toán thành công!");
 
-      // Lưu để có thể dùng nếu cần
       sessionStorage.setItem("last_booking_id", String(bookingId));
 
-      // Sau khi thành công chuyển sang vé của tôi
       navigate("/my-tickets", {
         replace: true,
       });
@@ -278,6 +319,7 @@ function Payment() {
 
       if (error.response?.status === 401) {
         handleUnauthorized();
+
         return;
       }
 
@@ -290,7 +332,7 @@ function Payment() {
   };
 
   // ===================================================
-  // RENDER
+  // UI
   // ===================================================
 
   return (
@@ -299,9 +341,7 @@ function Payment() {
 
       <main className="payment-main">
         <div className="payment-inner">
-          {/* =========================================
-              STEP
-          ========================================= */}
+          {/* STEP */}
 
           <div className="payment-steps-bar">
             <div className="step-badge completed">
@@ -313,37 +353,151 @@ function Payment() {
 
             <div className="step-badge completed">
               <span>✓</span>
-              Chọn ghế ngồi
+              Thông tin hành khách
+            </div>
+
+            <div className="step-separator active" />
+
+            <div className="step-badge completed">
+              <span>✓</span>
+              Chọn ghế
             </div>
 
             <div className="step-separator active" />
 
             <div className="step-badge current">
-              <span>3</span>
+              <span>4</span>
               Thanh toán
             </div>
           </div>
 
-          {/* =========================================
-              TITLE
-          ========================================= */}
+          {/* TITLE */}
 
           <div className="payment-header-title">
             <h1>Xác nhận & Thanh toán vé máy bay</h1>
 
             <p>
-              Kiểm tra thông tin đặt vé trước khi chuyển sang cổng thanh toán
-              MoMo.
+              Kiểm tra thông tin hành khách, chuyến bay và dịch vụ trước khi
+              thanh toán.
             </p>
           </div>
 
           <div className="payment-grid">
-            {/* =======================================
-                LEFT
-            ======================================= */}
+            {/* LEFT */}
 
             <div className="payment-left-column">
+              {/* PASSENGER */}
+
               <div className="payment-methods-card">
+                <div className="payment-method-title">
+                  <div>
+                    <span className="payment-label">THÔNG TIN HÀNH KHÁCH</span>
+
+                    <h2>{passenger.full_name || "---"}</h2>
+                  </div>
+
+                  <div style={{ fontSize: "34px" }}>👤</div>
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "14px",
+                    marginTop: "20px",
+                  }}
+                >
+                  <div>
+                    <small>Giới tính</small>
+                    <div>
+                      <strong>{getGenderName(passenger.gender)}</strong>
+                    </div>
+                  </div>
+
+                  <div>
+                    <small>Ngày sinh</small>
+                    <div>
+                      <strong>{formatDate(passenger.date_of_birth)}</strong>
+                    </div>
+                  </div>
+
+                  <div>
+                    <small>Giấy tờ tùy thân</small>
+                    <div>
+                      <strong>
+                        {passenger.document_type || "---"}:{" "}
+                        {passenger.document_number || "---"}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div>
+                    <small>Điện thoại</small>
+                    <div>
+                      <strong>{passenger.phone || "---"}</strong>
+                    </div>
+                  </div>
+
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <small>Email</small>
+                    <div>
+                      <strong>{passenger.email || "---"}</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* SERVICES */}
+
+              <div
+                className="payment-methods-card"
+                style={{ marginTop: "18px" }}
+              >
+                <div className="payment-method-title">
+                  <div>
+                    <span className="payment-label">DỊCH VỤ ĐÃ CHỌN</span>
+
+                    <h2>Hành lý & tiện ích</h2>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gap: "14px",
+                    marginTop: "20px",
+                  }}
+                >
+                  <div className="price-row">
+                    <span>🧳 Hành lý ký gửi</span>
+
+                    <strong>
+                      {Number(services.baggage_weight || 0) > 0
+                        ? `${services.baggage_weight}kg`
+                        : "Không thêm"}
+                    </strong>
+                  </div>
+
+                  <div className="price-row">
+                    <span>🍱 Suất ăn</span>
+
+                    <strong>{getMealName(services.meal_type)}</strong>
+                  </div>
+
+                  <div className="price-row">
+                    <span>🛡️ Bảo hiểm</span>
+
+                    <strong>{services.insurance ? "Có" : "Không"}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* PAYMENT METHOD */}
+
+              <div
+                className="payment-methods-card"
+                style={{ marginTop: "18px" }}
+              >
                 <div className="payment-method-title">
                   <div>
                     <span className="payment-label">
@@ -358,10 +512,8 @@ function Payment() {
 
                 <p className="methods-subtitle">
                   Sau khi nhấn thanh toán, bạn sẽ được chuyển sang cổng MoMo
-                  Sandbox để hoàn tất giao dịch.
+                  Sandbox.
                 </p>
-
-                {/* MOMO */}
 
                 <div className="momo-method-selected">
                   <div className="momo-radio">
@@ -373,49 +525,37 @@ function Payment() {
                   <div className="momo-method-content">
                     <strong>Ví điện tử MoMo</strong>
 
-                    <p>
-                      Thanh toán trực tuyến an toàn qua cổng thanh toán MoMo.
-                    </p>
+                    <p>Thanh toán trực tuyến qua cổng thanh toán MoMo.</p>
                   </div>
 
                   <span className="method-tag recommend">Đã chọn</span>
                 </div>
-
-                {/* FLOW */}
 
                 <div className="payment-flow-box">
                   <h3>Quy trình thanh toán</h3>
 
                   <div className="payment-flow-step">
                     <span>1</span>
-
                     <p>
-                      Nhấn nút <strong>Thanh toán bằng MoMo</strong>
+                      Nhấn <strong>Thanh toán bằng MoMo</strong>
                     </p>
                   </div>
 
                   <div className="payment-flow-step">
                     <span>2</span>
-
-                    <p>Hệ thống chuyển bạn sang trang thanh toán MoMo.</p>
+                    <p>Hệ thống chuyển sang trang thanh toán MoMo.</p>
                   </div>
 
                   <div className="payment-flow-step">
                     <span>3</span>
-
-                    <p>Hoàn tất thanh toán và quay lại Airline Booking.</p>
+                    <p>Hoàn tất thanh toán.</p>
                   </div>
 
                   <div className="payment-flow-step">
                     <span>4</span>
-
-                    <p>
-                      Backend xác nhận giao dịch qua MoMo IPN và phát hành vé.
-                    </p>
+                    <p>Backend xác nhận giao dịch và phát hành vé.</p>
                   </div>
                 </div>
-
-                {/* SANDBOX */}
 
                 <div className="sandbox-notice">
                   <span className="notice-icon">🧪</span>
@@ -423,14 +563,9 @@ function Payment() {
                   <div>
                     <strong>Môi trường MoMo Sandbox</strong>
 
-                    <p>
-                      Đây là môi trường kiểm thử tích hợp. Không phải giao dịch
-                      thanh toán production.
-                    </p>
+                    <p>Đây là môi trường kiểm thử, không phải production.</p>
                   </div>
                 </div>
-
-                {/* MOCK NOTICE */}
 
                 <div className="mock-payment-notice">
                   <span className="notice-icon">🎓</span>
@@ -439,13 +574,10 @@ function Payment() {
                     <strong>Chế độ demo đồ án</strong>
 
                     <p>
-                      Nếu không sử dụng được ứng dụng MoMo Test, có thể sử dụng
-                      nút giả lập thanh toán để kiểm tra toàn bộ luồng đặt vé.
+                      Có thể dùng nút giả lập thanh toán để test toàn bộ luồng.
                     </p>
                   </div>
                 </div>
-
-                {/* HOLD */}
 
                 {holdExpiresAt && (
                   <div className="hold-payment-notice">
@@ -464,15 +596,11 @@ function Payment() {
               </div>
             </div>
 
-            {/* =======================================
-                RIGHT
-            ======================================= */}
+            {/* RIGHT */}
 
             <div className="payment-right-column">
               <div className="order-summary-card">
                 <h2>Tóm tắt vé máy bay</h2>
-
-                {/* BOOKING */}
 
                 <div className="booking-code-row">
                   <span>Mã đặt chỗ</span>
@@ -536,10 +664,42 @@ function Payment() {
 
                 <div className="price-calculation">
                   <div className="price-row">
-                    <span>Giá vé</span>
+                    <span>Giá vé cơ bản</span>
 
-                    <span>{totalPrice.toLocaleString("vi-VN")}đ</span>
+                    <span>{formatMoney(basePrice)}</span>
                   </div>
+
+                  {seatSurcharge > 0 && (
+                    <div className="price-row">
+                      <span>Phụ thu hạng ghế</span>
+
+                      <span>{formatMoney(seatSurcharge)}</span>
+                    </div>
+                  )}
+
+                  {baggagePrice > 0 && (
+                    <div className="price-row">
+                      <span>Hành lý {services.baggage_weight || 0}kg</span>
+
+                      <span>{formatMoney(baggagePrice)}</span>
+                    </div>
+                  )}
+
+                  {mealPrice > 0 && (
+                    <div className="price-row">
+                      <span>Suất ăn</span>
+
+                      <span>{formatMoney(mealPrice)}</span>
+                    </div>
+                  )}
+
+                  {insurancePrice > 0 && (
+                    <div className="price-row">
+                      <span>Bảo hiểm</span>
+
+                      <span>{formatMoney(insurancePrice)}</span>
+                    </div>
+                  )}
 
                   <div className="price-row">
                     <span>Thuế, phí</span>
@@ -556,13 +716,11 @@ function Payment() {
                   <div className="price-row grand-total">
                     <span>Tổng thanh toán</span>
 
-                    <strong>{totalPrice.toLocaleString("vi-VN")}đ</strong>
+                    <strong>{formatMoney(totalPrice)}</strong>
                   </div>
                 </div>
 
-                {/* =====================================
-                    MOMO BUTTON
-                ===================================== */}
+                {/* MOMO */}
 
                 <button
                   type="button"
@@ -578,14 +736,12 @@ function Payment() {
                   ) : (
                     <>
                       Thanh toán bằng MoMo
-                      <span>{totalPrice.toLocaleString("vi-VN")}đ</span>
+                      <span>{formatMoney(totalPrice)}</span>
                     </>
                   )}
                 </button>
 
-                {/* =====================================
-                    MOCK PAYMENT BUTTON
-                ===================================== */}
+                {/* MOCK */}
 
                 <button
                   type="button"

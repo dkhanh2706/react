@@ -21,7 +21,7 @@ function Footer() {
               onKeyDown={(e) => e.key === "Enter" && navigate("/home")}
             >
               <span className="footer-logo-icon">✈</span>
-              <span>Airline Booking</span>
+              <span>DAMH Shop</span>
             </div>
 
             <p className="footer-brand-desc">
@@ -124,7 +124,7 @@ function Footer() {
             BOTTOM BAR
         ================================================= */}
         <div className="footer-bottom-bar">
-          <p>© {new Date().getFullYear()} Airline Booking. Toàn bộ quyền được bảo lưu.</p>
+          <p>© {new Date().getFullYear()} DAMH Shop. Toàn bộ quyền được bảo lưu.</p>
 
           <div className="footer-bottom-links">
             <span>Điều khoản dịch vụ</span>

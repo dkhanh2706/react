@@ -5,7 +5,7 @@ function AuthLayout({
   title,
   subtitle,
   icon = "✈️",
-  badge = "AIRLINE BOOKING",
+  badge = "DAMH SHOP",
   maxWidth = "max-w-[480px]",
 }) {
   return (
@@ -168,7 +168,7 @@ function AuthLayout({
         </div>
         <span className="hidden sm:inline text-slate-300">•</span>
         <span>
-          © {new Date().getFullYear()} Airline Booking · Bay cùng chúng tôi
+          © {new Date().getFullYear()} DAMH Shop · Bay cùng chúng tôi
         </span>
       </div>
     </div>

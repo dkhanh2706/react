@@ -74,8 +74,9 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
+  "http://192.168.1.9:5173",
+  "http://192.168.190.70:5173",
 
-  // IP LAN hiện tại
   "http://192.168.1.138:5173",
 ];
 

@@ -241,7 +241,7 @@ function Header() {
       <div className="logo" onClick={() => navigate("/home")}>
         <span className="logo-mark">✈</span>
 
-        <span className="logo-text">Airline Booking</span>
+        <span className="logo-text">DAMH Shop</span>
       </div>
 
       {/* ======================================

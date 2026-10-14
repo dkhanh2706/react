@@ -3,6 +3,27 @@ const pool = require("../config/database");
 const HOLD_MINUTES = 15;
 
 // =====================================================
+// GIÁ DỊCH VỤ - BACKEND TỰ QUYẾT ĐỊNH
+// Không tin giá frontend gửi lên
+// =====================================================
+
+const BAGGAGE_PRICES = {
+  0: 0,
+  10: 150000,
+  20: 250000,
+  30: 350000,
+};
+
+const MEAL_PRICES = {
+  NONE: 0,
+  CHICKEN_RICE: 80000,
+  BEEF_RICE: 100000,
+  NOODLES: 70000,
+};
+
+const INSURANCE_PRICE = 50000;
+
+// =====================================================
 // LẤY USER ID TỪ JWT
 // =====================================================
 
@@ -27,7 +48,7 @@ async function cleanupExpiredHolds(client) {
 }
 
 // =====================================================
-// NHẢ HOLD CŨ KHI USER ĐỔI GHẾ
+// NHẢ HOLD KHÁC CỦA USER TRÊN CÙNG CHUYẾN
 // =====================================================
 
 async function releaseOtherHolds(client, userId, flightId, seatId) {
@@ -50,7 +71,7 @@ async function releaseOtherHolds(client, userId, flightId, seatId) {
 }
 
 // =====================================================
-// GIỮ GHẾ
+// HOLD GHẾ
 // POST /api/bookings/hold-seat
 // =====================================================
 
@@ -62,19 +83,11 @@ exports.holdSeat = async (req, res) => {
 
     const { flight_id, seat_id, seat_class } = req.body;
 
-    // =================================================
-    // VALIDATE USER
-    // =================================================
-
     if (!userId) {
       return res.status(401).json({
         message: "Không xác định được tài khoản đăng nhập",
       });
     }
-
-    // =================================================
-    // VALIDATE INPUT
-    // =================================================
 
     if (!flight_id || !seat_id || !seat_class) {
       return res.status(400).json({
@@ -82,25 +95,11 @@ exports.holdSeat = async (req, res) => {
       });
     }
 
-    // =================================================
-    // BEGIN TRANSACTION
-    // =================================================
-
     await client.query("BEGIN");
-
-    // =================================================
-    // 1. DỌN HOLD HẾT HẠN
-    // =================================================
 
     await cleanupExpiredHolds(client);
 
-    // =================================================
-    // 2. KHÓA GHẾ
-    //
-    // Tránh nhiều máy cùng chọn một ghế
-    // tại cùng một thời điểm.
-    // =================================================
-
+    // lock theo flight + seat
     await client.query(
       `
         SELECT pg_advisory_xact_lock(
@@ -110,17 +109,6 @@ exports.holdSeat = async (req, res) => {
       `,
       [flight_id, seat_id],
     );
-
-    // =================================================
-    // 3. KIỂM TRA RECORD CỦA GHẾ
-    //
-    // QUAN TRỌNG:
-    // Vì database có UNIQUE(flight_id, seat_id),
-    // mỗi ghế của một chuyến chỉ có tối đa 1 record.
-    //
-    // Do đó nếu record cũ EXPIRED tồn tại,
-    // chúng ta sẽ UPDATE record đó thay vì INSERT.
-    // =================================================
 
     const seatRecordResult = await client.query(
       `
@@ -143,10 +131,7 @@ exports.holdSeat = async (req, res) => {
     const existingSeat =
       seatRecordResult.rows.length > 0 ? seatRecordResult.rows[0] : null;
 
-    // =================================================
-    // 4. NẾU GHẾ ĐÃ BOOKED
-    // =================================================
-
+    // đã booked
     if (existingSeat && existingSeat.seat_status === "BOOKED") {
       await client.query("ROLLBACK");
 
@@ -155,17 +140,14 @@ exports.holdSeat = async (req, res) => {
       });
     }
 
-    // =================================================
-    // 5. NẾU GHẾ ĐANG HOLD
-    // =================================================
-
+    // đang hold
     if (
       existingSeat &&
       existingSeat.seat_status === "HOLD" &&
       existingSeat.hold_expires_at &&
       new Date(existingSeat.hold_expires_at) > new Date()
     ) {
-      // Chính user hiện tại đang giữ ghế này
+      // chính user đang giữ
       if (Number(existingSeat.user_id) === Number(userId)) {
         await client.query("COMMIT");
 
@@ -177,7 +159,6 @@ exports.holdSeat = async (req, res) => {
         });
       }
 
-      // Người khác đang giữ
       await client.query("ROLLBACK");
 
       return res.status(409).json({
@@ -186,18 +167,9 @@ exports.holdSeat = async (req, res) => {
       });
     }
 
-    // =================================================
-    // 6. NHẢ GHẾ KHÁC CỦA USER
-    //
-    // Một user chỉ giữ một ghế cho cùng chuyến.
-    // =================================================
-
     await releaseOtherHolds(client, userId, flight_id, seat_id);
 
-    // =================================================
-    // 7. TẠO BOOKING TẠM
-    // =================================================
-
+    // booking tạm
     const bookingCode = `TMP${Date.now()}_${userId}_${flight_id}_${seat_id}`;
 
     const bookingResult = await client.query(
@@ -225,22 +197,7 @@ exports.holdSeat = async (req, res) => {
 
     let detail;
 
-    // =================================================
-    // 8. NẾU GHẾ ĐÃ TỪNG TỒN TẠI
-    //
-    // Ví dụ:
-    //
-    // flight_id = 46
-    // seat_id = 90
-    // seat_status = EXPIRED
-    //
-    // => KHÔNG INSERT
-    // => UPDATE RECORD CŨ
-    //
-    // Đây là phần sửa lỗi:
-    // duplicate key unique_flight_seat
-    // =================================================
-
+    // record seat cũ tồn tại thì reuse
     if (existingSeat) {
       const updateResult = await client.query(
         `
@@ -260,11 +217,6 @@ exports.holdSeat = async (req, res) => {
 
       detail = updateResult.rows[0];
     } else {
-      // =================================================
-      // 9. GHẾ CHƯA TỪNG CÓ RECORD
-      // => INSERT MỚI
-      // =================================================
-
       const insertResult = await client.query(
         `
           INSERT INTO booking_details
@@ -295,10 +247,6 @@ exports.holdSeat = async (req, res) => {
       detail = insertResult.rows[0];
     }
 
-    // =================================================
-    // COMMIT
-    // =================================================
-
     await client.query("COMMIT");
 
     return res.status(200).json({
@@ -316,13 +264,9 @@ exports.holdSeat = async (req, res) => {
 
     console.error("holdSeat error:", error);
 
-    // =================================================
-    // PHÒNG TRƯỜNG HỢP UNIQUE BỊ RACE CONDITION
-    // =================================================
-
     if (error.code === "23505" && error.constraint === "unique_flight_seat") {
       return res.status(409).json({
-        message: "Ghế vừa được một người khác chọn. Vui lòng chọn ghế khác.",
+        message: "Ghế vừa được người khác chọn. Vui lòng chọn ghế khác.",
       });
     }
 
@@ -336,7 +280,7 @@ exports.holdSeat = async (req, res) => {
 };
 
 // =====================================================
-// TẠO BOOKING TỪ HOLD
+// CREATE BOOKING THẬT
 // POST /api/bookings
 // =====================================================
 
@@ -350,7 +294,6 @@ exports.createBooking = async (req, res) => {
       flight_id,
       seat_id,
       seat_class,
-      price,
 
       flight_date,
       departure_place,
@@ -360,10 +303,13 @@ exports.createBooking = async (req, res) => {
       airline,
       flight_number,
       seat_number,
+
+      passenger,
+      services,
     } = req.body;
 
     // =================================================
-    // VALIDATE
+    // VALIDATE USER
     // =================================================
 
     if (!userId) {
@@ -372,24 +318,128 @@ exports.createBooking = async (req, res) => {
       });
     }
 
-    if (!flight_id || !seat_id || !seat_class || price == null) {
+    // =================================================
+    // VALIDATE BASIC
+    // =================================================
+
+    if (!flight_id || !seat_id || !seat_class) {
       return res.status(400).json({
         message: "Thiếu thông tin booking",
       });
     }
 
-    await client.query("BEGIN");
+    if (!passenger) {
+      return res.status(400).json({
+        message: "Thiếu thông tin hành khách",
+      });
+    }
 
     // =================================================
-    // DỌN HOLD HẾT HẠN
+    // NORMALIZE PASSENGER
     // =================================================
+
+    const passengerName = String(passenger.full_name || "").trim();
+
+    const passengerGender = String(passenger.gender || "")
+      .trim()
+      .toUpperCase();
+
+    const passengerBirthDate = passenger.date_of_birth || null;
+
+    const documentType = String(passenger.document_type || "")
+      .trim()
+      .toUpperCase();
+
+    const documentNumber = String(passenger.document_number || "").trim();
+
+    const passengerPhone = String(passenger.phone || "").trim();
+
+    const passengerEmail = String(passenger.email || "")
+      .trim()
+      .toLowerCase();
+
+    if (!passengerName) {
+      return res.status(400).json({
+        message: "Vui lòng nhập họ tên hành khách",
+      });
+    }
+
+    if (!["MALE", "FEMALE", "OTHER"].includes(passengerGender)) {
+      return res.status(400).json({
+        message: "Giới tính không hợp lệ",
+      });
+    }
+
+    if (!passengerBirthDate) {
+      return res.status(400).json({
+        message: "Ngày sinh không hợp lệ",
+      });
+    }
+
+    if (!["CCCD", "PASSPORT"].includes(documentType)) {
+      return res.status(400).json({
+        message: "Loại giấy tờ không hợp lệ",
+      });
+    }
+
+    if (!documentNumber) {
+      return res.status(400).json({
+        message: "Thiếu số giấy tờ",
+      });
+    }
+
+    if (!passengerPhone) {
+      return res.status(400).json({
+        message: "Thiếu số điện thoại",
+      });
+    }
+
+    if (!passengerEmail) {
+      return res.status(400).json({
+        message: "Thiếu email",
+      });
+    }
+
+    // =================================================
+    // SERVICES - BACKEND TỰ TÍNH GIÁ
+    // =================================================
+
+    const baggageWeight = Number(services?.baggage_weight || 0);
+
+    if (!Object.prototype.hasOwnProperty.call(BAGGAGE_PRICES, baggageWeight)) {
+      return res.status(400).json({
+        message: "Mức hành lý không hợp lệ",
+      });
+    }
+
+    const baggagePrice = BAGGAGE_PRICES[baggageWeight];
+
+    const mealType = String(services?.meal_type || "NONE")
+      .trim()
+      .toUpperCase();
+
+    if (!Object.prototype.hasOwnProperty.call(MEAL_PRICES, mealType)) {
+      return res.status(400).json({
+        message: "Suất ăn không hợp lệ",
+      });
+    }
+
+    const mealPrice = MEAL_PRICES[mealType];
+
+    const insurance =
+      services?.insurance === true || services?.insurance === "true";
+
+    const insurancePrice = insurance ? INSURANCE_PRICE : 0;
+
+    // =================================================
+    // BEGIN
+    // =================================================
+
+    await client.query("BEGIN");
 
     await cleanupExpiredHolds(client);
 
-    // =================================================
-    // KHÓA GHẾ
-    // =================================================
-
+    // lock ghế
     await client.query(
       `
         SELECT pg_advisory_xact_lock(
@@ -401,7 +451,61 @@ exports.createBooking = async (req, res) => {
     );
 
     // =================================================
-    // KIỂM TRA GHẾ ĐÃ BOOKED CHƯA
+    // LẤY GIÁ FLIGHT TỪ DB
+    // =================================================
+
+    const flightResult = await client.query(
+      `
+        SELECT
+          id,
+          price
+        FROM flights
+        WHERE id = $1
+        LIMIT 1
+      `,
+      [flight_id],
+    );
+
+    if (flightResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+
+      return res.status(404).json({
+        message: "Không tìm thấy chuyến bay",
+      });
+    }
+
+    const basePrice = Number(flightResult.rows[0].price || 0);
+
+    if (!Number.isFinite(basePrice) || basePrice <= 0) {
+      await client.query("ROLLBACK");
+
+      return res.status(400).json({
+        message: "Giá chuyến bay không hợp lệ",
+      });
+    }
+
+    // =================================================
+    // SEAT CLASS PRICE
+    // =================================================
+
+    const normalizedSeatClass = String(seat_class).trim().toUpperCase();
+
+    let seatFare = basePrice;
+
+    if (normalizedSeatClass === "BUSINESS") {
+      seatFare = basePrice * 1.5;
+    }
+
+    const seatSurcharge = seatFare - basePrice;
+
+    // =================================================
+    // TOTAL
+    // =================================================
+
+    const totalPrice = seatFare + baggagePrice + mealPrice + insurancePrice;
+
+    // =================================================
+    // CHECK BOOKED
     // =================================================
 
     const bookedResult = await client.query(
@@ -436,21 +540,16 @@ exports.createBooking = async (req, res) => {
           b.booking_code,
           b.status AS booking_status
         FROM booking_details bd
-
         JOIN bookings b
           ON b.id = bd.booking_id
-
         WHERE bd.flight_id = $1
           AND bd.seat_id = $2
           AND bd.seat_status = 'HOLD'
           AND bd.hold_expires_at > NOW()
           AND b.user_id = $3
           AND b.status = 'PENDING'
-
         ORDER BY bd.id DESC
-
         LIMIT 1
-
         FOR UPDATE OF bd, b
       `,
       [flight_id, seat_id, userId],
@@ -468,19 +567,18 @@ exports.createBooking = async (req, res) => {
     const hold = holdResult.rows[0];
 
     // =================================================
-    // MÃ BOOKING THẬT
+    // BOOKING CODE THẬT
     // =================================================
 
     const bookingCode = `BK${Date.now()}_${userId}`;
 
     // =================================================
-    // UPDATE BOOKING TẠM
+    // UPDATE BOOKING
     // =================================================
 
     const bookingResult = await client.query(
       `
         UPDATE bookings
-
         SET
           booking_code =
             CASE
@@ -499,7 +597,9 @@ exports.createBooking = async (req, res) => {
           arrival_time_text = $7,
           airline_name = $8,
           flight_number_snapshot = $9,
-          seat_number_snapshot = $10
+          seat_number_snapshot = $10,
+
+          updated_at = NOW()
 
         WHERE id = $11
 
@@ -507,7 +607,7 @@ exports.createBooking = async (req, res) => {
       `,
       [
         bookingCode,
-        price,
+        totalPrice,
 
         flight_date || null,
         departure_place || null,
@@ -534,10 +634,6 @@ exports.createBooking = async (req, res) => {
 
     // =================================================
     // UPDATE BOOKING DETAIL
-    //
-    // VẪN GIỮ TRẠNG THÁI HOLD.
-    //
-    // Chỉ chuyển BOOKED sau khi thanh toán thành công.
     // =================================================
 
     const detailResult = await client.query(
@@ -545,11 +641,54 @@ exports.createBooking = async (req, res) => {
         UPDATE booking_details
         SET
           seat_class = $1,
-          price = $2
-        WHERE id = $3
+          price = $2,
+
+          passenger_name = $3,
+          email = $4,
+          phone = $5,
+
+          gender = $6,
+          date_of_birth = $7,
+          document_type = $8,
+          document_number = $9,
+
+          baggage_weight = $10,
+          baggage_price = $11,
+
+          meal_type = $12,
+          meal_price = $13,
+
+          insurance = $14,
+          insurance_price = $15
+
+        WHERE id = $16
+
         RETURNING *
       `,
-      [seat_class, price, hold.id],
+      [
+        normalizedSeatClass,
+        totalPrice,
+
+        passengerName,
+        passengerEmail,
+        passengerPhone,
+
+        passengerGender,
+        passengerBirthDate,
+        documentType,
+        documentNumber,
+
+        baggageWeight,
+        baggagePrice,
+
+        mealType,
+        mealPrice,
+
+        insurance,
+        insurancePrice,
+
+        hold.id,
+      ],
     );
 
     await client.query("COMMIT");
@@ -561,6 +700,35 @@ exports.createBooking = async (req, res) => {
       booking,
 
       detail: detailResult.rows[0],
+
+      passenger: {
+        full_name: passengerName,
+        gender: passengerGender,
+        date_of_birth: passengerBirthDate,
+        document_type: documentType,
+        document_number: documentNumber,
+        phone: passengerPhone,
+        email: passengerEmail,
+      },
+
+      services: {
+        baggage_weight: baggageWeight,
+        baggage_price: baggagePrice,
+        meal_type: mealType,
+        meal_price: mealPrice,
+        insurance,
+        insurance_price: insurancePrice,
+      },
+
+      pricing: {
+        base_price: basePrice,
+        seat_surcharge: seatSurcharge,
+        seat_fare: seatFare,
+        baggage_price: baggagePrice,
+        meal_price: mealPrice,
+        insurance_price: insurancePrice,
+        total_price: totalPrice,
+      },
 
       hold_expires_at: hold.hold_expires_at,
     });
@@ -583,10 +751,8 @@ exports.createBooking = async (req, res) => {
 };
 
 // =====================================================
-// XÁC NHẬN THANH TOÁN GIẢ LẬP
+// THANH TOÁN GIẢ LẬP
 // POST /api/bookings/:bookingId/pay
-//
-// BẤM NÚT => HOÀN THÀNH ĐƠN
 // =====================================================
 
 exports.confirmPayment = async (req, res) => {
@@ -596,10 +762,6 @@ exports.confirmPayment = async (req, res) => {
     const bookingId = Number(req.params.bookingId);
 
     const userId = getUserId(req);
-
-    // =================================================
-    // VALIDATE
-    // =================================================
 
     if (!userId) {
       return res.status(401).json({
@@ -615,18 +777,14 @@ exports.confirmPayment = async (req, res) => {
 
     await client.query("BEGIN");
 
-    // =================================================
-    // LẤY BOOKING
-    // =================================================
-
     const bookingResult = await client.query(
       `
-          SELECT *
-          FROM bookings
-          WHERE id = $1
-            AND user_id = $2
-          FOR UPDATE
-        `,
+        SELECT *
+        FROM bookings
+        WHERE id = $1
+          AND user_id = $2
+        FOR UPDATE
+      `,
       [bookingId, userId],
     );
 
@@ -640,33 +798,24 @@ exports.confirmPayment = async (req, res) => {
 
     const booking = bookingResult.rows[0];
 
-    // =================================================
-    // NẾU ĐÃ CONFIRMED
-    // =================================================
-
     if (booking.status === "CONFIRMED") {
       await client.query("COMMIT");
 
       return res.json({
         message: "Đơn đặt vé đã hoàn thành trước đó",
-
         booking,
       });
     }
 
-    // =================================================
-    // LẤY CHI TIẾT GHẾ
-    // =================================================
-
     const detailResult = await client.query(
       `
-          SELECT *
-          FROM booking_details
-          WHERE booking_id = $1
-          ORDER BY id DESC
-          LIMIT 1
-          FOR UPDATE
-        `,
+        SELECT *
+        FROM booking_details
+        WHERE booking_id = $1
+        ORDER BY id DESC
+        LIMIT 1
+        FOR UPDATE
+      `,
       [bookingId],
     );
 
@@ -679,10 +828,6 @@ exports.confirmPayment = async (req, res) => {
     }
 
     const detail = detailResult.rows[0];
-
-    // =================================================
-    // HOLD HẾT HẠN
-    // =================================================
 
     if (
       detail.seat_status === "HOLD" &&
@@ -707,10 +852,6 @@ exports.confirmPayment = async (req, res) => {
       });
     }
 
-    // =================================================
-    // TRẠNG THÁI KHÔNG HỢP LỆ
-    // =================================================
-
     if (detail.seat_status !== "HOLD" && detail.seat_status !== "BOOKED") {
       await client.query("ROLLBACK");
 
@@ -719,124 +860,90 @@ exports.confirmPayment = async (req, res) => {
       });
     }
 
-    // =================================================
-    // UPDATE BOOKING -> CONFIRMED
-    // =================================================
-
     const confirmedBookingResult = await client.query(
       `
-          UPDATE bookings
-
-          SET status = 'CONFIRMED'
-
-          WHERE id = $1
-
-          RETURNING *
-        `,
+        UPDATE bookings
+        SET
+          status = 'CONFIRMED',
+          updated_at = NOW()
+        WHERE id = $1
+        RETURNING *
+      `,
       [bookingId],
     );
-
-    // =================================================
-    // UPDATE GHẾ -> BOOKED
-    // =================================================
 
     await client.query(
       `
         UPDATE booking_details
-
         SET
           seat_status = 'BOOKED',
           hold_expires_at = NULL
-
         WHERE booking_id = $1
       `,
       [bookingId],
     );
 
-    // =================================================
-    // KIỂM TRA PAYMENT CŨ
-    // =================================================
-
     const oldPaymentResult = await client.query(
       `
-          SELECT *
-          FROM payments
-          WHERE booking_id = $1
-          ORDER BY id DESC
-          LIMIT 1
-        `,
+        SELECT *
+        FROM payments
+        WHERE booking_id = $1
+        ORDER BY id DESC
+        LIMIT 1
+      `,
       [bookingId],
     );
 
     let payment;
 
-    // =================================================
-    // ĐÃ CÓ PAYMENT
-    // =================================================
-
     if (oldPaymentResult.rows.length > 0) {
       const paymentResult = await client.query(
         `
-            UPDATE payments
-
-            SET
-              method = 'MOCK',
-              amount = $1,
-              status = 'SUCCESS',
-              paid_at = NOW()
-
-            WHERE id = $2
-
-            RETURNING *
-          `,
+          UPDATE payments
+          SET
+            method = 'MOCK',
+            amount = $1,
+            status = 'SUCCESS',
+            paid_at = NOW()
+          WHERE id = $2
+          RETURNING *
+        `,
         [booking.total_price, oldPaymentResult.rows[0].id],
       );
 
       payment = paymentResult.rows[0];
     } else {
-      // =================================================
-      // CHƯA CÓ PAYMENT
-      // =================================================
-
       const paymentResult = await client.query(
         `
-            INSERT INTO payments
-            (
-              booking_id,
-              method,
-              amount,
-              status,
-              paid_at
-            )
-
-            VALUES
-            (
-              $1,
-              'MOCK',
-              $2,
-              'SUCCESS',
-              NOW()
-            )
-
-            RETURNING *
-          `,
+          INSERT INTO payments
+          (
+            booking_id,
+            method,
+            amount,
+            status,
+            paid_at
+          )
+          VALUES
+          (
+            $1,
+            'MOCK',
+            $2,
+            'SUCCESS',
+            NOW()
+          )
+          RETURNING *
+        `,
         [bookingId, booking.total_price],
       );
 
       payment = paymentResult.rows[0];
     }
 
-    // =================================================
-    // COMMIT
-    // =================================================
-
     await client.query("COMMIT");
 
     return res.status(200).json({
       message: "Đặt vé thành công",
-
       booking: confirmedBookingResult.rows[0],
-
       payment,
     });
   } catch (error) {
@@ -850,7 +957,6 @@ exports.confirmPayment = async (req, res) => {
 
     return res.status(500).json({
       message: error.message,
-
       code: error.code || null,
     });
   } finally {
@@ -859,7 +965,7 @@ exports.confirmPayment = async (req, res) => {
 };
 
 // =====================================================
-// LẤY DANH SÁCH VÉ ĐÃ MUA
+// MY TICKETS
 // GET /api/bookings/my-tickets
 // =====================================================
 
@@ -867,90 +973,93 @@ exports.getMyTickets = async (req, res) => {
   try {
     const userId = getUserId(req);
 
-    // =================================================
-    // VALIDATE
-    // =================================================
-
     if (!userId) {
       return res.status(401).json({
         message: "Không xác định được tài khoản đăng nhập",
       });
     }
 
-    // =================================================
-    // QUERY
-    // =================================================
-
     const result = await pool.query(
       `
+        SELECT
+          b.id,
+          b.booking_code,
+          b.total_price,
+          b.status,
+          b.created_at,
+
+          b.flight_date,
+          b.departure_place,
+          b.arrival_place,
+          b.departure_time_text,
+          b.arrival_time_text,
+          b.airline_name,
+          b.flight_number_snapshot,
+          b.seat_number_snapshot,
+
+          bd.id AS booking_detail_id,
+          bd.flight_id,
+          bd.seat_id,
+          bd.seat_class,
+          bd.price,
+          bd.seat_status,
+
+          bd.passenger_name,
+          bd.email,
+          bd.phone,
+          bd.gender,
+          bd.date_of_birth,
+          bd.document_type,
+          bd.document_number,
+
+          bd.baggage_weight,
+          bd.baggage_price,
+
+          bd.meal_type,
+          bd.meal_price,
+
+          bd.insurance,
+          bd.insurance_price,
+
+          p.status AS payment_status,
+          p.method AS payment_method,
+          p.amount AS payment_amount,
+          p.paid_at
+
+        FROM bookings b
+
+        JOIN booking_details bd
+          ON bd.booking_id = b.id
+
+        LEFT JOIN LATERAL
+        (
           SELECT
+            status,
+            method,
+            amount,
+            paid_at
+          FROM payments
+          WHERE booking_id = b.id
+          ORDER BY id DESC
+          LIMIT 1
+        ) p
+        ON TRUE
 
-            b.id,
-            b.booking_code,
-            b.total_price,
-            b.status,
-            b.created_at,
+        WHERE b.user_id = $1
+          AND b.status = 'CONFIRMED'
+          AND bd.seat_status = 'BOOKED'
 
-            b.flight_date,
-            b.departure_place,
-            b.arrival_place,
-            b.departure_time_text,
-            b.arrival_time_text,
-            b.airline_name,
-            b.flight_number_snapshot,
-            b.seat_number_snapshot,
-
-            bd.id AS booking_detail_id,
-            bd.flight_id,
-            bd.seat_id,
-            bd.seat_class,
-            bd.price,
-            bd.seat_status,
-
-            p.status AS payment_status,
-            p.method AS payment_method,
-            p.amount AS payment_amount,
-            p.paid_at
-
-          FROM bookings b
-
-          JOIN booking_details bd
-            ON bd.booking_id = b.id
-
-          LEFT JOIN LATERAL
-          (
-            SELECT
-              status,
-              method,
-              amount,
-              paid_at
-
-            FROM payments
-
-            WHERE booking_id = b.id
-
-            ORDER BY id DESC
-
-            LIMIT 1
-          ) p
-          ON TRUE
-
-          WHERE b.user_id = $1
-            AND b.status = 'CONFIRMED'
-            AND bd.seat_status = 'BOOKED'
-
-          ORDER BY
-            COALESCE(
-              p.paid_at,
-              b.created_at
-            ) DESC
-        `,
+        ORDER BY
+          COALESCE(
+            p.paid_at,
+            b.created_at
+          ) DESC
+      `,
       [userId],
     );
 
     return res.status(200).json({
       message: "Lấy danh sách vé thành công",
-
       data: result.rows,
     });
   } catch (error) {
@@ -958,7 +1067,6 @@ exports.getMyTickets = async (req, res) => {
 
     return res.status(500).json({
       message: error.message,
-
       code: error.code || null,
     });
   }

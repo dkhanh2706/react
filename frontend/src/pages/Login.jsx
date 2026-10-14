@@ -86,8 +86,8 @@ function Login() {
       title="Chào mừng trở lại"
       subtitle="Đăng nhập để khám phá các hành trình và quản lý vé của bạn"
       icon="✈️"
-      badge="AIRLINE PORTAL"
-      maxWidth="max-w-lg"
+      badge="DAMH SHOP"
+      maxWidth="max-w-[460px]"
     >
       <form onSubmit={handleLogin} className="space-y-5">
         {/* Email Field */}
