@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+
 import { useNavigate } from "react-router-dom";
+
+import api from "../api/axios";
 
 import "../styles/Chatbot.css";
 
@@ -23,7 +26,9 @@ function Chatbot() {
   const [messages, setMessages] = useState([
     {
       id: 1,
+
       sender: "bot",
+
       text: "Xin chào 👋 Ngày mới tốt lành! Mình là trợ lý đặt vé máy bay. Hôm nay mình có thể giúp gì cho bạn?",
     },
   ]);
@@ -47,19 +52,22 @@ function Chatbot() {
   const addMessage = (sender, text) => {
     setMessages((prev) => [
       ...prev,
+
       {
         id: Date.now() + Math.random(),
+
         sender,
+
         text,
       },
     ]);
   };
 
   // =====================================================
-  // BOT REPLY + TYPING EFFECT
+  // BOT REPLY LOCAL
   // =====================================================
 
-  const botReply = (text, delay = 900) => {
+  const botReply = (text, delay = 700) => {
     setIsTyping(true);
 
     setTimeout(() => {
@@ -67,6 +75,46 @@ function Chatbot() {
 
       addMessage("bot", text);
     }, delay);
+  };
+
+  // =====================================================
+  // GROQ AI
+  // =====================================================
+
+  const askAI = async (message) => {
+    try {
+      setIsTyping(true);
+
+      const history = messages.slice(-8).map((item) => ({
+        sender: item.sender,
+
+        text: item.text,
+      }));
+
+      const response = await api.post("/chat", {
+        message,
+
+        history,
+      });
+
+      const reply =
+        response.data?.reply || "Xin lỗi, mình chưa thể trả lời câu hỏi này.";
+
+      setIsTyping(false);
+
+      addMessage("bot", reply);
+    } catch (error) {
+      console.error("CHATBOT AI ERROR:", error.response?.data || error);
+
+      setIsTyping(false);
+
+      addMessage(
+        "bot",
+
+        error.response?.data?.message ||
+          "Trợ lý AI đang gặp lỗi 😅 Bạn thử lại sau nhé.",
+      );
+    }
   };
 
   // =====================================================
@@ -91,65 +139,99 @@ function Chatbot() {
       hn: "HAN",
       "nội bài": "HAN",
       "noi bai": "HAN",
+      han: "HAN",
 
       // TP.HCM
       hcm: "SGN",
       tphcm: "SGN",
       "tp hcm": "SGN",
+
       "tp hồ chí minh": "SGN",
+
       "tp ho chi minh": "SGN",
+
       "hồ chí minh": "SGN",
+
       "ho chi minh": "SGN",
+
       "sài gòn": "SGN",
+
       "sai gon": "SGN",
+
       "tân sơn nhất": "SGN",
+
       "tan son nhat": "SGN",
+
+      sgn: "SGN",
 
       // ĐÀ NẴNG
       "đà nẵng": "DAD",
       "da nang": "DAD",
+      dad: "DAD",
 
       // PHÚ QUỐC
       "phú quốc": "PQC",
       "phu quoc": "PQC",
+      pqc: "PQC",
 
       // NHA TRANG
       "nha trang": "CXR",
       "cam ranh": "CXR",
+      cxr: "CXR",
 
       // ĐÀ LẠT
       "đà lạt": "DLI",
       "da lat": "DLI",
+
       "liên khương": "DLI",
+
       "lien khuong": "DLI",
+
+      dli: "DLI",
 
       // HUẾ
       huế: "HUI",
       hue: "HUI",
+
       "phú bài": "HUI",
+
       "phu bai": "HUI",
+
+      hui: "HUI",
 
       // CẦN THƠ
       "cần thơ": "VCA",
+
       "can tho": "VCA",
+
+      vca: "VCA",
 
       // TOKYO
       haneda: "HND",
+
       "tokyo haneda": "HND",
 
+      hnd: "HND",
+
       narita: "NRT",
+
       "tokyo narita": "NRT",
+
+      nrt: "NRT",
 
       // SINGAPORE
       singapore: "SIN",
+
       changi: "SIN",
+
+      sin: "SIN",
     };
 
     return airports[text] || value.toUpperCase();
   };
 
   // =====================================================
-  // CHUYỂN NGÀY -> YYYY-MM-DD
+  // NORMALIZE DATE
   // =====================================================
 
   const normalizeDate = (value) => {
@@ -159,16 +241,13 @@ function Chatbot() {
 
     const text = value.trim();
 
-    // Nếu đã đúng format
+    // YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
       return text;
     }
 
-    // Ví dụ:
-    // 13/10/2026
-    // ngày 13/10/2026
-    // 13-10-2026
-
+    // DD/MM/YYYY
+    // DD-MM-YYYY
     const match = text.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
 
     if (!match) {
@@ -185,7 +264,7 @@ function Chatbot() {
   };
 
   // =====================================================
-  // NÚT GỢI Ý NHANH
+  // QUICK OPTION
   // =====================================================
 
   const handleQuickOption = (type) => {
@@ -194,7 +273,11 @@ function Chatbot() {
     }
 
     if (type === "search") {
-      addMessage("user", "✈️ Tôi muốn tìm chuyến bay");
+      addMessage(
+        "user",
+
+        "✈️ Tôi muốn tìm chuyến bay",
+      );
 
       setStep("from");
 
@@ -206,7 +289,11 @@ function Chatbot() {
     }
 
     if (type === "destination") {
-      addMessage("user", "🌴 Gợi ý điểm đến");
+      addMessage(
+        "user",
+
+        "🌴 Gợi ý điểm đến",
+      );
 
       botReply(
         "Bạn thích kiểu chuyến đi nào? 🏖️ Biển, ⛰️ thiên nhiên, 🌆 thành phố hay 🍜 khám phá ẩm thực?",
@@ -216,7 +303,11 @@ function Chatbot() {
     }
 
     if (type === "date") {
-      addMessage("user", "📅 Tôi chưa biết ngày đi");
+      addMessage(
+        "user",
+
+        "📅 Tôi chưa biết ngày đi",
+      );
 
       botReply(
         "Không sao 😊 Nếu bạn rảnh cuối tuần, mình gợi ý các chuyến ngắn 2–3 ngày như Đà Nẵng, Nha Trang, Phú Quốc hoặc Đà Lạt.",
@@ -226,23 +317,24 @@ function Chatbot() {
     }
 
     if (type === "support") {
-      addMessage("user", "☎️ Tôi cần hỗ trợ");
+      addMessage(
+        "user",
+
+        "☎️ Tôi cần hỗ trợ",
+      );
 
       botReply(
-        "Bạn đang cần hỗ trợ về tìm chuyến bay, đặt vé, thanh toán hay quản lý đặt chỗ?",
+        "Bạn đang cần hỗ trợ về tìm chuyến bay, đặt vé, chọn ghế, thanh toán hay quản lý đặt chỗ?",
       );
     }
   };
 
   // =====================================================
-  // XỬ LÝ LUỒNG TÌM CHUYẾN BAY
+  // FLIGHT SEARCH STEP
   // =====================================================
 
   const handleFlightSearchStep = (message) => {
-    // ==========================
     // ĐIỂM ĐI
-    // ==========================
-
     if (step === "from") {
       const airportCode = normalizeAirport(message);
 
@@ -254,6 +346,7 @@ function Chatbot() {
 
       setFlightData((prev) => ({
         ...prev,
+
         from: message,
       }));
 
@@ -264,10 +357,7 @@ function Chatbot() {
       return true;
     }
 
-    // ==========================
     // ĐIỂM ĐẾN
-    // ==========================
-
     if (step === "to") {
       const fromCode = normalizeAirport(flightData.from);
 
@@ -283,28 +373,26 @@ function Chatbot() {
 
       setFlightData((prev) => ({
         ...prev,
+
         to: message,
       }));
 
       setStep("date");
 
       botReply(
-        `Tuyệt ✈️ Bạn muốn đi ${message}. Bạn dự định bay ngày nào? Ví dụ: 13/10/2026.`,
+        `Tuyệt ✈️ Bạn muốn đi ${message}. Bạn dự định bay ngày nào? Ví dụ: 20/10/2026.`,
       );
 
       return true;
     }
 
-    // ==========================
-    // NGÀY BAY
-    // ==========================
-
+    // NGÀY
     if (step === "date") {
       const normalizedDate = normalizeDate(message);
 
       if (!normalizedDate) {
         botReply(
-          "Mình chưa hiểu ngày bay 😅 Bạn nhập theo dạng 13/10/2026 nhé.",
+          "Mình chưa hiểu ngày bay 😅 Bạn nhập theo dạng 20/10/2026 nhé.",
         );
 
         return true;
@@ -326,6 +414,7 @@ function Chatbot() {
 
       const newData = {
         ...flightData,
+
         date: message,
       };
 
@@ -334,8 +423,14 @@ function Chatbot() {
       setStep("done");
 
       botReply(
-        `✅ Mình đã ghi nhận thông tin chuyến bay:\n\n📍 Đi từ: ${newData.from}\n📍 Đến: ${newData.to}\n📅 Ngày đi: ${newData.date}\n\nBấm nút bên dưới để xem các chuyến bay phù hợp nhé.`,
-        1100,
+        `✅ Mình đã ghi nhận thông tin chuyến bay:
+
+📍 Đi từ: ${newData.from}
+📍 Đến: ${newData.to}
+📅 Ngày đi: ${newData.date}
+
+Bấm nút bên dưới để xem các chuyến bay phù hợp nhé.`,
+        800,
       );
 
       return true;
@@ -345,19 +440,19 @@ function Chatbot() {
   };
 
   // =====================================================
-  // BOT XỬ LÝ TIN NHẮN
+  // BOT RESPONSE
   // =====================================================
 
   const handleBotResponse = (message) => {
     const text = message.toLowerCase().trim();
 
-    // Nếu đang trong luồng tìm chuyến
+    // Đang trong luồng tìm chuyến
     if (handleFlightSearchStep(message)) {
       return;
     }
 
     // =====================================================
-    // CHÀO HỎI
+    // CHÀO
     // =====================================================
 
     if (
@@ -368,14 +463,14 @@ function Chatbot() {
       text === "alo"
     ) {
       botReply(
-        "Xin chào bạn 👋 Rất vui được hỗ trợ! Bạn muốn tìm chuyến bay hay cần mình gợi ý điểm đến?",
+        "Xin chào bạn 👋 Rất vui được hỗ trợ! Bạn muốn tìm chuyến bay hay cần mình tư vấn về đặt vé?",
       );
 
       return;
     }
 
     // =====================================================
-    // TÌM VÉ
+    // TÌM CHUYẾN BAY
     // =====================================================
 
     if (
@@ -385,109 +480,15 @@ function Chatbot() {
       text.includes("mua vé") ||
       text.includes("vé máy bay")
     ) {
+      setFlightData({
+        from: "",
+        to: "",
+        date: "",
+      });
+
       setStep("from");
 
       botReply("Được nhé ✈️ Trước tiên, bạn muốn bay từ đâu?");
-
-      return;
-    }
-
-    // =====================================================
-    // HÀ NỘI
-    // =====================================================
-
-    if (text.includes("hà nội")) {
-      botReply(
-        "Hà Nội là lựa chọn rất thú vị 🏙️ Bạn muốn mình hỗ trợ tìm chuyến bay đến Hà Nội hay đi từ Hà Nội?",
-      );
-
-      return;
-    }
-
-    // =====================================================
-    // ĐÀ NẴNG
-    // =====================================================
-
-    if (text.includes("đà nẵng")) {
-      botReply(
-        "Đà Nẵng rất hợp cho chuyến đi 3–4 ngày 🌊 Bạn có thể kết hợp Hội An và Bà Nà Hills. Bạn muốn tìm vé đến Đà Nẵng không?",
-      );
-
-      return;
-    }
-
-    // =====================================================
-    // PHÚ QUỐC
-    // =====================================================
-
-    if (text.includes("phú quốc")) {
-      botReply(
-        "Phú Quốc rất phù hợp nếu bạn thích nghỉ dưỡng và biển 🏖️ Bạn muốn mình hỗ trợ tìm chuyến bay đến Phú Quốc không?",
-      );
-
-      return;
-    }
-
-    // =====================================================
-    // NHA TRANG
-    // =====================================================
-
-    if (text.includes("nha trang")) {
-      botReply(
-        "Nha Trang rất hợp nếu bạn thích biển và nghỉ dưỡng 🌊 Bạn muốn đi vào khoảng thời gian nào?",
-      );
-
-      return;
-    }
-
-    // =====================================================
-    // ĐÀ LẠT
-    // =====================================================
-
-    if (text.includes("đà lạt")) {
-      botReply(
-        "Đà Lạt phù hợp cho chuyến nghỉ ngắn 2–3 ngày 🌲 Bạn muốn đi cuối tuần hay ngày thường?",
-      );
-
-      return;
-    }
-
-    // =====================================================
-    // BIỂN
-    // =====================================================
-
-    if (text.includes("biển") || text.includes("nghỉ dưỡng")) {
-      botReply(
-        "Nếu thích biển 🏖️, mình gợi ý Đà Nẵng, Nha Trang hoặc Phú Quốc. Bạn thích điểm nào nhất?",
-      );
-
-      return;
-    }
-
-    // =====================================================
-    // THIÊN NHIÊN
-    // =====================================================
-
-    if (text.includes("núi") || text.includes("thiên nhiên")) {
-      botReply(
-        "Nếu thích thiên nhiên ⛰️, bạn có thể cân nhắc Đà Lạt hoặc các điểm đến phía Bắc. Bạn muốn mình gợi ý thêm không?",
-      );
-
-      return;
-    }
-
-    // =====================================================
-    // CUỐI TUẦN
-    // =====================================================
-
-    if (
-      text.includes("cuối tuần") ||
-      text.includes("2 ngày") ||
-      text.includes("3 ngày")
-    ) {
-      botReply(
-        "Nếu chỉ có 2–3 ngày, bạn nên chọn chuyến ngắn như Đà Nẵng, Nha Trang, Đà Lạt hoặc Phú Quốc để tiết kiệm thời gian.",
-      );
 
       return;
     }
@@ -501,10 +502,16 @@ function Chatbot() {
       text.includes("bao nhiêu tiền") ||
       text.includes("vé rẻ")
     ) {
+      setFlightData({
+        from: "",
+        to: "",
+        date: "",
+      });
+
       setStep("from");
 
       botReply(
-        "Để tìm giá vé phù hợp, trước tiên bạn cho mình biết điểm đi nhé ✈️",
+        "Để kiểm tra giá vé thực tế, trước tiên bạn cho mình biết điểm đi nhé ✈️",
       );
 
       return;
@@ -514,9 +521,9 @@ function Chatbot() {
     // THANH TOÁN
     // =====================================================
 
-    if (text.includes("thanh toán") || text.includes("payment")) {
+    if (text === "thanh toán" || text === "payment") {
       botReply(
-        "Bạn có thể thanh toán sau khi chọn chuyến bay và ghế. Nếu gặp lỗi, bạn có thể thử lại hoặc kiểm tra thông tin thanh toán.",
+        "Sau khi chọn chuyến bay, nhập thông tin hành khách và chọn ghế, bạn sẽ được chuyển tới bước thanh toán.",
       );
 
       return;
@@ -526,37 +533,44 @@ function Chatbot() {
     // GHẾ
     // =====================================================
 
-    if (text.includes("ghế") || text.includes("chọn ghế")) {
+    if (text === "ghế" || text === "chọn ghế") {
       botReply(
-        "Sau khi chọn chuyến bay, bạn có thể chọn ghế còn trống trong sơ đồ ghế trước khi thanh toán.",
+        "Sau khi nhập thông tin hành khách, bạn có thể chọn ghế còn trống trên sơ đồ ghế trước khi thanh toán.",
       );
 
       return;
     }
 
     // =====================================================
-    // HỦY VÉ
+    // MỘT SỐ GỢI Ý NHANH
     // =====================================================
 
-    if (text.includes("hủy vé") || text.includes("hủy chuyến")) {
+    if (text.includes("biển") || text.includes("nghỉ dưỡng")) {
       botReply(
-        "Bạn có thể kiểm tra vé trong mục Quản lý đặt chỗ. Chính sách hủy sẽ tùy trạng thái vé và quy định của hệ thống.",
+        "Nếu thích biển 🏖️, bạn có thể cân nhắc Đà Nẵng, Nha Trang hoặc Phú Quốc.",
+      );
+
+      return;
+    }
+
+    if (text.includes("núi") || text.includes("thiên nhiên")) {
+      botReply(
+        "Nếu thích thiên nhiên ⛰️, Đà Lạt là lựa chọn phù hợp cho chuyến đi ngắn.",
       );
 
       return;
     }
 
     // =====================================================
-    // MẶC ĐỊNH
+    // AI FALLBACK
+    // Những câu khác chuyển sang Groq
     // =====================================================
 
-    botReply(
-      "Mình chưa hiểu rõ câu hỏi đó 😅 Bạn có thể hỏi mình về tìm chuyến bay, giá vé, điểm đến, chọn ghế hoặc thanh toán nhé.",
-    );
+    askAI(message);
   };
 
   // =====================================================
-  // GỬI TIN NHẮN
+  // SEND MESSAGE
   // =====================================================
 
   const handleSend = () => {
@@ -574,20 +588,22 @@ function Chatbot() {
   };
 
   // =====================================================
-  // ENTER SEND
+  // ENTER
   // =====================================================
 
   const handleKeyDown = (event) => {
-    if (event.key === "Enter") {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+
       handleSend();
     }
   };
 
   // =====================================================
-  // ĐI TỚI TRANG TÌM CHUYẾN BAY
+  // TÌM CHUYẾN BAY THẬT
   // =====================================================
 
-  const goToFlightSearch = () => {
+  const goToFlightSearch = async () => {
     const from = normalizeAirport(flightData.from);
 
     const to = normalizeAirport(flightData.to);
@@ -608,25 +624,71 @@ function Chatbot() {
       return;
     }
 
-    setOpen(false);
+    try {
+      setIsTyping(true);
 
-    navigate(
-      `/flights?from=${encodeURIComponent(from)}&to=${encodeURIComponent(
-        to,
-      )}&date=${encodeURIComponent(date)}`,
-    );
+      const response = await api.get("/flights/search", {
+        params: {
+          from,
+
+          to,
+
+          date,
+        },
+      });
+
+      const flights = Array.isArray(response.data)
+        ? response.data
+        : response.data?.data || [];
+
+      setIsTyping(false);
+
+      setOpen(false);
+
+      navigate("/flights", {
+        state: {
+          flights,
+
+          searchInfo: {
+            from,
+
+            to,
+
+            departDate: date,
+          },
+
+          source: "chatbot",
+        },
+      });
+    } catch (error) {
+      console.error(
+        "CHATBOT SEARCH FLIGHT ERROR:",
+        error.response?.data || error,
+      );
+
+      setIsTyping(false);
+
+      addMessage(
+        "bot",
+
+        error.response?.data?.message ||
+          "Không thể tìm chuyến bay lúc này 😅 Bạn thử lại nhé.",
+      );
+    }
   };
 
   // =====================================================
-  // RESET CHAT
+  // RESET
   // =====================================================
 
   const resetChat = () => {
     setMessages([
       {
         id: Date.now(),
+
         sender: "bot",
-        text: "Xin chào 👋 Ngày mới tốt lành! Mình có thể giúp bạn tìm chuyến bay hoặc gợi ý điểm đến nhé.",
+
+        text: "Xin chào 👋 Mình là trợ lý đặt vé máy bay. Mình có thể giúp bạn tìm chuyến bay hoặc giải đáp các câu hỏi về đặt vé nhé.",
       },
     ]);
 
@@ -649,9 +711,7 @@ function Chatbot() {
 
   return (
     <>
-      {/* =================================================
-          NÚT CHAT
-      ================================================= */}
+      {/* FLOAT BUTTON */}
 
       <div className="support">
         <button
@@ -665,21 +725,17 @@ function Chatbot() {
         </button>
       </div>
 
-      {/* =================================================
-          CHATBOX
-      ================================================= */}
+      {/* CHATBOX */}
 
       {open && (
         <div className="chatbot-box">
-          {/* =============================================
-              HEADER
-          ============================================= */}
+          {/* HEADER */}
 
           <div className="chatbot-header">
             <div className="chatbot-header-left">
               <div className="chatbot-avatar-wrap">
                 <div className="chatbot-avatar">
-                  <i class="fa-brands fa-bots"></i>
+                  <i className="fa-solid fa-robot"></i>
                 </div>
 
                 <span className="avatar-status"></span>
@@ -688,7 +744,7 @@ function Chatbot() {
               <div>
                 <h4>Trợ lý đặt vé</h4>
 
-                <p>Thường phản hồi ngay</p>
+                <p>AI hỗ trợ trực tuyến</p>
               </div>
             </div>
 
@@ -712,16 +768,12 @@ function Chatbot() {
             </div>
           </div>
 
-          {/* =============================================
-              BODY
-          ============================================= */}
+          {/* BODY */}
 
           <div className="chatbot-body">
             <div className="chat-date">Hôm nay</div>
 
-            {/* ===========================================
-                MESSAGES
-            =========================================== */}
+            {/* MESSAGES */}
 
             {messages.map((message) => (
               <div
@@ -732,7 +784,7 @@ function Chatbot() {
               >
                 {message.sender === "bot" && (
                   <div className="message-avatar">
-                    <i className="fa-brands fa-bots"></i>
+                    <i className="fa-solid fa-robot"></i>
                   </div>
                 )}
 
@@ -741,25 +793,25 @@ function Chatbot() {
                     message.sender === "user" ? "user-message" : "bot-message"
                   }`}
                 >
-                  {message.text.split("\n").map((line, index, arr) => (
-                    <span key={index}>
-                      {line}
+                  {String(message.text)
+                    .split("\n")
+                    .map((line, index, arr) => (
+                      <span key={index}>
+                        {line}
 
-                      {index < arr.length - 1 && <br />}
-                    </span>
-                  ))}
+                        {index < arr.length - 1 && <br />}
+                      </span>
+                    ))}
                 </div>
               </div>
             ))}
 
-            {/* ===========================================
-                BOT ĐANG NHẬP
-            =========================================== */}
+            {/* TYPING */}
 
             {isTyping && (
               <div className="message-row bot-row typing-row">
                 <div className="message-avatar">
-                  <i class="fa-solid fa-user-message"></i>
+                  <i className="fa-solid fa-robot"></i>
                 </div>
 
                 <div className="message bot-message typing-message">
@@ -772,9 +824,7 @@ function Chatbot() {
               </div>
             )}
 
-            {/* ===========================================
-                NÚT TÌM CHUYẾN BAY
-            =========================================== */}
+            {/* SEARCH BUTTON */}
 
             {step === "done" && !isTyping && (
               <div className="flight-search-action">
@@ -784,9 +834,7 @@ function Chatbot() {
               </div>
             )}
 
-            {/* ===========================================
-                QUICK OPTIONS
-            =========================================== */}
+            {/* QUICK OPTION */}
 
             {step === "idle" && !isTyping && (
               <div className="quick-options">
@@ -820,9 +868,7 @@ function Chatbot() {
             <div ref={messagesEndRef}></div>
           </div>
 
-          {/* =============================================
-              INPUT
-          ============================================= */}
+          {/* INPUT */}
 
           <div className="chatbot-input-area">
             <div className="input-wrapper">
@@ -848,11 +894,9 @@ function Chatbot() {
             </button>
           </div>
 
-          {/* =============================================
-              FOOTER
-          ============================================= */}
+          {/* FOOTER */}
 
-          <div className="chatbot-footer">Trợ lý hỗ trợ đặt vé ✦</div>
+          <div className="chatbot-footer">Trợ lý AI hỗ trợ đặt vé ✦</div>
         </div>
       )}
     </>

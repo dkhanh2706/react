@@ -12,10 +12,22 @@ createRoot(document.getElementById("root")).render(
 
     <Toaster
       position="top-right"
+      containerStyle={{
+        top: 20,
+        right: 20,
+        zIndex: 9999999,
+      }}
       toastOptions={{
-        duration: 2000,
+        duration: 2500,
         style: {
-          fontSize: "15px",
+          fontSize: "14px",
+          fontWeight: 600,
+          color: "#0f172a",
+          background: "#ffffff",
+          borderRadius: "10px",
+          padding: "10px 16px",
+          boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08)",
+          border: "1px solid #e2e8f0",
         },
       }}
     />

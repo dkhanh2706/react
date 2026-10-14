@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { Toaster } from "react-hot-toast";
 
 // =====================================================
 // AUTH
@@ -210,31 +209,6 @@ function AdminRoute({ children }) {
 function App() {
   return (
     <BrowserRouter>
-      <Toaster
-        position="top-center"
-        reverseOrder={false}
-        containerStyle={{
-          zIndex: 9999999,
-        }}
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: "#ffffff",
-            color: "#1f2937",
-            fontWeight: 600,
-            padding: "14px 18px",
-            borderRadius: "10px",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
-          },
-          success: {
-            duration: 3500,
-          },
-          error: {
-            duration: 5000,
-          },
-        }}
-      />
-
       <Routes>
         {/* AUTH */}
 

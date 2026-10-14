@@ -34,9 +34,7 @@ function loadRouter(routerPath, routeName) {
   }
 
   console.error(`❌ ROUTE ERROR: ${routeName} không phải Express Router`);
-
   console.error(`Đường dẫn: ${routerPath}`);
-
   console.error("Giá trị export:", routeModule);
 
   throw new TypeError(
@@ -60,6 +58,9 @@ const bookingRoutes = loadRouter("./routes/booking.routes", "bookingRoutes");
 const userRoutes = loadRouter("./routes/user.routes", "userRoutes");
 
 const paymentRoutes = loadRouter("./routes/payment.routes", "paymentRoutes");
+
+// CHATBOT AI
+const chatRoutes = loadRouter("./routes/chat.routes", "chatRoutes");
 
 // =====================================================
 // CREATE APP
@@ -86,14 +87,11 @@ fs.mkdirSync(avatarDirectory, {
 
 const allowedOrigins = [
   "http://localhost:5173",
-
   "http://127.0.0.1:5173",
 
   "http://192.168.1.9:5173",
-
   "http://192.168.190.70:5173",
   "http://172.20.10.5:5173",
-
   "http://192.168.1.138:5173",
 ];
 
@@ -107,8 +105,7 @@ if (
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Postman / server callback
-    // không có origin
+    // Postman / server callback / MoMo IPN
     if (!origin) {
       return callback(null, true);
     }
@@ -135,30 +132,31 @@ app.use(cors(corsOptions));
 // BODY PARSER
 // =====================================================
 
-app.use(express.json());
+app.use(
+  express.json({
+    limit: "10mb",
+  }),
+);
 
 app.use(
   express.urlencoded({
     extended: true,
+    limit: "10mb",
   }),
 );
 
 // =====================================================
 // STATIC FILE
-// QUAN TRỌNG CHO AVATAR
 // =====================================================
 
 app.use("/uploads", express.static(uploadDirectory));
-
-// Ví dụ:
-// http://localhost:5000/uploads/avatars/user-1-xxx.jpg
 
 // =====================================================
 // LOG REQUEST
 // =====================================================
 
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.originalUrl}`);
+  console.log(`${new Date().toISOString()} ${req.method} ${req.originalUrl}`);
 
   next();
 });
@@ -212,6 +210,20 @@ app.get("/api/uploads-test", (req, res) => {
 });
 
 // =====================================================
+// CHATBOT TEST
+// =====================================================
+
+app.get("/api/chat/test", (req, res) => {
+  return res.status(200).json({
+    message: "Chatbot route đang hoạt động",
+
+    groqConfigured: Boolean(process.env.GROQ_API_KEY),
+
+    model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
+  });
+});
+
+// =====================================================
 // ROUTES
 // =====================================================
 
@@ -232,6 +244,9 @@ app.use("/api/users", userRoutes);
 
 // PAYMENTS
 app.use("/api/payments", paymentRoutes);
+
+// CHATBOT AI
+app.use("/api/chat", chatRoutes);
 
 // =====================================================
 // 404
@@ -333,6 +348,18 @@ app.listen(PORT, HOST, () => {
   console.log("✅ userRoutes:", typeof userRoutes);
 
   console.log("✅ paymentRoutes:", typeof paymentRoutes);
+
+  console.log("✅ chatRoutes:", typeof chatRoutes);
+
+  console.log(
+    "✅ Groq API:",
+    process.env.GROQ_API_KEY ? "Đã cấu hình" : "CHƯA CẤU HÌNH",
+  );
+
+  console.log(
+    "✅ Groq model:",
+    process.env.GROQ_MODEL || "openai/gpt-oss-120b",
+  );
 
   console.log("✅ avatar directory:", avatarDirectory);
 
