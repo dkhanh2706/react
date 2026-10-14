@@ -228,7 +228,7 @@ const blogPosts = [
   {
     id: 7,
     slug: "cach-dat-ve-tren-airline-booking",
-    title: "Hướng dẫn đặt vé trên Airline Booking",
+    title: "Hướng dẫn đặt vé trên DAMH Shop",
     summary:
       "Tìm chuyến bay, lựa chọn ghế và hoàn tất đặt vé chỉ với một vài bước đơn giản.",
     category: "Hướng dẫn",
@@ -239,7 +239,7 @@ const blogPosts = [
     content: [
       {
         type: "paragraph",
-        text: "Airline Booking được xây dựng nhằm giúp người dùng tìm kiếm và đặt chuyến bay theo quy trình đơn giản.",
+        text: "DAMH Shop được xây dựng nhằm giúp người dùng tìm kiếm và đặt chuyến bay theo quy trình đơn giản.",
       },
       {
         type: "heading",

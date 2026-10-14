@@ -71,7 +71,7 @@ function BlogDetail() {
                 <span className="detail-author-avatar">✈</span>
 
                 <div>
-                  <strong>Airline Booking</strong>
+                  <strong>DAMH Shop</strong>
 
                   <small>Cẩm nang hành trình</small>
                 </div>
@@ -121,7 +121,7 @@ function BlogDetail() {
             ===================================== */}
             <aside className="blog-detail-sidebar">
               <div className="sidebar-card">
-                <span className="sidebar-label">AIRLINE BOOKING</span>
+                <span className="sidebar-label">DAMH SHOP</span>
 
                 <h3>Sẵn sàng cho chuyến đi?</h3>
 

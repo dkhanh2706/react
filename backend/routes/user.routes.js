@@ -6,33 +6,64 @@ const userController = require("../controllers/user.controller");
 
 const { verifyToken, isAdmin } = require("../middleware/auth.middleware");
 
+const uploadAvatar = require("../middleware/uploadAvatar.middleware");
+
 // =====================================================
-// PROFILE CỦA USER ĐANG ĐĂNG NHẬP
+// PROFILE
 // =====================================================
 
-// Lấy hồ sơ hiện tại
+// Lấy profile
 router.get("/profile", verifyToken, userController.getMyProfile);
 
-// Cập nhật hồ sơ hiện tại
+// Cập nhật profile
 router.put("/profile", verifyToken, userController.updateMyProfile);
 
 // =====================================================
-// ADMIN USER MANAGEMENT
+// AVATAR
 // =====================================================
 
-// lấy tất cả user
+router.post(
+  "/profile/avatar",
+  verifyToken,
+  uploadAvatar.single("avatar"),
+  userController.uploadAvatar,
+);
+
+// =====================================================
+// PASSWORD OTP
+// =====================================================
+
+// Tạo mã OTP
+router.post(
+  "/password/request-code",
+  verifyToken,
+  userController.requestPasswordChangeCode,
+);
+
+// Đổi mật khẩu
+router.post(
+  "/password/change",
+  verifyToken,
+  userController.changePasswordWithCode,
+);
+
+// =====================================================
+// ADMIN
+// =====================================================
+
 router.get("/", verifyToken, isAdmin, userController.getAllUsers);
 
-// lấy user theo id
 router.get("/:id", verifyToken, isAdmin, userController.getUserById);
 
-// đổi quyền
 router.put("/:id/role", verifyToken, isAdmin, userController.updateRole);
 
-// khóa / mở khóa user
-router.put("/:id/toggle-lock", verifyToken, isAdmin, userController.toggleLockUser);
+router.put(
+  "/:id/toggle-lock",
+  verifyToken,
+  isAdmin,
+  userController.toggleLockUser,
+);
 
-// xóa user
 router.delete("/:id", verifyToken, isAdmin, userController.deleteUser);
 
 module.exports = router;

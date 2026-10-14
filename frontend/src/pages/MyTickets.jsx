@@ -113,7 +113,7 @@ function MyTickets() {
                       <div className="ticket-airline-info">
                         <span className="airline-emblem">✈</span>
                         <div>
-                          <strong>{ticket.airline_name || "Airline Booking"}</strong>
+                          <strong>{ticket.airline_name || "DAMH Shop"}</strong>
                           <span className="flight-pnr">
                             Mã chuyến: {ticket.flight_number_snapshot || "---"}
                           </span>

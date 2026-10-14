@@ -1,17 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+
 import "../styles/Profile.css";
 
 // =====================================================
 // API
-// TỰ HOẠT ĐỘNG CẢ LOCALHOST VÀ MÁY KHÁC TRONG LAN
 // =====================================================
 
-const PROFILE_API = `${window.location.protocol}//${window.location.hostname}:5000/api/users/profile`;
+const API_ORIGIN = `${window.location.protocol}//${window.location.hostname}:5000`;
+
+const PROFILE_API = `${API_ORIGIN}/api/users/profile`;
+
+const AVATAR_API = `${API_ORIGIN}/api/users/profile/avatar`;
+
+const PASSWORD_CODE_API = `${API_ORIGIN}/api/users/password/request-code`;
+
+const PASSWORD_CHANGE_API = `${API_ORIGIN}/api/users/password/change`;
 
 // =====================================================
 // ICON
@@ -88,6 +96,32 @@ const CalendarIcon = () => (
 );
 
 // =====================================================
+// AVATAR
+// =====================================================
+
+const ProfileAvatar = ({ avatarSource, avatarLetter, large = false }) => {
+  return (
+    <div
+      className={
+        large
+          ? "account-profile-avatar profile-avatar-image-wrapper"
+          : "account-avatar profile-avatar-image-wrapper"
+      }
+    >
+      {avatarSource ? (
+        <img
+          src={avatarSource}
+          alt="Ảnh đại diện"
+          className="profile-avatar-image"
+        />
+      ) : (
+        <span>{avatarLetter}</span>
+      )}
+    </div>
+  );
+};
+
+// =====================================================
 // LOCAL STORAGE
 // =====================================================
 
@@ -105,17 +139,13 @@ const getStoredUser = () => {
   }
 };
 
-// =====================================================
-// XÓA PHIÊN ĐĂNG NHẬP
-// =====================================================
-
 const clearAuthStorage = () => {
   localStorage.removeItem("token");
   localStorage.removeItem("user");
 };
 
 // =====================================================
-// KIỂM TRA TOKEN HẾT HẠN Ở FRONTEND
+// TOKEN
 // =====================================================
 
 const isTokenExpired = (token) => {
@@ -152,11 +182,25 @@ const isTokenExpired = (token) => {
     const currentTime = Math.floor(Date.now() / 1000);
 
     return decodedPayload.exp <= currentTime;
-  } catch (error) {
-    console.error("TOKEN PARSE ERROR:", error);
-
+  } catch {
     return true;
   }
+};
+
+// =====================================================
+// AVATAR URL
+// =====================================================
+
+const getAvatarUrl = (value) => {
+  if (!value) {
+    return "";
+  }
+
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return value;
+  }
+
+  return `${API_ORIGIN}${value}`;
 };
 
 // =====================================================
@@ -166,7 +210,13 @@ const isTokenExpired = (token) => {
 function Profile() {
   const navigate = useNavigate();
 
+  const fileInputRef = useRef(null);
+
   const storedUser = getStoredUser();
+
+  // ===================================================
+  // USER
+  // ===================================================
 
   const [user, setUser] = useState({
     id: storedUser.id || null,
@@ -176,7 +226,12 @@ function Profile() {
     birth_date: storedUser.birth_date || "",
     gender: storedUser.gender || "",
     role: storedUser.role || "CUSTOMER",
+    avatar_url: storedUser.avatar_url || "",
   });
+
+  // ===================================================
+  // PROFILE FORM
+  // ===================================================
 
   const [form, setForm] = useState({
     full_name: storedUser.full_name || storedUser.name || "",
@@ -191,9 +246,37 @@ function Profile() {
 
   const [saving, setSaving] = useState(false);
 
-  // =====================================================
-  // XỬ LÝ PHIÊN ĐĂNG NHẬP HẾT HẠN / TOKEN SAI
-  // =====================================================
+  // ===================================================
+  // AVATAR
+  // ===================================================
+
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const [avatarPreview, setAvatarPreview] = useState("");
+
+  // ===================================================
+  // PASSWORD
+  // ===================================================
+
+  const [passwordOpen, setPasswordOpen] = useState(false);
+
+  const [codeRequested, setCodeRequested] = useState(false);
+
+  const [requestingCode, setRequestingCode] = useState(false);
+
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  const [passwordError, setPasswordError] = useState("");
+
+  const [passwordForm, setPasswordForm] = useState({
+    code: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  // ===================================================
+  // SESSION
+  // ===================================================
 
   const handleInvalidSession = (
     message = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
@@ -207,9 +290,21 @@ function Profile() {
     });
   };
 
-  // =====================================================
-  // LOAD PROFILE TỪ DATABASE
-  // =====================================================
+  const getValidToken = () => {
+    const token = localStorage.getItem("token");
+
+    if (!token || isTokenExpired(token)) {
+      handleInvalidSession();
+
+      return null;
+    }
+
+    return token;
+  };
+
+  // ===================================================
+  // LOAD PROFILE
+  // ===================================================
 
   useEffect(() => {
     let active = true;
@@ -219,30 +314,12 @@ function Profile() {
     const loadProfile = async () => {
       const token = localStorage.getItem("token");
 
-      // Không có token
-      if (!token) {
+      if (!token || isTokenExpired(token)) {
         if (active) {
           setLoading(false);
         }
 
         clearAuthStorage();
-
-        navigate("/login", {
-          replace: true,
-        });
-
-        return;
-      }
-
-      // Token hết hạn ngay từ frontend
-      if (isTokenExpired(token)) {
-        if (active) {
-          setLoading(false);
-        }
-
-        clearAuthStorage();
-
-        toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
 
         navigate("/login", {
           replace: true,
@@ -270,10 +347,6 @@ function Profile() {
           data = {};
         }
 
-        // =====================================================
-        // TOKEN HẾT HẠN / KHÔNG HỢP LỆ
-        // =====================================================
-
         if (response.status === 401 || response.status === 403) {
           if (!active) {
             return;
@@ -292,10 +365,6 @@ function Profile() {
 
           return;
         }
-
-        // =====================================================
-        // LỖI KHÁC
-        // =====================================================
 
         if (!response.ok) {
           throw new Error(data.message || "Không thể tải hồ sơ");
@@ -343,9 +412,9 @@ function Profile() {
     };
   }, [navigate]);
 
-  // =====================================================
-  // INPUT
-  // =====================================================
+  // ===================================================
+  // PROFILE INPUT
+  // ===================================================
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -355,10 +424,6 @@ function Profile() {
       [name]: value,
     }));
   };
-
-  // =====================================================
-  // BẬT CHỈNH SỬA
-  // =====================================================
 
   const handleEdit = () => {
     setForm({
@@ -371,10 +436,6 @@ function Profile() {
     setEditing(true);
   };
 
-  // =====================================================
-  // HỦY
-  // =====================================================
-
   const handleCancel = () => {
     setForm({
       full_name: user.full_name || "",
@@ -386,9 +447,9 @@ function Profile() {
     setEditing(false);
   };
 
-  // =====================================================
-  // SAVE
-  // =====================================================
+  // ===================================================
+  // SAVE PROFILE
+  // ===================================================
 
   const handleSave = async () => {
     if (saving) {
@@ -399,19 +460,11 @@ function Profile() {
 
     const phone = form.phone.trim();
 
-    // =====================================================
-    // VALIDATE NAME
-    // =====================================================
-
     if (!fullName) {
       toast.error("Vui lòng nhập họ và tên");
 
       return;
     }
-
-    // =====================================================
-    // VALIDATE PHONE
-    // =====================================================
 
     if (!/^0\d{9}$/.test(phone)) {
       toast.error("Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0");
@@ -419,27 +472,9 @@ function Profile() {
       return;
     }
 
-    const token = localStorage.getItem("token");
-
-    // =====================================================
-    // KHÔNG CÓ TOKEN
-    // =====================================================
+    const token = getValidToken();
 
     if (!token) {
-      handleInvalidSession("Phiên đăng nhập đã hết. Vui lòng đăng nhập lại.");
-
-      return;
-    }
-
-    // =====================================================
-    // TOKEN HẾT HẠN
-    // =====================================================
-
-    if (isTokenExpired(token)) {
-      handleInvalidSession(
-        "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
-      );
-
       return;
     }
 
@@ -456,7 +491,7 @@ function Profile() {
 
         body: JSON.stringify({
           full_name: fullName,
-          phone: phone,
+          phone,
           birth_date: form.birth_date || null,
           gender: form.gender || null,
         }),
@@ -470,21 +505,11 @@ function Profile() {
         data = {};
       }
 
-      // =====================================================
-      // TOKEN HẾT HẠN / TOKEN SAI
-      // =====================================================
-
       if (response.status === 401 || response.status === 403) {
-        handleInvalidSession(
-          data.message || "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
-        );
+        handleInvalidSession(data.message);
 
         return;
       }
-
-      // =====================================================
-      // LỖI KHÁC
-      // =====================================================
 
       if (!response.ok) {
         throw new Error(data.message || "Không thể cập nhật thông tin");
@@ -496,10 +521,6 @@ function Profile() {
         throw new Error("Server không trả về thông tin người dùng");
       }
 
-      // =====================================================
-      // CẬP NHẬT STATE
-      // =====================================================
-
       setUser(updatedUser);
 
       setForm({
@@ -509,11 +530,9 @@ function Profile() {
         gender: updatedUser.gender || "",
       });
 
-      // =====================================================
-      // ĐỒNG BỘ LOCAL STORAGE
-      // =====================================================
-
       localStorage.setItem("user", JSON.stringify(updatedUser));
+
+      window.dispatchEvent(new CustomEvent("userUpdated"));
 
       setEditing(false);
 
@@ -527,13 +546,362 @@ function Profile() {
     }
   };
 
-  // =====================================================
+  // ===================================================
+  // AVATAR SELECT
+  // ===================================================
+
+  const handleAvatarSelect = (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+
+    if (!allowed.includes(file.type)) {
+      toast.error("Chỉ chọn JPG, PNG hoặc WEBP");
+
+      event.target.value = "";
+
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Ảnh không được vượt quá 2MB");
+
+      event.target.value = "";
+
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      setAvatarPreview(reader.result);
+    };
+
+    reader.readAsDataURL(file);
+
+    uploadAvatar(file);
+  };
+
+  // ===================================================
+  // UPLOAD AVATAR
+  // ===================================================
+
+  const uploadAvatar = async (file) => {
+    const token = getValidToken();
+
+    if (!token) {
+      return;
+    }
+
+    try {
+      setUploadingAvatar(true);
+
+      const body = new FormData();
+
+      body.append("avatar", file);
+
+      const response = await fetch(AVATAR_API, {
+        method: "POST",
+
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+
+        body,
+      });
+
+      let data = {};
+
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        handleInvalidSession(data.message);
+
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || "Không thể tải ảnh đại diện");
+      }
+
+      const updatedUser = data.user;
+
+      if (!updatedUser) {
+        throw new Error("Server không trả về thông tin người dùng");
+      }
+
+      setUser(updatedUser);
+
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+
+      window.dispatchEvent(new CustomEvent("userUpdated"));
+
+      setAvatarPreview("");
+
+      toast.success("Đổi ảnh đại diện thành công");
+    } catch (error) {
+      console.error("UPLOAD AVATAR ERROR:", error);
+
+      setAvatarPreview("");
+
+      toast.error(error.message || "Không thể đổi ảnh đại diện");
+    } finally {
+      setUploadingAvatar(false);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  // ===================================================
+  // PASSWORD MODAL
+  // ===================================================
+
+  const openPasswordModal = () => {
+    setPasswordForm({
+      code: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
+
+    setCodeRequested(false);
+
+    setPasswordError("");
+
+    setPasswordOpen(true);
+  };
+
+  const closePasswordModal = () => {
+    if (requestingCode || changingPassword) {
+      return;
+    }
+
+    setPasswordOpen(false);
+
+    setCodeRequested(false);
+
+    setPasswordError("");
+
+    setPasswordForm({
+      code: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
+  };
+
+  // ===================================================
+  // REQUEST PASSWORD CODE
+  // ===================================================
+
+  const requestPasswordCode = async () => {
+    if (requestingCode) {
+      return;
+    }
+
+    const token = getValidToken();
+
+    if (!token) {
+      return;
+    }
+
+    try {
+      setRequestingCode(true);
+
+      setPasswordError("");
+
+      const response = await fetch(PASSWORD_CODE_API, {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      let data = {};
+
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        handleInvalidSession(data.message);
+
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || "Không thể gửi mã xác nhận");
+      }
+
+      setCodeRequested(true);
+
+      toast.success(
+        data.message || "Mã xác nhận đã được gửi đến email của bạn",
+      );
+    } catch (error) {
+      console.error("REQUEST CODE ERROR:", error);
+
+      const message = error.message || "Không thể gửi mã xác nhận";
+
+      setPasswordError(message);
+
+      toast.error(message);
+    } finally {
+      setRequestingCode(false);
+    }
+  };
+
+  // ===================================================
+  // PASSWORD INPUT
+  // ===================================================
+
+  const handlePasswordInput = (event) => {
+    const { name, value } = event.target;
+
+    let nextValue = value;
+
+    if (name === "code") {
+      nextValue = value.replace(/\D/g, "").slice(0, 6);
+    }
+
+    setPasswordForm((current) => ({
+      ...current,
+      [name]: nextValue,
+    }));
+
+    if (passwordError) {
+      setPasswordError("");
+    }
+  };
+
+  // ===================================================
+  // CHANGE PASSWORD
+  // ===================================================
+
+  const changePassword = async () => {
+    if (changingPassword) {
+      return;
+    }
+
+    const { code, newPassword, confirmPassword } = passwordForm;
+
+    if (!/^\d{6}$/.test(code)) {
+      const message = "Mã xác nhận phải gồm 6 chữ số";
+
+      setPasswordError(message);
+
+      toast.error(message);
+
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      const message = "Mật khẩu mới phải có ít nhất 8 ký tự";
+
+      setPasswordError(message);
+
+      toast.error(message);
+
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      const message = "Xác nhận mật khẩu không khớp";
+
+      setPasswordError(message);
+
+      toast.error(message);
+
+      return;
+    }
+
+    const token = getValidToken();
+
+    if (!token) {
+      return;
+    }
+
+    try {
+      setChangingPassword(true);
+
+      setPasswordError("");
+
+      const response = await fetch(PASSWORD_CHANGE_API, {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+
+        body: JSON.stringify({
+          code,
+          newPassword,
+          confirmPassword,
+        }),
+      });
+
+      let data = {};
+
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        handleInvalidSession(data.message);
+
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || "Không thể đổi mật khẩu");
+      }
+
+      toast.success(
+        data.message || "Đổi mật khẩu thành công. Vui lòng đăng nhập lại.",
+      );
+
+      clearAuthStorage();
+
+      navigate("/login", {
+        replace: true,
+      });
+    } catch (error) {
+      console.error("CHANGE PASSWORD ERROR:", error);
+
+      const message = error.message || "Không thể đổi mật khẩu";
+
+      setPasswordError(message);
+
+      toast.error(message);
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  // ===================================================
   // DISPLAY
-  // =====================================================
+  // ===================================================
 
   const displayName = user.full_name || user.email || "Người dùng";
 
   const avatarLetter = displayName.trim().charAt(0).toUpperCase() || "U";
+
+  const avatarSource = avatarPreview || getAvatarUrl(user.avatar_url);
 
   const formatBirthDate = (value) => {
     if (!value) {
@@ -549,9 +917,9 @@ function Profile() {
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
   };
 
-  // =====================================================
+  // ===================================================
   // UI
-  // =====================================================
+  // ===================================================
 
   return (
     <div className="profile-page-wrapper">
@@ -559,13 +927,12 @@ function Profile() {
 
       <main className="profile-page">
         <div className="profile-page-container">
-          {/* =====================================================
-              SIDEBAR
-          ===================================================== */}
-
           <aside className="account-sidebar">
             <div className="account-sidebar-user">
-              <div className="account-avatar">{avatarLetter}</div>
+              <ProfileAvatar
+                avatarSource={avatarSource}
+                avatarLetter={avatarLetter}
+              />
 
               <div className="account-user-text">
                 <strong>{displayName}</strong>
@@ -607,7 +974,11 @@ function Profile() {
                 <span>Quản lý đặt chỗ</span>
               </button>
 
-              <button type="button" className="account-menu-item">
+              <button
+                type="button"
+                className="account-menu-item"
+                onClick={openPasswordModal}
+              >
                 <span className="account-menu-icon">
                   <LockIcon />
                 </span>
@@ -617,15 +988,7 @@ function Profile() {
             </div>
           </aside>
 
-          {/* =====================================================
-              CONTENT
-          ===================================================== */}
-
           <section className="account-content">
-            {/* =====================================================
-                HEADING
-            ===================================================== */}
-
             <div className="account-page-heading">
               <div>
                 <h1>Hồ sơ cá nhân</h1>
@@ -646,13 +1009,32 @@ function Profile() {
               )}
             </div>
 
-            {/* =====================================================
-                PROFILE CARD
-            ===================================================== */}
-
             <div className="account-profile-card">
               <div className="account-profile-top">
-                <div className="account-profile-avatar">{avatarLetter}</div>
+                <div className="profile-avatar-area">
+                  <ProfileAvatar
+                    avatarSource={avatarSource}
+                    avatarLetter={avatarLetter}
+                    large
+                  />
+
+                  <button
+                    type="button"
+                    className="profile-avatar-change-button"
+                    disabled={uploadingAvatar}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {uploadingAvatar ? "Đang tải..." : "📷 Đổi ảnh"}
+                  </button>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    hidden
+                    onChange={handleAvatarSelect}
+                  />
+                </div>
 
                 <div className="account-profile-name">
                   <h2>{displayName}</h2>
@@ -662,13 +1044,13 @@ function Profile() {
                   <span className="account-status">
                     Tài khoản đang hoạt động
                   </span>
+
+                  <small className="profile-avatar-hint">
+                    JPG, PNG, WEBP · tối đa 2MB
+                  </small>
                 </div>
               </div>
             </div>
-
-            {/* =====================================================
-                PERSONAL INFO
-            ===================================================== */}
 
             <div className="account-card">
               <div className="account-card-header">
@@ -683,10 +1065,6 @@ function Profile() {
                 <div className="profile-loading">Đang tải thông tin...</div>
               ) : (
                 <div className="account-info-grid">
-                  {/* =====================================================
-                      FULL NAME
-                  ===================================================== */}
-
                   <div className="account-info-item">
                     <div className="account-info-icon">
                       <UserIcon />
@@ -709,10 +1087,6 @@ function Profile() {
                     </div>
                   </div>
 
-                  {/* =====================================================
-                      EMAIL
-                  ===================================================== */}
-
                   <div className="account-info-item">
                     <div className="account-info-icon">
                       <MailIcon />
@@ -730,10 +1104,6 @@ function Profile() {
                       )}
                     </div>
                   </div>
-
-                  {/* =====================================================
-                      PHONE
-                  ===================================================== */}
 
                   <div className="account-info-item">
                     <div className="account-info-icon">
@@ -757,10 +1127,6 @@ function Profile() {
                       )}
                     </div>
                   </div>
-
-                  {/* =====================================================
-                      BIRTH
-                  ===================================================== */}
 
                   <div className="account-info-item">
                     <div className="account-info-icon">
@@ -788,10 +1154,6 @@ function Profile() {
                     </div>
                   </div>
 
-                  {/* =====================================================
-                      GENDER
-                  ===================================================== */}
-
                   <div className="account-info-item">
                     <div className="account-info-icon">
                       <UserIcon />
@@ -808,11 +1170,8 @@ function Profile() {
                           onChange={handleChange}
                         >
                           <option value="">Chưa chọn</option>
-
                           <option value="Nam">Nam</option>
-
                           <option value="Nữ">Nữ</option>
-
                           <option value="Khác">Khác</option>
                         </select>
                       ) : (
@@ -822,10 +1181,6 @@ function Profile() {
                   </div>
                 </div>
               )}
-
-              {/* =====================================================
-                  SAVE / CANCEL
-              ===================================================== */}
 
               {editing && (
                 <div className="profile-edit-actions">
@@ -850,16 +1205,14 @@ function Profile() {
               )}
             </div>
 
-            {/* =====================================================
-                SECURITY
-            ===================================================== */}
-
             <div className="account-card">
               <div className="account-card-header">
                 <div>
                   <h2>Bảo mật tài khoản</h2>
 
-                  <p>Thay đổi mật khẩu để bảo vệ tài khoản của bạn.</p>
+                  <p>
+                    Thay đổi mật khẩu bằng mã xác nhận gửi tới email tài khoản.
+                  </p>
                 </div>
               </div>
 
@@ -876,7 +1229,11 @@ function Profile() {
                   </div>
                 </div>
 
-                <button type="button" className="change-password-button">
+                <button
+                  type="button"
+                  className="change-password-button"
+                  onClick={openPasswordModal}
+                >
                   Đổi mật khẩu
                 </button>
               </div>
@@ -884,7 +1241,122 @@ function Profile() {
           </section>
         </div>
       </main>
+
       <Footer />
+
+      {passwordOpen && (
+        <div
+          className="password-modal-overlay"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closePasswordModal();
+            }
+          }}
+        >
+          <div className="password-modal">
+            <button
+              type="button"
+              className="password-modal-close"
+              onClick={closePasswordModal}
+            >
+              ×
+            </button>
+
+            <div className="password-modal-icon">🔐</div>
+
+            <h2>Đổi mật khẩu</h2>
+
+            <p className="password-modal-description">
+              Mã xác nhận sẽ được gửi tới email:
+            </p>
+
+            <div className="password-email-box">
+              <MailIcon />
+
+              <strong>{user.email}</strong>
+            </div>
+
+            {passwordError && (
+              <div className="password-error-box" role="alert">
+                <span className="password-error-icon">⚠</span>
+
+                <p>{passwordError}</p>
+              </div>
+            )}
+
+            {!codeRequested ? (
+              <button
+                type="button"
+                className="password-send-code-button"
+                onClick={requestPasswordCode}
+                disabled={requestingCode}
+              >
+                {requestingCode ? "Đang gửi mã..." : "Gửi mã xác nhận"}
+              </button>
+            ) : (
+              <>
+                <div className="password-form-field">
+                  <label>Mã xác nhận</label>
+
+                  <input
+                    type="text"
+                    name="code"
+                    maxLength={6}
+                    inputMode="numeric"
+                    placeholder="Nhập mã 6 số"
+                    value={passwordForm.code}
+                    onChange={handlePasswordInput}
+                  />
+                </div>
+
+                <div className="password-form-field">
+                  <label>Mật khẩu mới</label>
+
+                  <input
+                    type="password"
+                    name="newPassword"
+                    placeholder="Ít nhất 8 ký tự"
+                    value={passwordForm.newPassword}
+                    onChange={handlePasswordInput}
+                  />
+                </div>
+
+                <div className="password-form-field">
+                  <label>Xác nhận mật khẩu mới</label>
+
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    placeholder="Nhập lại mật khẩu mới"
+                    value={passwordForm.confirmPassword}
+                    onChange={handlePasswordInput}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  className="password-confirm-button"
+                  disabled={changingPassword}
+                  onClick={changePassword}
+                >
+                  {changingPassword
+                    ? "Đang đổi mật khẩu..."
+                    : "Xác nhận đổi mật khẩu"}
+                </button>
+
+                <button
+                  type="button"
+                  className="password-resend-button"
+                  disabled={requestingCode}
+                  onClick={requestPasswordCode}
+                >
+                  {requestingCode ? "Đang gửi..." : "Gửi lại mã"}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

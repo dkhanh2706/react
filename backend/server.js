@@ -1,5 +1,8 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
+const fs = require("fs");
+
 require("dotenv").config();
 
 const db = require("./config/database");
@@ -8,25 +11,22 @@ const db = require("./config/database");
 // HÀM ĐỌC ROUTER AN TOÀN
 // =====================================================
 
-function loadRouter(path, routeName) {
-  const routeModule = require(path);
+function loadRouter(routerPath, routeName) {
+  const routeModule = require(routerPath);
 
-  // Trường hợp chuẩn:
-  // module.exports = router;
+  // module.exports = router
   if (typeof routeModule === "function") {
     return routeModule;
   }
 
-  // Trường hợp:
-  // module.exports = { router };
+  // module.exports = { router }
   if (routeModule && typeof routeModule.router === "function") {
     console.warn(`[WARNING] ${routeName} đang export dạng { router }.`);
 
     return routeModule.router;
   }
 
-  // Trường hợp:
-  // exports.default = router;
+  // exports.default
   if (routeModule && typeof routeModule.default === "function") {
     console.warn(`[WARNING] ${routeName} đang export dạng default.`);
 
@@ -35,7 +35,7 @@ function loadRouter(path, routeName) {
 
   console.error(`❌ ROUTE ERROR: ${routeName} không phải Express Router`);
 
-  console.error(`Đường dẫn: ${path}`);
+  console.error(`Đường dẫn: ${routerPath}`);
 
   console.error("Giá trị export:", routeModule);
 
@@ -68,19 +68,36 @@ const paymentRoutes = loadRouter("./routes/payment.routes", "paymentRoutes");
 const app = express();
 
 // =====================================================
+// UPLOAD DIRECTORY
+// =====================================================
+
+const uploadDirectory = path.join(__dirname, "uploads");
+
+const avatarDirectory = path.join(uploadDirectory, "avatars");
+
+// Tự tạo folder nếu chưa có
+fs.mkdirSync(avatarDirectory, {
+  recursive: true,
+});
+
+// =====================================================
 // CORS
 // =====================================================
 
 const allowedOrigins = [
   "http://localhost:5173",
+
   "http://127.0.0.1:5173",
+
   "http://192.168.1.9:5173",
+
   "http://192.168.190.70:5173",
+  "http://172.20.10.5:5173",
 
   "http://192.168.1.138:5173",
 ];
 
-// Nếu .env có FRONTEND_URL thì tự thêm vào
+// Nếu .env có FRONTEND_URL
 if (
   process.env.FRONTEND_URL &&
   !allowedOrigins.includes(process.env.FRONTEND_URL)
@@ -90,8 +107,8 @@ if (
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Postman / Thunder Client /
-    // server callback không có origin
+    // Postman / server callback
+    // không có origin
     if (!origin) {
       return callback(null, true);
     }
@@ -125,6 +142,16 @@ app.use(
     extended: true,
   }),
 );
+
+// =====================================================
+// STATIC FILE
+// QUAN TRỌNG CHO AVATAR
+// =====================================================
+
+app.use("/uploads", express.static(uploadDirectory));
+
+// Ví dụ:
+// http://localhost:5000/uploads/avatars/user-1-xxx.jpg
 
 // =====================================================
 // LOG REQUEST
@@ -171,6 +198,20 @@ app.get("/api/test", (req, res) => {
 });
 
 // =====================================================
+// TEST UPLOAD STATIC
+// =====================================================
+
+app.get("/api/uploads-test", (req, res) => {
+  return res.json({
+    message: "Uploads static đang hoạt động",
+
+    uploadDirectory,
+
+    avatarDirectory,
+  });
+});
+
+// =====================================================
 // ROUTES
 // =====================================================
 
@@ -186,14 +227,14 @@ app.use("/api/seats", seatRoutes);
 // BOOKINGS
 app.use("/api/bookings", bookingRoutes);
 
-// USERS / ADMIN
+// USERS
 app.use("/api/users", userRoutes);
 
-// PAYMENTS / MOMO
+// PAYMENTS
 app.use("/api/payments", paymentRoutes);
 
 // =====================================================
-// 404 HANDLER
+// 404
 // =====================================================
 
 app.use((req, res) => {
@@ -211,7 +252,10 @@ app.use((req, res) => {
 app.use((err, req, res, next) => {
   console.error("SERVER ERROR:", err);
 
+  // ===============================================
   // CORS
+  // ===============================================
+
   if (err.message && err.message.includes("CORS không cho phép")) {
     return res.status(403).json({
       message: "CORS blocked",
@@ -219,6 +263,30 @@ app.use((err, req, res, next) => {
       error: err.message,
     });
   }
+
+  // ===============================================
+  // MULTER FILE SIZE
+  // ===============================================
+
+  if (err.code === "LIMIT_FILE_SIZE") {
+    return res.status(400).json({
+      message: "Ảnh đại diện không được vượt quá 2MB",
+    });
+  }
+
+  // ===============================================
+  // MULTER / FILE FILTER
+  // ===============================================
+
+  if (err.message?.includes("Chỉ chấp nhận ảnh")) {
+    return res.status(400).json({
+      message: err.message,
+    });
+  }
+
+  // ===============================================
+  // DEFAULT
+  // ===============================================
 
   return res.status(500).json({
     message: "Server error",
@@ -248,6 +316,8 @@ app.listen(PORT, HOST, () => {
     `Frontend: ${process.env.FRONTEND_URL || "http://localhost:5173"}`,
   );
 
+  console.log(`Uploads: http://localhost:${PORT}/uploads`);
+
   console.log("Allowed CORS origins:", allowedOrigins);
 
   console.log("--------------------------------------");
@@ -263,6 +333,8 @@ app.listen(PORT, HOST, () => {
   console.log("✅ userRoutes:", typeof userRoutes);
 
   console.log("✅ paymentRoutes:", typeof paymentRoutes);
+
+  console.log("✅ avatar directory:", avatarDirectory);
 
   console.log("======================================");
 });

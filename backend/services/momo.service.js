@@ -95,9 +95,9 @@ async function createMomoPayment({ bookingId, amount, orderInfo }) {
   const requestBody = {
     partnerCode,
 
-    partnerName: "Airline Booking",
+    partnerName: "DAMH Shop",
 
-    storeId: "AirlineBooking",
+    storeId: "DAMHShop",
 
     requestId,
 

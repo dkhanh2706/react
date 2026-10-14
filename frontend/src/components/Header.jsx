@@ -117,11 +117,27 @@ function Header() {
 
   const token = localStorage.getItem("token");
 
-  const user = readUser();
+  const [user, setUser] = useState(readUser);
 
   const [openProfile, setOpenProfile] = useState(false);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // ==========================================
+  // LẮNG NGHE CẬP NHẬT USER (VD: ĐỔI AVATAR TỪ PROFILE)
+  // ==========================================
+
+  useEffect(() => {
+    const handleUserUpdated = () => {
+      setUser(readUser());
+    };
+
+    window.addEventListener("userUpdated", handleUserUpdated);
+
+    return () => {
+      window.removeEventListener("userUpdated", handleUserUpdated);
+    };
+  }, []);
 
   // ==========================================
   // ĐÓNG PROFILE DROPDOWN KHI CLICK RA NGOÀI
@@ -218,6 +234,14 @@ function Header() {
 
   const avatarLetter = userName.trim().charAt(0).toUpperCase() || "U";
 
+  const avatarUrl = (() => {
+    const val = user?.avatar_url;
+    if (!val) return "";
+    if (val.startsWith("http://") || val.startsWith("https://")) return val;
+    const origin = `${window.location.protocol}//${window.location.hostname}:5000`;
+    return `${origin}${val}`;
+  })();
+
   // ==========================================
   // ACTIVE MENU
   // ==========================================
@@ -305,7 +329,16 @@ function Header() {
               onClick={() => setOpenProfile((current) => !current)}
             >
               <div className="profile-avatar-wrap">
-                <span className="profile-avatar">{avatarLetter}</span>
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={userName}
+                    className="profile-avatar"
+                    style={{ objectFit: "cover" }}
+                  />
+                ) : (
+                  <span className="profile-avatar">{avatarLetter}</span>
+                )}
                 <span className="profile-online-dot" />
               </div>
 
@@ -339,7 +372,16 @@ function Header() {
                 {/* USER INFO */}
 
                 <div className="profile-menu-head">
-                  <span className="profile-avatar large">{avatarLetter}</span>
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt={userName}
+                      className="profile-avatar large"
+                      style={{ objectFit: "cover" }}
+                    />
+                  ) : (
+                    <span className="profile-avatar large">{avatarLetter}</span>
+                  )}
 
                   <div className="profile-menu-info">
                     <strong>{userName}</strong>

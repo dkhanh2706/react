@@ -6,18 +6,153 @@ const {
   decodeExtraData,
 } = require("../services/momo.service");
 
+const { sendPaymentSuccessEmail } = require("../services/email.service");
+
 // =====================================================
-// LẤY USER ID TỪ JWT
+// USER ID
 // =====================================================
+
 function getUserId(req) {
   return req.user?.id || req.user?.user_id || req.user?.userId || null;
 }
 
 // =====================================================
-// TẠO THANH TOÁN MOMO
-//
+// LOAD DATA CHO EMAIL BILL
+// =====================================================
+
+async function getPaymentEmailData(bookingId) {
+  const result = await pool.query(
+    `
+        SELECT
+          b.id AS booking_id,
+          b.booking_code,
+          b.total_price,
+          b.status AS booking_status,
+          b.created_at,
+
+          b.flight_date,
+          b.departure_place,
+          b.arrival_place,
+          b.departure_time_text,
+          b.arrival_time_text,
+          b.airline_name,
+          b.flight_number_snapshot,
+          b.seat_number_snapshot,
+
+          u.full_name AS account_name,
+          u.email AS account_email,
+
+          bd.passenger_name,
+          bd.email AS passenger_email,
+          bd.phone AS passenger_phone,
+
+          bd.gender,
+          bd.date_of_birth,
+          bd.document_type,
+          bd.document_number,
+
+          bd.seat_class,
+          bd.price AS seat_fare,
+
+          bd.baggage_weight,
+          bd.baggage_price,
+
+          bd.meal_type,
+          bd.meal_price,
+
+          bd.insurance,
+          bd.insurance_price,
+
+          p.id AS payment_id,
+          p.method AS payment_method,
+          p.amount AS payment_amount,
+          p.status AS payment_status,
+          p.transaction_id,
+          p.paid_at
+
+        FROM bookings b
+
+        JOIN users u
+          ON u.id = b.user_id
+
+        JOIN booking_details bd
+          ON bd.booking_id = b.id
+
+        LEFT JOIN LATERAL
+        (
+          SELECT *
+
+          FROM payments
+
+          WHERE booking_id = b.id
+
+          ORDER BY id DESC
+
+          LIMIT 1
+        ) p
+          ON TRUE
+
+        WHERE b.id = $1
+
+        LIMIT 1
+      `,
+    [bookingId],
+  );
+
+  return result.rows[0] || null;
+}
+
+// =====================================================
+// SEND EMAIL BILL
+// =====================================================
+
+async function sendPaymentEmailSafely(bookingId) {
+  try {
+    const data = await getPaymentEmailData(bookingId);
+
+    if (!data) {
+      console.warn("EMAIL BILL: booking không tồn tại:", bookingId);
+
+      return false;
+    }
+
+    const receiverEmail = data.passenger_email || data.account_email;
+
+    if (!receiverEmail) {
+      console.warn("EMAIL BILL: không có email nhận bill");
+
+      return false;
+    }
+
+    await sendPaymentSuccessEmail({
+      to: receiverEmail,
+
+      fullName: data.passenger_name || data.account_name,
+
+      booking: data,
+
+      detail: data,
+
+      payment: data,
+    });
+
+    console.log(`✅ PAYMENT BILL SENT: ${receiverEmail}`);
+
+    return true;
+  } catch (error) {
+    // Quan trọng:
+    // Mail lỗi KHÔNG được làm payment lỗi
+    console.error("SEND PAYMENT BILL ERROR:", error);
+
+    return false;
+  }
+}
+
+// =====================================================
+// CREATE MOMO
 // POST /api/payments/momo/create
 // =====================================================
+
 exports.createMomo = async (req, res) => {
   const client = await pool.connect();
 
@@ -26,19 +161,11 @@ exports.createMomo = async (req, res) => {
 
     const bookingId = Number(req.body.booking_id || req.body.bookingId);
 
-    // =================================================
-    // KIỂM TRA USER
-    // =================================================
-
     if (!userId) {
       return res.status(401).json({
         message: "Không xác định được tài khoản đăng nhập",
       });
     }
-
-    // =================================================
-    // KIỂM TRA BOOKING ID
-    // =================================================
 
     if (!bookingId) {
       return res.status(400).json({
@@ -49,18 +176,21 @@ exports.createMomo = async (req, res) => {
     await client.query("BEGIN");
 
     // =================================================
-    // LẤY BOOKING
-    // Không bao giờ lấy số tiền từ frontend
+    // BOOKING
+    // KHÔNG LẤY AMOUNT TỪ FRONTEND
     // =================================================
 
     const bookingResult = await client.query(
       `
-        SELECT *
-        FROM bookings
-        WHERE id = $1
-          AND user_id = $2
-        FOR UPDATE
-      `,
+          SELECT *
+
+          FROM bookings
+
+          WHERE id = $1
+            AND user_id = $2
+
+          FOR UPDATE
+        `,
       [bookingId, userId],
     );
 
@@ -74,10 +204,6 @@ exports.createMomo = async (req, res) => {
 
     const booking = bookingResult.rows[0];
 
-    // =================================================
-    // BOOKING ĐÃ CONFIRMED
-    // =================================================
-
     if (booking.status === "CONFIRMED") {
       await client.query("ROLLBACK");
 
@@ -87,18 +213,23 @@ exports.createMomo = async (req, res) => {
     }
 
     // =================================================
-    // KIỂM TRA GHẾ HOLD
+    // DETAIL
     // =================================================
 
     const detailResult = await client.query(
       `
-        SELECT *
-        FROM booking_details
-        WHERE booking_id = $1
-        ORDER BY id DESC
-        LIMIT 1
-        FOR UPDATE
-      `,
+          SELECT *
+
+          FROM booking_details
+
+          WHERE booking_id = $1
+
+          ORDER BY id DESC
+
+          LIMIT 1
+
+          FOR UPDATE
+        `,
       [bookingId],
     );
 
@@ -112,10 +243,7 @@ exports.createMomo = async (req, res) => {
 
     const detail = detailResult.rows[0];
 
-    // =================================================
-    // HOLD ĐÃ HẾT HẠN
-    // =================================================
-
+    // HOLD hết hạn
     if (
       detail.seat_status === "HOLD" &&
       detail.hold_expires_at &&
@@ -124,9 +252,11 @@ exports.createMomo = async (req, res) => {
       await client.query(
         `
           UPDATE booking_details
+
           SET
             seat_status = 'EXPIRED',
             hold_expires_at = NULL
+
           WHERE id = $1
         `,
         [detail.id],
@@ -139,10 +269,6 @@ exports.createMomo = async (req, res) => {
       });
     }
 
-    // =================================================
-    // GHẾ KHÔNG CÒN HOLD
-    // =================================================
-
     if (detail.seat_status !== "HOLD") {
       await client.query("ROLLBACK");
 
@@ -152,7 +278,7 @@ exports.createMomo = async (req, res) => {
     }
 
     // =================================================
-    // KIỂM TRA SỐ TIỀN
+    // AMOUNT DATABASE
     // =================================================
 
     const amount = Number(booking.total_price);
@@ -165,7 +291,6 @@ exports.createMomo = async (req, res) => {
       });
     }
 
-    // MoMo dùng số nguyên VND
     const momoAmount = Math.round(amount);
 
     // =================================================
@@ -174,28 +299,33 @@ exports.createMomo = async (req, res) => {
 
     const oldPaymentResult = await client.query(
       `
-        SELECT *
-        FROM payments
-        WHERE booking_id = $1
-        ORDER BY id DESC
-        LIMIT 1
-      `,
+          SELECT *
+
+          FROM payments
+
+          WHERE booking_id = $1
+
+          ORDER BY id DESC
+
+          LIMIT 1
+
+          FOR UPDATE
+        `,
       [bookingId],
     );
-
-    // =================================================
-    // TẠO / UPDATE PAYMENT PENDING
-    // =================================================
 
     if (oldPaymentResult.rows.length > 0) {
       await client.query(
         `
           UPDATE payments
+
           SET
             method = 'MOMO',
             amount = $1,
             status = 'PENDING',
+            transaction_id = NULL,
             paid_at = NULL
+
           WHERE id = $2
         `,
         [momoAmount, oldPaymentResult.rows[0].id],
@@ -209,14 +339,17 @@ exports.createMomo = async (req, res) => {
             method,
             amount,
             status,
+            transaction_id,
             paid_at
           )
+
           VALUES
           (
             $1,
             'MOMO',
             $2,
             'PENDING',
+            NULL,
             NULL
           )
         `,
@@ -224,14 +357,11 @@ exports.createMomo = async (req, res) => {
       );
     }
 
-    // =================================================
-    // COMMIT DB TRƯỚC KHI GỌI MOMO
-    // =================================================
-
+    // Commit trước khi gọi MoMo
     await client.query("COMMIT");
 
     // =================================================
-    // GỌI MOMO
+    // MOMO
     // =================================================
 
     const momoResponse = await createMomoPayment({
@@ -242,10 +372,6 @@ exports.createMomo = async (req, res) => {
       orderInfo: `Thanh toan ve may bay booking ${booking.booking_code}`,
     });
 
-    // =================================================
-    // MOMO KHÔNG TRẢ PAY URL
-    // =================================================
-
     if (!momoResponse.payUrl) {
       console.error("MoMo response không có payUrl:", momoResponse);
 
@@ -255,10 +381,6 @@ exports.createMomo = async (req, res) => {
         momo: momoResponse,
       });
     }
-
-    // =================================================
-    // RESPONSE FE
-    // =================================================
 
     return res.status(200).json({
       message: "Tạo thanh toán MoMo thành công",
@@ -279,7 +401,7 @@ exports.createMomo = async (req, res) => {
     try {
       await client.query("ROLLBACK");
     } catch {
-      // transaction có thể đã commit
+      // có thể đã commit
     }
 
     console.error(
@@ -299,12 +421,11 @@ exports.createMomo = async (req, res) => {
 
 // =====================================================
 // MOMO IPN
-//
 // POST /api/payments/momo/ipn
 //
-// MoMo gọi route này.
-// KHÔNG DÙNG verifyToken.
+// KHÔNG verifyToken
 // =====================================================
+
 exports.momoIpn = async (req, res) => {
   const client = await pool.connect();
 
@@ -330,7 +451,7 @@ exports.momoIpn = async (req, res) => {
     }
 
     // =================================================
-    // LẤY BOOKING ID
+    // BOOKING ID
     // =================================================
 
     let extraData;
@@ -362,8 +483,11 @@ exports.momoIpn = async (req, res) => {
     const bookingResult = await client.query(
       `
           SELECT *
+
           FROM bookings
+
           WHERE id = $1
+
           FOR UPDATE
         `,
       [bookingId],
@@ -380,7 +504,7 @@ exports.momoIpn = async (req, res) => {
     const booking = bookingResult.rows[0];
 
     // =================================================
-    // KIỂM TRA SỐ TIỀN
+    // AMOUNT CHECK
     // =================================================
 
     if (Number(booking.total_price) !== Number(body.amount)) {
@@ -393,33 +517,29 @@ exports.momoIpn = async (req, res) => {
       });
     }
 
-    // =================================================
-    // LẤY PAYMENT
-    // =================================================
-
     const paymentResult = await client.query(
       `
           SELECT *
+
           FROM payments
+
           WHERE booking_id = $1
+
           ORDER BY id DESC
+
           LIMIT 1
+
           FOR UPDATE
         `,
       [bookingId],
     );
 
     // =================================================
-    // MOMO THÀNH CÔNG
-    // resultCode = 0
+    // MOMO SUCCESS
     // =================================================
 
     if (Number(body.resultCode) === 0) {
-      // ===============================================
-      // IPN CÓ THỂ GỬI NHIỀU LẦN
-      // Nếu booking đã confirmed thì trả OK luôn
-      // ===============================================
-
+      // IPN có thể gửi nhiều lần
       if (booking.status === "CONFIRMED") {
         await client.query("COMMIT");
 
@@ -428,17 +548,18 @@ exports.momoIpn = async (req, res) => {
         });
       }
 
-      // ===============================================
-      // LẤY DETAIL
-      // ===============================================
-
       const detailResult = await client.query(
         `
             SELECT *
+
             FROM booking_details
+
             WHERE booking_id = $1
+
             ORDER BY id DESC
+
             LIMIT 1
+
             FOR UPDATE
           `,
         [bookingId],
@@ -454,10 +575,6 @@ exports.momoIpn = async (req, res) => {
 
       const detail = detailResult.rows[0];
 
-      // ===============================================
-      // KHÔNG CHO CONFIRM GHẾ EXPIRED
-      // ===============================================
-
       if (detail.seat_status === "EXPIRED") {
         await client.query("ROLLBACK");
 
@@ -466,51 +583,55 @@ exports.momoIpn = async (req, res) => {
         });
       }
 
-      // ===============================================
-      // UPDATE BOOKING
-      // ===============================================
-
+      // Booking confirmed
       await client.query(
         `
           UPDATE bookings
+
           SET
-            status = 'CONFIRMED'
+            status = 'CONFIRMED',
+            updated_at = NOW()
+
           WHERE id = $1
         `,
         [bookingId],
       );
 
-      // ===============================================
-      // UPDATE GHẾ
-      // ===============================================
-
+      // Seat booked
       await client.query(
         `
           UPDATE booking_details
+
           SET
             seat_status = 'BOOKED',
             hold_expires_at = NULL
+
           WHERE booking_id = $1
         `,
         [bookingId],
       );
 
-      // ===============================================
-      // UPDATE / INSERT PAYMENT
-      // ===============================================
+      // =================================================
+      // PAYMENT SUCCESS
+      // =================================================
+
+      const transactionId = body.transId ? String(body.transId) : null;
 
       if (paymentResult.rows.length > 0) {
         await client.query(
           `
             UPDATE payments
+
             SET
               method = 'MOMO',
               amount = $1,
               status = 'SUCCESS',
+              transaction_id = $2,
               paid_at = NOW()
-            WHERE id = $2
+
+            WHERE id = $3
           `,
-          [body.amount, paymentResult.rows[0].id],
+          [body.amount, transactionId, paymentResult.rows[0].id],
         );
       } else {
         await client.query(
@@ -521,24 +642,37 @@ exports.momoIpn = async (req, res) => {
               method,
               amount,
               status,
+              transaction_id,
               paid_at
             )
+
             VALUES
             (
               $1,
               'MOMO',
               $2,
               'SUCCESS',
+              $3,
               NOW()
             )
           `,
-          [bookingId, body.amount],
+          [bookingId, body.amount, transactionId],
         );
       }
 
       await client.query("COMMIT");
 
-      console.log(`MOMO SUCCESS - Booking ${bookingId}`);
+      console.log(`✅ MOMO SUCCESS - Booking ${bookingId}`);
+
+      // ===============================================
+      // GỬI BILL SAU KHI ĐÃ COMMIT
+      //
+      // Không chờ Gmail để tránh giữ MoMo IPN lâu.
+      // ===============================================
+
+      sendPaymentEmailSafely(bookingId).catch((error) => {
+        console.error("PAYMENT EMAIL BACKGROUND ERROR:", error);
+      });
 
       return res.status(200).json({
         message: "Thanh toán MoMo thành công",
@@ -546,21 +680,26 @@ exports.momoIpn = async (req, res) => {
     }
 
     // =================================================
-    // MOMO THẤT BẠI
+    // MOMO FAILED
     // =================================================
+
+    const transactionId = body.transId ? String(body.transId) : null;
 
     if (paymentResult.rows.length > 0) {
       await client.query(
         `
           UPDATE payments
+
           SET
             method = 'MOMO',
             amount = $1,
             status = 'FAILED',
+            transaction_id = $2,
             paid_at = NULL
-          WHERE id = $2
+
+          WHERE id = $3
         `,
-        [body.amount, paymentResult.rows[0].id],
+        [body.amount, transactionId, paymentResult.rows[0].id],
       );
     } else {
       await client.query(
@@ -571,18 +710,21 @@ exports.momoIpn = async (req, res) => {
             method,
             amount,
             status,
+            transaction_id,
             paid_at
           )
+
           VALUES
           (
             $1,
             'MOMO',
             $2,
             'FAILED',
+            $3,
             NULL
           )
         `,
-        [bookingId, body.amount],
+        [bookingId, body.amount, transactionId],
       );
     }
 
@@ -618,12 +760,9 @@ exports.momoIpn = async (req, res) => {
 
 // =====================================================
 // MOMO RETURN
-//
 // GET /api/payments/momo/return
-//
-// Route này CHỈ để xem kết quả.
-// Không cập nhật booking.
 // =====================================================
+
 exports.momoReturn = async (req, res) => {
   return res.status(200).json({
     message: "Kết quả redirect từ MoMo",
@@ -633,81 +772,143 @@ exports.momoReturn = async (req, res) => {
 };
 
 // =====================================================
-// ADMIN - LẤY TẤT CẢ GIAO DỊCH / VÉ ĐÃ MUA
+// ADMIN - ALL PAYMENTS
 // GET /api/payments
 // =====================================================
+
 exports.getAllPayments = async (req, res) => {
   try {
     const result = await pool.query(
       `
-        SELECT
-          b.id AS booking_id,
-          b.booking_code,
-          b.total_price,
-          b.status::text AS booking_status,
-          b.created_at AS booking_date,
-
-          b.flight_date,
-          b.departure_place,
-          b.arrival_place,
-          b.departure_time_text,
-          b.arrival_time_text,
-          b.airline_name,
-          b.flight_number_snapshot,
-          b.seat_number_snapshot,
-
-          u.id AS user_id,
-          u.full_name AS customer_name,
-          u.email AS customer_email,
-          u.phone AS customer_phone,
-
-          bd.seat_class,
-          bd.seat_status::text AS seat_status,
-
-          COALESCE(p.method, 'MOCK') AS payment_method,
-          COALESCE(p.status::text, CASE WHEN b.status::text = 'CONFIRMED' THEN 'SUCCESS' ELSE 'PENDING' END) AS payment_status,
-          COALESCE(p.amount, b.total_price) AS payment_amount,
-          COALESCE(p.paid_at, b.created_at) AS paid_at,
-          p.transaction_id
-
-        FROM bookings b
-
-        LEFT JOIN users u
-          ON u.id = b.user_id
-
-        LEFT JOIN booking_details bd
-          ON bd.booking_id = b.id
-
-        LEFT JOIN LATERAL (
           SELECT
-            id,
-            method,
-            status,
-            amount,
-            paid_at,
-            transaction_id
-          FROM payments
-          WHERE booking_id = b.id
-          ORDER BY id DESC
-          LIMIT 1
-        ) p ON TRUE
+            b.id AS booking_id,
+            b.booking_code,
+            b.total_price,
 
-        WHERE b.booking_code NOT LIKE 'TMP%' OR b.status::text = 'CONFIRMED'
+            b.status::text
+              AS booking_status,
 
-        ORDER BY b.created_at DESC
-      `
+            b.created_at
+              AS booking_date,
+
+            b.flight_date,
+            b.departure_place,
+            b.arrival_place,
+            b.departure_time_text,
+            b.arrival_time_text,
+            b.airline_name,
+            b.flight_number_snapshot,
+            b.seat_number_snapshot,
+
+            u.id AS user_id,
+            u.full_name
+              AS customer_name,
+            u.email
+              AS customer_email,
+            u.phone
+              AS customer_phone,
+
+            bd.passenger_name,
+            bd.email
+              AS passenger_email,
+            bd.phone
+              AS passenger_phone,
+
+            bd.seat_class,
+
+            bd.seat_status::text
+              AS seat_status,
+
+            bd.baggage_weight,
+            bd.baggage_price,
+
+            bd.meal_type,
+            bd.meal_price,
+
+            bd.insurance,
+            bd.insurance_price,
+
+            COALESCE(
+              p.method,
+              'MOCK'
+            ) AS payment_method,
+
+            COALESCE(
+              p.status::text,
+
+              CASE
+                WHEN b.status::text =
+                  'CONFIRMED'
+                THEN 'SUCCESS'
+                ELSE 'PENDING'
+              END
+            ) AS payment_status,
+
+            COALESCE(
+              p.amount,
+              b.total_price
+            ) AS payment_amount,
+
+            COALESCE(
+              p.paid_at,
+              b.created_at
+            ) AS paid_at,
+
+            p.transaction_id
+
+          FROM bookings b
+
+          LEFT JOIN users u
+            ON u.id = b.user_id
+
+          LEFT JOIN booking_details bd
+            ON bd.booking_id = b.id
+
+          LEFT JOIN LATERAL
+          (
+            SELECT
+              id,
+              method,
+              status,
+              amount,
+              paid_at,
+              transaction_id
+
+            FROM payments
+
+            WHERE booking_id = b.id
+
+            ORDER BY id DESC
+
+            LIMIT 1
+          ) p
+            ON TRUE
+
+          WHERE
+            b.booking_code
+              NOT LIKE 'TMP%'
+
+            OR
+            b.status::text =
+              'CONFIRMED'
+
+          ORDER BY
+            b.created_at DESC
+        `,
     );
 
     return res.status(200).json({
       message: "Lấy danh sách thanh toán thành công",
+
       data: result.rows,
     });
   } catch (error) {
     console.error("GET ALL PAYMENTS ERROR:", error);
+
     return res.status(500).json({
       message: "Lỗi tải danh sách thanh toán",
+
       error: error.message,
     });
   }
 };
-
