@@ -84,8 +84,7 @@ function AdminLayout({ children, pageTitle = "Dashboard" }) {
       title: "Quản lý đặt vé",
       path: "/admin/bookings",
       icon: <TicketCheck size={19} />,
-      soon: true,
-      onClick: () => toast("Chức năng Quản lý đặt vé đang hoàn thiện"),
+      active: location.pathname === "/admin/bookings",
     },
     {
       id: "payments",

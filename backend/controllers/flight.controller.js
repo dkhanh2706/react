@@ -38,7 +38,14 @@ exports.searchFlight = endpoint(async (req, res) => {
   res.json({ data, count: data.length, total, page, page_size: pageSize, total_pages: Math.ceil(total/pageSize) });
 });
 exports.getAllFlights = endpoint(async (req, res) => {
-  res.json({ data: (await pool.query(`SELECT ${fields} ${joins} ORDER BY f.id DESC`)).rows });
+  res.json({ data: (await pool.query(`SELECT ${fields},
+    (SELECT count(*)::int FROM seats s WHERE s.airplane_id=f.airplane_id) AS total_seats,
+    (SELECT count(*)::int FROM booking_details d WHERE d.flight_id=f.id AND d.seat_status='BOOKED') AS booked_seats,
+    (SELECT count(*)::int FROM booking_details d WHERE d.flight_id=f.id AND d.seat_status='HOLD' AND d.hold_expires_at>LOCALTIMESTAMP) AS held_seats,
+    EXISTS(SELECT FROM booking_details d WHERE d.flight_id=f.id UNION ALL SELECT FROM tickets t WHERE t.flight_id=f.id
+      UNION ALL SELECT FROM bookings b WHERE b.flight_number_snapshot=f.flight_number) AS has_history,
+    (f.status='AVAILABLE' AND f.departure_time>LOCALTIMESTAMP AND f.price>0 AND ${availableSeats}>0) AS is_sellable
+    ${joins} ORDER BY f.departure_time DESC,f.id DESC`)).rows });
 });
 exports.catalog = endpoint(async (req, res) => {
   const [airports, airlines, airplanes] = await Promise.all([pool.query("SELECT id,code,name,city,country FROM airports ORDER BY code"), pool.query("SELECT id,name,code FROM airlines ORDER BY name"), pool.query("SELECT id,airline_id,model,seat_capacity FROM airplanes ORDER BY id")]);
@@ -61,15 +68,18 @@ async function saveFlight(req, id) {
   const number = String(f.flight_number || "").trim().toUpperCase();
   if (!/^[A-Z0-9-]{2,20}$/.test(number) || !Number.isFinite(price) || price<100000 || price>9999999999.99 || Math.round(price)!==price) fail(400, "Mã chuyến hoặc giá vé không hợp lệ");
   if (depId === arrId || arrival<=departure) fail(400, "Hành trình hoặc thời gian đến không hợp lệ");
-  if (!["AVAILABLE","DELAYED","CANCELLED"].includes(f.status)) fail(400, "Trạng thái chuyến không hợp lệ");
+  if (!["AVAILABLE","DELAYED"].includes(f.status)) fail(400, "Hãy dùng thao tác Hủy chuyến thay vì đổi trạng thái trực tiếp");
   if (f.status === "AVAILABLE" && new Date(`${departure}:00+07:00`)<=new Date()) fail(400, "Chỉ mở bán chuyến chưa khởi hành");
   return transaction(async client => {
     let old;
     if (id) {
       old = (await client.query("SELECT * FROM flights WHERE id=$1 FOR UPDATE", [id])).rows[0];
       if (!old) fail(404, "Không tìm thấy chuyến bay");
-      const related = await client.query("SELECT id FROM booking_details WHERE flight_id=$1 UNION ALL SELECT id FROM tickets WHERE flight_id=$1", [id]);
-      if (related.rows.length && Number(old.airplane_id)!==planeId) fail(409, "Chuyến có lịch sử đặt chỗ, không thể đổi máy bay");
+      const related = await client.query("SELECT id FROM booking_details WHERE flight_id=$1 UNION ALL SELECT id FROM tickets WHERE flight_id=$1 UNION ALL SELECT id FROM bookings WHERE flight_number_snapshot=$2", [id,old.flight_number]);
+      if (related.rows.length && (old.flight_number!==number || Number(old.airline_id)!==airlineId ||
+        Number(old.airplane_id)!==planeId || Number(old.departure_airport_id)!==depId || Number(old.arrival_airport_id)!==arrId)) {
+        fail(409, "Chuyến có lịch sử đặt chỗ: không thể đổi mã chuyến, hãng, máy bay hoặc hành trình");
+      }
     }
     const plane = (await client.query("SELECT id FROM airplanes WHERE id=$1 AND airline_id=$2", [planeId, airlineId])).rows[0];
     if (!plane) fail(400, "Máy bay không thuộc hãng đã chọn");
@@ -80,36 +90,46 @@ async function saveFlight(req, id) {
     }
     if (f.status !== "CANCELLED") {
       const overlap = await client.query(`SELECT id FROM flights WHERE airplane_id=$1 AND id<>$2
-        AND status<>'CANCELLED' AND departure_time<$4::timestamp AND arrival_time>$3::timestamp`, [planeId,id || 0,departure,arrival]);
-      if (overlap.rows.length) fail(409, "Máy bay đã có chuyến trùng thời gian");
+        AND status<>'CANCELLED' AND departure_time<$4::timestamp+interval '30 minutes'
+        AND arrival_time>$3::timestamp-interval '30 minutes'`, [planeId,id || 0,departure,arrival]);
+      if (overlap.rows.length) fail(409, "Máy bay cần ít nhất 30 phút nghỉ giữa hai chuyến");
     }
     const args = [number,airlineId,planeId,depId,arrId,departure,arrival,price,f.status];
     const saved = id ? (await client.query(`UPDATE flights SET flight_number=$1,airline_id=$2,airplane_id=$3,departure_airport_id=$4,
       arrival_airport_id=$5,departure_time=$6,arrival_time=$7,price=$8,status=$9 WHERE id=$10 RETURNING *`, [...args,id])).rows[0]
       : (await client.query(`INSERT INTO flights(flight_number,airline_id,airplane_id,departure_airport_id,arrival_airport_id,departure_time,arrival_time,price,status)
         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, args)).rows[0];
-    if (id && f.status === "CANCELLED" && old.status !== "CANCELLED") await cancelRelated(client,id);
     return saved;
   });
 }
-async function cancelRelated(client,id) {
+async function cancelRelated(client,id,reason="Admin hủy chuyến bay") {
   const bookings = (await client.query(`SELECT DISTINCT b.id FROM bookings b JOIN booking_details d ON d.booking_id=b.id
     WHERE d.flight_id=$1 AND b.status IN ('PENDING','CONFIRMED')`, [id])).rows;
-  for (const b of bookings) await flow.cancelBooking(client,await flow.loadBooking(client,b.id),"Admin hủy chuyến bay");
+  for (const b of bookings) await flow.cancelBooking(client,await flow.loadBooking(client,b.id),reason);
 }
 exports.createFlight = endpoint(async (req,res) => res.json({ message: "Thêm chuyến thành công", data: await saveFlight(req) }));
 exports.updateFlight = endpoint(async (req,res) => res.json({ message: "Cập nhật chuyến thành công", data: await saveFlight(req,positiveId(req.params.id)) }));
+exports.cancelFlight = endpoint(async (req,res) => {
+  const reason = String(req.body.reason || "").trim();
+  if (reason.length < 5 || reason.length > 1000) fail(400,"Nhập lý do hủy từ 5 đến 1000 ký tự");
+  const result = await transaction(async client => {
+    const id = positiveId(req.params.id);
+    const flight = (await client.query("SELECT * FROM flights WHERE id=$1 FOR UPDATE",[id])).rows[0];
+    if (!flight) fail(404,"Không tìm thấy chuyến bay");
+    if (flight.status === "CANCELLED") return "Chuyến bay đã được hủy trước đó";
+    await client.query("UPDATE flights SET status='CANCELLED' WHERE id=$1",[id]);
+    await cancelRelated(client,id,reason);
+    return "Đã hủy chuyến và xử lý các đặt chỗ liên quan";
+  });
+  res.json({ message: result });
+});
 exports.deleteFlight = endpoint(async (req,res) => {
   const result = await transaction(async client => {
     const id = positiveId(req.params.id);
     const flight = (await client.query("SELECT * FROM flights WHERE id=$1",[id])).rows[0];
     if (!flight) fail(404,"Không tìm thấy chuyến bay");
-    const used = await client.query("SELECT id FROM booking_details WHERE flight_id=$1 UNION ALL SELECT id FROM tickets WHERE flight_id=$1",[id]);
-    if (used.rows.length || flight.demo_key) {
-      await client.query("UPDATE flights SET status='CANCELLED' WHERE id=$1",[id]);
-      await cancelRelated(client,id);
-      return flight.demo_key ? "Đã hủy chuyến demo và giữ dấu vết để không tự tạo lại" : "Chuyến có lịch sử đặt vé: đã hủy chuyến và giữ lại dữ liệu";
-    }
+    const used = await client.query("SELECT id FROM booking_details WHERE flight_id=$1 UNION ALL SELECT id FROM tickets WHERE flight_id=$1 UNION ALL SELECT id FROM bookings WHERE flight_number_snapshot=$2",[id,flight.flight_number]);
+    if (used.rows.length || flight.demo_key) fail(409,"Chuyến demo hoặc có lịch sử không được xóa; hãy dùng thao tác Hủy chuyến");
     await client.query("DELETE FROM flights WHERE id=$1",[id]);
     return "Đã xóa chuyến chưa có dữ liệu liên quan";
   });

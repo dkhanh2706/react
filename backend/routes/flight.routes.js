@@ -35,6 +35,7 @@ router.post("/", verifyToken, isAdmin, flightController.createFlight);
 // UPDATE FLIGHT
 // PUT /api/flights/:id
 router.put("/:id", verifyToken, isAdmin, flightController.updateFlight);
+router.patch("/:id/cancel", verifyToken, isAdmin, flightController.cancelFlight);
 
 // DELETE FLIGHT
 // DELETE /api/flights/:id

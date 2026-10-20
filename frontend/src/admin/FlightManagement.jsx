@@ -36,6 +36,7 @@ function FlightManagement() {
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [dateFilter, setDateFilter] = useState("");
   const [tablePage, setTablePage] = useState(1);
 
   // Modal form
@@ -46,6 +47,7 @@ function FlightManagement() {
   // Delete modal
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
 
   const [form, setForm] = useState({
     flight_number: "",
@@ -271,15 +273,15 @@ function FlightManagement() {
 
       const token = localStorage.getItem("token");
 
-      const response = await api.delete(`/flights/${deleteTarget.id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const mustCancel = deleteTarget.has_history || deleteTarget.demo_key;
+      const response = mustCancel
+        ? await api.patch(`/flights/${deleteTarget.id}/cancel`, { reason: cancelReason }, { headers: { Authorization: `Bearer ${token}` } })
+        : await api.delete(`/flights/${deleteTarget.id}`, { headers: { Authorization: `Bearer ${token}` } });
 
       toast.success(response.data.message);
 
       setDeleteTarget(null);
+      setCancelReason("");
 
       await loadFlights();
     } catch (error) {
@@ -307,11 +309,13 @@ function FlightManagement() {
 
       const matchStatus =
         statusFilter === "ALL" ||
-        String(flight.status || "").toUpperCase() === statusFilter;
+        (statusFilter === "SELLABLE" ? flight.is_sellable : String(flight.status || "").toUpperCase() === statusFilter);
 
-      return matchSearch && matchStatus;
+      const matchDate = !dateFilter || String(flight.departure_time || "").slice(0, 10) === dateFilter;
+
+      return matchSearch && matchStatus && matchDate;
     });
-  }, [flights, searchQuery, statusFilter]);
+  }, [flights, searchQuery, statusFilter, dateFilter]);
   const tablePages = Math.max(1, Math.ceil(filteredFlights.length / 25));
   const visiblePage = Math.min(tablePage, tablePages);
   const visibleFlights = filteredFlights.slice((visiblePage - 1) * 25, visiblePage * 25);
@@ -321,9 +325,7 @@ function FlightManagement() {
   // =====================================================
   const totalFlights = flights.length;
 
-  const availableFlights = flights.filter(
-    (f) => String(f.status).toUpperCase() === "AVAILABLE",
-  ).length;
+  const availableFlights = flights.filter((f) => f.is_sellable).length;
 
   const delayedFlights = flights.filter(
     (f) => String(f.status).toUpperCase() === "DELAYED",
@@ -463,12 +465,16 @@ function FlightManagement() {
               >
                 <option value="ALL">Tất cả trạng thái</option>
 
+                <option value="SELLABLE">Đang thực sự mở bán</option>
+
                 <option value="AVAILABLE">Đang mở bán (Available)</option>
 
                 <option value="DELAYED">Chuyến bay hoãn (Delayed)</option>
 
                 <option value="CANCELLED">Đã hủy (Cancelled)</option>
               </select>
+              <input type="date" aria-label="Lọc theo ngày bay" value={dateFilter}
+                onChange={(e) => { setDateFilter(e.target.value); setTablePage(1); }} />
             </div>
           </div>
 
@@ -506,6 +512,7 @@ function FlightManagement() {
                     <th>Giờ khởi hành</th>
                     <th>Giờ hạ cánh</th>
                     <th>Giá vé (VNĐ)</th>
+                    <th>Ghế (đặt/giữ/trống)</th>
                     <th>Trạng thái</th>
                     <th className="text-right">Thao tác</th>
                   </tr>
@@ -570,12 +577,18 @@ function FlightManagement() {
                       </td>
 
                       <td>
+                        <strong>{Number(flight.booked_seats || 0)}</strong> / {Number(flight.held_seats || 0)} / {Math.max(0, Number(flight.total_seats || 0) - Number(flight.booked_seats || 0) - Number(flight.held_seats || 0))}
+                      </td>
+
+                      <td>
                         <span
-                          className={`status-pill ${String(
-                            flight.status || "AVAILABLE",
-                          ).toLowerCase()}`}
+                          className={`status-pill ${flight.status === "AVAILABLE" && !flight.is_sellable
+                            ? "cancelled"
+                            : String(flight.status || "AVAILABLE").toLowerCase()}`}
                         >
-                          {flight.status || "AVAILABLE"}
+                          {flight.status === "AVAILABLE"
+                            ? (flight.is_sellable ? "ĐANG MỞ BÁN" : "KHÔNG CÒN BÁN")
+                            : flight.status}
                         </span>
                       </td>
 
@@ -586,6 +599,7 @@ function FlightManagement() {
                             className="btn-action edit"
                             onClick={() => openEditModal(flight)}
                             title="Chỉnh sửa chuyến bay"
+                            disabled={flight.status === "CANCELLED"}
                           >
                             <Edit2 size={15} />
                           </button>
@@ -593,8 +607,9 @@ function FlightManagement() {
                           <button
                             type="button"
                             className="btn-action delete"
-                            onClick={() => setDeleteTarget(flight)}
-                            title="Xóa chuyến bay"
+                            onClick={() => { setDeleteTarget(flight); setCancelReason(""); }}
+                            title={flight.has_history || flight.demo_key ? "Hủy chuyến bay" : "Xóa chuyến chưa sử dụng"}
+                            disabled={flight.status === "CANCELLED"}
                           >
                             <Trash2 size={15} />
                           </button>
@@ -637,6 +652,9 @@ function FlightManagement() {
 
               <form onSubmit={handleSubmit} className="adm-modal-body">
                 <div className="adm-form-grid">
+                  {editId && flights.find(f => f.id === editId)?.has_history && <p className="flight-edit-notice">
+                    Chuyến đã có lịch sử đặt chỗ. Mã chuyến, hãng, máy bay và hành trình được khóa; thay đổi giờ bay sẽ giữ nguyên thông tin vé lúc mua.
+                  </p>}
                   {/* MÃ CHUYẾN */}
                   <div className="adm-form-group">
                     <label>
@@ -648,6 +666,7 @@ function FlightManagement() {
                       placeholder="VD: VN-210, VJ-152"
                       value={form.flight_number}
                       onChange={handleChange}
+                      disabled={Boolean(editId && flights.find(f => f.id === editId)?.has_history)}
                       required
                     />
                   </div>
@@ -660,6 +679,7 @@ function FlightManagement() {
                       name="airline_id"
                       value={form.airline_id}
                       onChange={handleChange}
+                      disabled={Boolean(editId && flights.find(f => f.id === editId)?.has_history)}
                     >
                       {AIRLINES.map((a) => (
                         <option key={a.id} value={a.id}>
@@ -671,7 +691,7 @@ function FlightManagement() {
 
                   <div className="adm-form-group">
                     <label>Máy bay</label>
-                    <select name="airplane_id" value={form.airplane_id} onChange={handleChange} required>
+                    <select name="airplane_id" value={form.airplane_id} onChange={handleChange} required disabled={Boolean(editId && flights.find(f => f.id === editId)?.has_history)}>
                       <option value="">Chọn máy bay</option>
                       {catalog.airplanes.filter(p => p.airline_id === Number(form.airline_id)).map(p => <option key={p.id} value={p.id}>{p.model} — #{p.id} ({p.seat_capacity} ghế)</option>)}
                     </select>
@@ -684,6 +704,7 @@ function FlightManagement() {
                       name="departure_airport_id"
                       value={form.departure_airport_id}
                       onChange={handleChange}
+                      disabled={Boolean(editId && flights.find(f => f.id === editId)?.has_history)}
                     >
                       {AIRPORTS.map((ap) => (
                         <option key={ap.id} value={ap.id}>
@@ -701,6 +722,7 @@ function FlightManagement() {
                       name="arrival_airport_id"
                       value={form.arrival_airport_id}
                       onChange={handleChange}
+                      disabled={Boolean(editId && flights.find(f => f.id === editId)?.has_history)}
                     >
                       {AIRPORTS.map((ap) => (
                         <option key={ap.id} value={ap.id}>
@@ -773,9 +795,6 @@ function FlightManagement() {
 
                       <option value="DELAYED">DELAYED (Chuyến bay hoãn)</option>
 
-                      <option value="CANCELLED">
-                        CANCELLED (Đã hủy chuyến)
-                      </option>
                     </select>
                   </div>
                 </div>
@@ -815,13 +834,20 @@ function FlightManagement() {
                 <AlertTriangle size={36} />
               </div>
 
-              <h3>Xác nhận xóa chuyến bay?</h3>
+              <h3>{deleteTarget.has_history || deleteTarget.demo_key ? "Xác nhận hủy chuyến bay?" : "Xác nhận xóa chuyến bay?"}</h3>
 
               <p>
-                Bạn có chắc chắn muốn xóa chuyến bay{" "}
+                Bạn có chắc chắn muốn {deleteTarget.has_history || deleteTarget.demo_key ? "hủy" : "xóa"} chuyến bay{" "}
                 <strong>{deleteTarget.flight_number}</strong> khỏi hệ thống?
-                Chuyến demo hoặc có lịch sử đặt vé sẽ được hủy và giữ lại để không tự tạo lại; đơn đã thu tiền được chuyển đối soát.
+                {deleteTarget.has_history || deleteTarget.demo_key
+                  ? " Chuyến được giữ lại trong lịch sử; đặt chỗ bị hủy và khoản đã thu được chuyển đối soát."
+                  : " Chuyến chưa có lịch sử sẽ bị xóa khỏi danh sách."}
               </p>
+              {(deleteTarget.has_history || deleteTarget.demo_key) && <div className="adm-form-group">
+                <label htmlFor="flight-cancel-reason">Lý do hủy chuyến</label>
+                <textarea id="flight-cancel-reason" minLength={5} maxLength={1000} required value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)} placeholder="Nhập lý do để lưu vào các đặt chỗ bị ảnh hưởng" />
+              </div>}
 
               <div className="confirm-actions">
                 <button
@@ -836,10 +862,10 @@ function FlightManagement() {
                 <button
                   type="button"
                   className="btn-danger-confirm"
-                  disabled={deleting}
+                  disabled={deleting || ((deleteTarget.has_history || deleteTarget.demo_key) && cancelReason.trim().length < 5)}
                   onClick={confirmDelete}
                 >
-                  {deleting ? "Đang xóa..." : "Xác nhận xóa"}
+                  {deleting ? "Đang xử lý..." : (deleteTarget.has_history || deleteTarget.demo_key ? "Xác nhận hủy chuyến" : "Xác nhận xóa")}
                 </button>
               </div>
             </div>

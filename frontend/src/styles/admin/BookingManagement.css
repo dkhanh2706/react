@@ -1,9 +1,110 @@
-.booking-detail-modal { width: min(780px, 95vw); max-height: 90vh; overflow: auto; }
-.booking-detail-body { padding: 24px; }
-.booking-detail-body h3 { margin: 22px 0 12px; }
-.booking-detail-body p { margin: 8px 0; overflow-wrap: anywhere; }
-.booking-review, .booking-action-form { margin: 16px 0; padding: 16px; border: 1px solid #dbe3ed; border-radius: 12px; }
-.booking-action-form label { display: block; margin: 12px 0; }
-.booking-action-form textarea, .booking-action-form input:not([type="checkbox"]) { display: block; width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 6px; }
-.booking-action-form textarea { min-height: 80px; }
-.booking-action-form button { margin: 8px 8px 0 0; }
+/* Booking uses the same header, cards, table, avatars and controls as UserManagement. */
+.bk-page button:disabled, .bk-overlay button:disabled { opacity: .5; cursor: not-allowed; }
+.bk-page button:focus-visible, .bk-overlay button:focus-visible { outline: 3px solid #c4b5fd; outline-offset: 3px; }
+.bk-page .bk-table { min-width: 960px; }
+.bk-page .bk-table th { white-space: nowrap; }
+.bk-table td small { display: block; margin-top: 6px; font-size: 12px; color: #64748b; line-height: 1.5; }
+.bk-order-code { display: block; width: 145px; padding: 4px 8px; background: #f3f0ff; border: 1px solid #ddd6fe; border-radius: 6px; color: #7c3aed; font-family: ui-monospace, monospace; font-size: 12.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bk-customer { min-width: 0; }
+.bk-page .bk-customer .user-name-text { max-width: 175px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bk-page .user-email-text { display: flex; align-items: center; gap: 4px; max-width: 180px; overflow-wrap: anywhere; line-height: 1.5; margin-top: 3px; }
+.bk-page .user-email-text svg { flex-shrink: 0; }
+.bk-flight-code { display: flex; align-items: center; gap: 6px; color: #0f172a; font-size: 13px; white-space: nowrap; }
+.bk-flight-code svg { color: #7c3aed; }
+.bk-page .price-tag-modern { white-space: nowrap; }
+.bk-reason { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 165px; margin-top: 7px; font-size: 12px; line-height: 1.6; color: #64748b; overflow-wrap: anywhere; }
+.bk-status { gap: 6px; border: 1px solid #e2e8f0; color: #64748b; background: #f8fafc; }
+.bk-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.bk-status-confirmed, .bk-status-success { background: #ecfdf5; color: #059669; border-color: #a7f3d0; }
+.bk-status-pending { background: #fffbeb; color: #d97706; border-color: #fde68a; }
+.bk-status-cancelled, .bk-status-failed { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+.bk-status-payment_review, .bk-status-open { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+.bk-status-refunded { background: #faf5ff; color: #9333ea; border-color: #e9d5ff; }
+.bk-page .btn-action.bk-view { display: inline-flex; gap: 6px; width: auto; padding: 6px 10px; }
+.bk-pagination { padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; gap: 14px; color: #64748b; font-size: 12.5px; }
+.bk-pagination > div { display: flex; align-items: center; gap: 12px; }
+.bk-icon-button { display: inline-flex; align-items: center; justify-content: center; padding: 7px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; color: #475569; cursor: pointer; }
+.bk-icon-button:hover { background: #f3f0ff; color: #7c3aed; border-color: #ddd6fe; }
+.bk-alert { margin: 16px 0; padding: 14px 16px; font-size: 13px; line-height: 1.7; color: #9a3412; border: 1px solid #fed7aa; background: #fff7ed; border-radius: 10px; }
+.bk-page .adm-content-card > .bk-alert { margin: 16px 24px; }
+
+/* Detail popup follows the admin modal styles; only its content is booking-specific. */
+.adm-modal-overlay.bk-overlay { z-index: 1200; }
+.adm-modal-card.bk-dialog { max-width: 860px; max-height: calc(100dvh - 40px); display: flex; flex-direction: column; outline: none; }
+.bk-dialog-header { flex-shrink: 0; gap: 16px; }
+.bk-modal-heading { display: flex; gap: 14px; align-items: center; min-width: 0; }
+.bk-modal-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 13px; background: #f3f0ff; color: #7c3aed; flex-shrink: 0; }
+.bk-modal-icon.danger { background: #fee2e2; color: #dc2626; }
+.bk-dialog-body { overflow-y: auto; overscroll-behavior: contain; padding: 24px 28px; color: #1e293b; }
+.bk-dialog-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 28px; border-top: 1px solid #f1f5f9; background: #fff; flex-shrink: 0; }
+.bk-detail-summary { padding: 20px; background: #f8fafc; border: 1px solid #e8ecf4; border-radius: 14px; display: flex; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
+.bk-detail-summary > div { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.bk-summary-right { align-items: flex-end; flex-shrink: 0; }
+.bk-label, .bk-field dt { font-size: 12px; color: #64748b; font-weight: 500; }
+.bk-detail-code { max-width: 430px; font-family: ui-monospace, monospace; color: #7c3aed; font-size: 14px; font-weight: 700; line-height: 1.7; overflow-wrap: anywhere; }
+.bk-muted { color: #64748b; font-size: 12px; line-height: 1.6; }
+.bk-total { font-size: 24px; font-weight: 800; letter-spacing: -.03em; color: #7c3aed; }
+.bk-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.bk-panel { min-width: 0; padding-bottom: 24px; margin-bottom: 24px; border-bottom: 1px solid #f1f5f9; }
+.bk-panel:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+.bk-panel h3, .bk-cancellation h3 { display: flex; gap: 8px; align-items: center; margin: 0 0 18px; color: #0f172a; font-size: 14px; font-weight: 750; }
+.bk-panel h3::before { content: ''; width: 3px; height: 15px; background: #7c3aed; border-radius: 2px; }
+.bk-panel dl { margin: 0; }
+.bk-field { min-width: 0; }
+.bk-field + .bk-field { margin-top: 16px; }
+.bk-field dd { font-size: 13px; font-weight: 600; color: #334155; margin: 5px 0 0; line-height: 1.65; overflow-wrap: anywhere; }
+.bk-fields-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; }
+.bk-fields-grid .bk-field { margin: 0; }
+.bk-route { display: flex; align-items: center; gap: 22px; margin-bottom: 18px; padding: 12px 16px; background: #faf5ff; border-radius: 10px; color: #7c3aed; }
+.bk-route strong { color: #0f172a; font-size: 20px; font-weight: 800; }
+.bk-count { padding: 2px 7px; background: #f3f0ff; color: #7c3aed; border-radius: 6px; font-size: 11px; }
+.bk-passenger { padding: 18px; border: 1px solid #e8ecf4; border-radius: 12px; background: #fff; }
+.bk-passenger + .bk-passenger { margin-top: 14px; }
+.bk-passenger-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.bk-avatar { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg,#0284c7,#0369a1); color: #fff; font-weight: 800; font-size: 14px; flex-shrink: 0; }
+.bk-passenger-heading strong { font-size: 14px; color: #0f172a; }
+.bk-passenger-heading small { display: block; font-size: 12px; color: #64748b; margin-top: 4px; }
+.bk-seat-state { margin-left: auto; font-size: 12px; font-weight: 600; color: #64748b; }
+.bk-table-scroll { overflow-x: auto; border: 1px solid #e8ecf4; border-radius: 10px; }
+.bk-payment-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+.bk-payment-table th { padding: 12px 14px; background: #f8fafc; color: #475569; font-size: 11.5px; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+.bk-payment-table td { padding: 14px; border-bottom: 1px solid #f1f5f9; }
+.bk-payment-table tr:last-child td { border-bottom: none; }
+.bk-transaction { max-width: 170px; font-family: ui-monospace,monospace; font-size: 11.5px; overflow-wrap: anywhere; }
+.bk-review { padding: 16px; border: 1px solid #e8ecf4; border-radius: 10px; }
+.bk-review + .bk-review { margin-top: 12px; }
+.bk-review p { font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.bk-cancellation { padding: 16px 18px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; margin-bottom: 24px; }
+.bk-cancellation h3 { color: #9a3412; margin-bottom: 8px; }
+.bk-cancellation p { margin: 0 0 10px; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.bk-cancellation small { color: #9a3412; font-size: 12px; }
+.bk-delete, .bk-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 10px 16px; border: 1px solid #fecaca; border-radius: 10px; color: #dc2626; background: #fef2f2; font-size: 13px; font-weight: 650; cursor: pointer; }
+.bk-delete:hover { background: #fee2e2; }
+.bk-button { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+.bk-delete-solid { color: #fff; background: #ef4444; border-color: #ef4444; }
+.bk-delete-solid:hover { background: #dc2626; }
+.adm-modal-card.bk-dialog-danger { max-width: 540px; }
+.bk-dialog-danger .bk-dialog-body > p { font-size: 13px; line-height: 1.8; color: #475569; }
+.bk-delete-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px; border: 1px solid #e8ecf4; border-radius: 10px; background: #f8fafc; font-size: 13px; }
+.bk-delete-summary > span:not(.bk-status) { margin-left: auto; font-weight: 700; }
+.bk-confirm-label { display: flex; flex-direction: column; gap: 10px; color: #475569; font-size: 13px; }
+.bk-confirm-label strong { font-family: ui-monospace,monospace; color: #0f172a; overflow-wrap: anywhere; user-select: all; }
+.bk-confirm-label input { width: 100%; box-sizing: border-box; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 10px 14px; background: #f8fafc; color: #0f172a; font-size: 13.5px; outline: none; }
+.bk-confirm-label input:focus { background: #fff; border-color: #7c3aed; box-shadow: 0 0 0 3px #7c3aed1f; }
+@media (max-width:640px) {
+  .bk-page .adm-page-header-row h1 { font-size: 24px; }
+  .bk-page .adm-search-input-box { max-width: none; min-width: 100%; }
+  .bk-pagination { flex-wrap: wrap; padding: 16px; }
+  .adm-modal-overlay.bk-overlay { padding: 10px; }
+  .adm-modal-card.bk-dialog { max-height: calc(100dvh - 20px); border-radius: 18px; }
+  .bk-dialog-header, .bk-dialog-body { padding: 18px; }
+  .bk-dialog-header h2 { font-size: 18px; }
+  .bk-dialog-header p { font-size: 12px; }
+  .bk-modal-icon { display: none; }
+  .bk-dialog-footer { padding: 16px 18px; flex-wrap: wrap; }
+  .bk-detail-summary { flex-direction: column; padding: 16px; }
+  .bk-summary-right { align-items: flex-start; }
+  .bk-detail-grid { grid-template-columns: 1fr; gap: 0; }
+  .bk-fields-grid { grid-template-columns: 1fr; }
+  .bk-seat-state { max-width: 70px; text-align: right; }
+}

@@ -101,7 +101,11 @@ exports.getAdminBookings = endpoint(async (req, res) => {
   const data = await transaction(async (client) => {
     await flow.expireHolds(client);
     return (await client.query(`SELECT b.*,u.email AS customer_email,u.full_name AS customer_name,
-      (SELECT json_agg(d ORDER BY d.id) FROM booking_details d WHERE d.booking_id=b.id) AS details,
+      (SELECT json_agg(detail ORDER BY detail.id) FROM (
+        SELECT d.*,f.flight_number,f.status AS flight_status,f.departure_time,f.arrival_time,s.seat_number
+        FROM booking_details d JOIN flights f ON f.id=d.flight_id JOIN seats s ON s.id=d.seat_id
+        WHERE d.booking_id=b.id
+      ) detail) AS details,
       (SELECT json_agg(p ORDER BY p.id DESC) FROM payments p WHERE p.booking_id=b.id) AS payments,
       (SELECT json_agg(r ORDER BY r.id DESC) FROM payment_review_cases r WHERE r.booking_id=b.id) AS reviews
       FROM bookings b JOIN users u ON u.id=b.user_id ORDER BY b.created_at DESC`)).rows;
@@ -109,13 +113,21 @@ exports.getAdminBookings = endpoint(async (req, res) => {
   res.json({ data });
 });
 
-exports.cancelBooking = endpoint(async (req, res) => {
-  const reason = String(req.body.reason || "").trim();
-  if (reason.length < 5 || reason.length > 1000) fail(400, "Nhập lý do hủy từ 5 đến 1000 ký tự");
-  await transaction(async (client) => {
-    const loaded = await flow.loadBooking(client, positiveId(req.params.bookingId));
-    if (["CANCELLED", "PAYMENT_REVIEW"].includes(loaded.booking.status)) return;
-    await flow.cancelBooking(client, loaded, reason);
+exports.deleteBooking = endpoint(async (req, res) => {
+  const id = positiveId(req.params.bookingId);
+  await transaction(async client => {
+    const { booking } = await flow.loadBooking(client, id);
+    if (req.body?.booking_code !== booking.booking_code) fail(400, "Nhập đúng mã đơn để xác nhận xóa vĩnh viễn");
+    // Delete only this order's children. The shared write lock also serializes payment callbacks.
+    await client.query("DELETE FROM payment_review_cases WHERE booking_id=$1", [id]);
+    await client.query("DELETE FROM tickets WHERE booking_id=$1", [id]);
+    await client.query("DELETE FROM passengers WHERE booking_id=$1", [id]);
+    await client.query("DELETE FROM payments WHERE booking_id=$1", [id]);
+    await client.query("DELETE FROM booking_details WHERE booking_id=$1", [id]);
+    await client.query("DELETE FROM bookings WHERE id=$1", [id]);
+  }).catch(error => {
+    if (error.code === "42501") fail(403, "Tài khoản database chưa có quyền xóa. Quản trị database cần chạy migration 005_admin_booking_delete_permissions.sql");
+    throw error;
   });
-  res.json({ message: "Đã hủy đặt chỗ; giao dịch đã thu tiền được chuyển sang đối soát" });
+  res.json({ message: "Đã xóa vĩnh viễn đơn và dữ liệu liên quan" });
 });

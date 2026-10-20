@@ -65,6 +65,10 @@ before(async () => {
   await pool.query(migration.slice(0, begin));
   await pool.query(migration.slice(begin));
   await assertSchemaReady(pool);
+  const deletePermissions = fs.readFileSync(path.join(__dirname, "../migrations/005_admin_booking_delete_permissions.sql"), "utf8");
+  await pool.query(deletePermissions);
+  await pool.query(deletePermissions);
+  assert.equal((await pool.query("SELECT has_table_privilege('codex_user','public.payment_review_cases','DELETE') AS allowed")).rows[0].allowed,true);
   await pool.query("INSERT INTO airlines(name,code) VALUES('Test Air','TA')");
   await pool.query("INSERT INTO airports(code,name,city,country) VALUES('HAN','Ha Noi','Ha Noi','Vietnam'),('SGN','Ho Chi Minh','Ho Chi Minh','Vietnam')");
   await pool.query("INSERT INTO airplanes(airline_id,model,seat_capacity) VALUES(1,'Test 1',40),(1,'Test 2',1)");
@@ -301,33 +305,48 @@ check("a second captured attempt is reviewed and refunding it leaves the origina
   assert.equal((await request(`/api/payments/booking/${b.id}/status`, { token: customerToken })).data.booking.status, "CONFIRMED");
 });
 
-check("flight validation prevents overlapping schedules, wrong airlines and changing a booked airplane", async () => {
+check("flight validation enforces turnaround time and protects booked flight identity", async () => {
   const flight = { flight_number: "TA002", airline_id: 1, airplane_id: 1, departure_airport_id: 1, arrival_airport_id: 2, departure_time: "2080-01-01T07:00", arrival_time: "2080-01-01T09:00", price: 1000000, status: "AVAILABLE" };
   assert.equal((await request("/api/flights", { token: adminToken, method: "POST", body: flight })).status, 409);
   assert.equal((await request("/api/flights", { token: adminToken, method: "POST", body: { ...flight, airline_id: 999 } })).status, 400);
   assert.equal((await request(`/api/flights/${flightId}`, { token: adminToken, method: "PUT", body: { ...flight, airplane_id: 2 } })).status, 409);
+  assert.equal((await request(`/api/flights/${flightId}`, { token: adminToken, method: "PUT", body: { ...flight, flight_number: "CHANGED" } })).status, 409);
+  assert.equal((await request(`/api/flights/${flightId}`, { token: adminToken, method: "PUT", body: { ...flight, departure_airport_id: 2, arrival_airport_id: 1 } })).status, 409);
   await pool.query("UPDATE flights SET status='DELAYED' WHERE id=$1", [flightId]);
   assert.equal((await request("/api/flights/search?from=HAN&to=SGN&date=2080-01-01")).data.total, 0);
   assert.equal((await hold(seats[9].id)).status, 409);
   await pool.query("UPDATE flights SET status='AVAILABLE' WHERE id=$1", [flightId]);
 });
 
-check("a capture received after admin cancellation goes to review, without confirming the booking", async () => {
+check("admin can inspect bookings but cannot cancel an individual booking", async () => {
   const b = (await booking(seats[10].id)).data.booking;
   const created = (await attempt(b.id)).data;
-  assert.equal((await request(`/api/bookings/${b.id}/cancel`, { token: adminToken, method: "POST", body: { reason: "Customer cancellation request" } })).status, 200);
-  assert.equal((await request("/api/payments/momo/ipn", { method: "POST", body: ipnBody(created, b.id) })).data.review, true);
+  const adminBookings = await request("/api/bookings/admin", { token: adminToken });
+  assert.equal(adminBookings.status, 200);
+  const shown = adminBookings.data.data.find(item => item.id === b.id);
+  assert.equal(shown.booking_code, b.booking_code);
+  assert.equal(shown.details[0].flight_number, "TA001");
+  assert.equal(shown.details[0].seat_number, seats[10].seat_number);
+  const cancellation = await fetch(`${base}/api/bookings/${b.id}/cancel`, {
+    method: "POST", headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ reason: "Customer cancellation request" }),
+  });
+  assert.equal(cancellation.status, 404);
+  assert.equal((await request(`/api/payments/booking/${b.id}/status`, { token: customerToken })).data.booking.status, "PENDING");
+  assert.equal((await request("/api/payments/momo/ipn", { method: "POST", body: ipnBody(created, b.id) })).data.confirmed, true);
   const state = (await request(`/api/payments/booking/${b.id}/status`, { token: customerToken })).data;
-  assert.equal(state.booking.status, "PAYMENT_REVIEW");
-  assert.equal((await pool.query("SELECT seat_status FROM booking_details WHERE booking_id=$1", [b.id])).rows[0].seat_status, "CANCELLED");
+  assert.equal(state.booking.status, "CONFIRMED");
+  assert.equal((await pool.query("SELECT seat_status FROM booking_details WHERE booking_id=$1", [b.id])).rows[0].seat_status, "BOOKED");
 });
 
 check("admin cancellation preserves bookings and payments, opens review, and tickets show current flight status", async () => {
   const before = Number((await pool.query("SELECT count(*) FROM flights")).rows[0].count);
-  const result = await request(`/api/flights/${flightId}`, { token: adminToken, method: "DELETE" });
+  assert.equal((await request(`/api/flights/${flightId}`, { token: adminToken, method: "DELETE" })).status, 409);
+  const result = await request(`/api/flights/${flightId}/cancel`, { token: adminToken, method: "PATCH", body: { reason: "Test cancellation for affected passengers" } });
   assert.equal(result.status, 200);
   assert.equal(Number((await pool.query("SELECT count(*) FROM flights")).rows[0].count), before);
   assert.equal((await pool.query("SELECT status FROM flights WHERE id=$1", [flightId])).rows[0].status, "CANCELLED");
+  assert.ok(Number((await pool.query("SELECT count(*) FROM bookings WHERE cancellation_reason LIKE 'Test cancellation%'" )).rows[0].count) > 0);
   const tickets = await request("/api/bookings/my-tickets", { token: customerToken });
   assert.equal(tickets.status, 200);
   assert.ok(tickets.data.data.length > 0);
@@ -413,7 +432,8 @@ check("all 68 routes can be searched in reverse order without plane overlaps or 
 
 check("cancellation and rescheduling are not undone by later searches", async () => {
   const f=(await request("/api/flights/search?from=NRT&to=HAN&date=2091-05-01")).data.data[0];
-  assert.equal((await request(`/api/flights/${f.id}`,{token:adminToken,method:"DELETE"})).status,200);
+  assert.equal((await request(`/api/flights/${f.id}`,{token:adminToken,method:"DELETE"})).status,409);
+  assert.equal((await request(`/api/flights/${f.id}/cancel`,{token:adminToken,method:"PATCH",body:{reason:"Cancel demo flight for test"}})).status,200);
   assert.equal((await request("/api/flights/search?from=NRT&to=HAN&date=2091-05-01")).data.total,0);
   assert.equal((await pool.query("SELECT status FROM flights WHERE id=$1",[f.id])).rows[0].status,'CANCELLED');
   const moved=(await request("/api/flights/search?from=HAN&to=SIN&date=2091-05-01")).data.data[0];
@@ -450,5 +470,45 @@ check("admin can remove an unused user and manual flight after legacy tables are
   const flight=(await pool.query("INSERT INTO flights(flight_number,airline_id,airplane_id,departure_airport_id,arrival_airport_id,departure_time,arrival_time,status,price) VALUES('REMOVABLE',1,2,1,2,'2098-12-01 06:00','2098-12-01 08:00','AVAILABLE',1000000) RETURNING id")).rows[0];
   assert.equal((await request(`/api/flights/${flight.id}`,{token:adminToken,method:'DELETE'})).status,200);
   assert.equal((await pool.query('SELECT id FROM flights WHERE id=$1',[flight.id])).rows.length,0);
+});
+
+check("only admin can permanently delete a confirmed order and its children after confirming its code", async () => {
+  const before = Number((await pool.query("SELECT count(*) FROM bookings")).rows[0].count);
+  const b = (await pool.query(`INSERT INTO bookings(user_id,booking_code,total_price,status)
+    VALUES(2,'DELETE_ORDER_TEST',1000000,'CONFIRMED') RETURNING *`)).rows[0];
+  const detail = (await pool.query(`INSERT INTO booking_details(booking_id,flight_id,seat_id,seat_class,price,seat_status)
+    VALUES($1,$2,$3,'ECONOMY',1000000,'BOOKED') RETURNING id`, [b.id,flightId,seats[0].id])).rows[0];
+  const payment = (await pool.query("INSERT INTO payments(booking_id,method,amount,status) VALUES($1,'MOCK',1000000,'SUCCESS') RETURNING id", [b.id])).rows[0];
+  const review = (await pool.query("INSERT INTO payment_review_cases(payment_id,booking_id,reason) VALUES($1,$2,'Deletion test review') RETURNING id", [payment.id,b.id])).rows[0];
+  const passengerRow = (await pool.query("INSERT INTO passengers(booking_id,full_name) VALUES($1,'Delete Passenger') RETURNING id", [b.id])).rows[0];
+  const ticket = (await pool.query(`INSERT INTO tickets(booking_id,flight_id,passenger_id,seat_id,ticket_number,price)
+    VALUES($1,$2,$3,$4,'DELETE_TICKET_TEST',1000000) RETURNING id`, [b.id,flightId,passengerRow.id,seats[0].id])).rows[0];
+  const options = { method: "DELETE", body: { booking_code: b.booking_code } };
+  assert.equal((await request(`/api/bookings/${b.id}`, { ...options, token: customerToken })).status,403);
+  assert.equal((await request(`/api/bookings/${b.id}`, { method: "DELETE", token: adminToken, body: { booking_code: "WRONG" } })).status,400);
+  assert.equal((await pool.query("SELECT seat_status FROM booking_details WHERE id=$1", [detail.id])).rows[0].seat_status,"BOOKED");
+  assert.equal((await request(`/api/bookings/${b.id}`, { ...options, token: adminToken })).status,200);
+  for (const [table,id] of [["bookings",b.id],["booking_details",detail.id],["payments",payment.id],["payment_review_cases",review.id],["passengers",passengerRow.id],["tickets",ticket.id]]) {
+    assert.equal((await pool.query(`SELECT id FROM ${table} WHERE id=$1`, [id])).rows.length,0,table);
+  }
+  assert.equal(Number((await pool.query("SELECT count(*) FROM bookings")).rows[0].count),before);
+  assert.equal((await pool.query("SELECT id FROM seats WHERE id=$1",[seats[0].id])).rows.length,1);
+  assert.equal((await pool.query("SELECT id FROM flights WHERE id=$1",[flightId])).rows.length,1);
+  assert.equal((await request(`/api/bookings/${b.id}`, { ...options, token: adminToken })).status,404);
+});
+
+check("order deletion rolls back every child deletion when an unexpected reference blocks it", async () => {
+  const b = (await pool.query("INSERT INTO bookings(user_id,booking_code,total_price,status) VALUES(2,'DELETE_ROLLBACK_TEST',1000000,'PAYMENT_REVIEW') RETURNING id")).rows[0];
+  const other = (await pool.query("INSERT INTO bookings(user_id,booking_code,total_price,status) VALUES(2,'DELETE_NEIGHBOR_TEST',0,'PENDING') RETURNING id")).rows[0];
+  const passengerRow = (await pool.query("INSERT INTO passengers(booking_id,full_name) VALUES($1,'Referenced Passenger') RETURNING id",[b.id])).rows[0];
+  const payment = (await pool.query("INSERT INTO payments(booking_id,method,amount,status) VALUES($1,'MOCK',1000000,'SUCCESS') RETURNING id",[b.id])).rows[0];
+  const review = (await pool.query("INSERT INTO payment_review_cases(payment_id,booking_id,reason) VALUES($1,$2,'Preserve on rollback') RETURNING id",[payment.id,b.id])).rows[0];
+  // Deliberate cross-order reference: deleting one order must never delete another order's ticket.
+  const ticket = (await pool.query(`INSERT INTO tickets(booking_id,flight_id,passenger_id,seat_id,ticket_number,price)
+    VALUES($1,$2,$3,$4,'DELETE_ROLLBACK_TICKET',1000000) RETURNING id`,[other.id,flightId,passengerRow.id,seats[0].id])).rows[0];
+  assert.equal((await request(`/api/bookings/${b.id}`, { method:"DELETE",token:adminToken,body:{booking_code:"DELETE_ROLLBACK_TEST"} })).status,409);
+  for (const [table,id] of [["bookings",b.id],["bookings",other.id],["passengers",passengerRow.id],["payments",payment.id],["payment_review_cases",review.id],["tickets",ticket.id]]) {
+    assert.equal((await pool.query(`SELECT id FROM ${table} WHERE id=$1`,[id])).rows.length,1,table);
+  }
 });
 
