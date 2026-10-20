@@ -332,8 +332,8 @@ function PassengerInfo() {
     }
 
     if (passenger.document_type === "CCCD") {
-      if (!/^\d{9,12}$/.test(documentNumber)) {
-        toast.error("Số CCCD/CMND phải gồm từ 9 đến 12 chữ số");
+      if (!/^(\d{9}|\d{12})$/.test(documentNumber)) {
+        toast.error("Số CCCD/CMND phải gồm 9 hoặc 12 chữ số");
 
         return false;
       }
@@ -348,7 +348,7 @@ function PassengerInfo() {
 
     const normalizedPhone = phone.replace(/\s/g, "");
 
-    if (!/^(0|\+84)[0-9]{9,10}$/.test(normalizedPhone)) {
+    if (!/^(0\d{9}|\+84\d{9})$/.test(normalizedPhone)) {
       toast.error("Số điện thoại không hợp lệ");
 
       return false;
@@ -659,7 +659,7 @@ function PassengerInfo() {
                       name="date_of_birth"
                       value={passenger.date_of_birth}
                       onChange={handlePassengerChange}
-                      max={new Date().toISOString().split("T")[0]}
+                      max={new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(new Date())}
                     />
                   </div>
 

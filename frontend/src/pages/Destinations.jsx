@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
@@ -8,33 +8,7 @@ import api from "../api/axios";
 
 import "../styles/Destinations.css";
 
-const AIRPORTS = [
-  {
-    value: "HAN",
-    label: "Nội Bài - Hà Nội",
-    city: "Hà Nội",
-  },
-  {
-    value: "SGN",
-    label: "Tân Sơn Nhất - Hồ Chí Minh",
-    city: "TP. Hồ Chí Minh",
-  },
-  {
-    value: "DAD",
-    label: "Đà Nẵng",
-    city: "Đà Nẵng",
-  },
-  {
-    value: "HND",
-    label: "Haneda - Tokyo",
-    city: "Tokyo",
-  },
-  {
-    value: "SIN",
-    label: "Changi - Singapore",
-    city: "Singapore",
-  },
-];
+
 
 const DESTINATIONS = [
   {
@@ -127,9 +101,20 @@ const CATEGORIES = [
 ];
 
 function Destinations() {
+  const [AIRPORTS, setAirports] = useState([]);
+  const [routes, setRoutes] = useState([]);
+  useEffect(() => {
+    let active = true;
+    api.get("/flights/catalog").then(r => { if (active) {
+      setAirports(r.data.airports.map(a => ({ ...a, value: a.code, label: `${a.name} - ${a.city || a.code}` })));
+      setRoutes(r.data.routes || []);
+    } })
+      .catch(() => toast.error("Không tải được danh sách sân bay"));
+    return () => { active = false; };
+  }, []);
   const navigate = useNavigate();
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(new Date());
 
   const [activeCategory, setActiveCategory] = useState("Tất cả");
   const [searchText, setSearchText] = useState("");
@@ -165,6 +150,7 @@ function Destinations() {
 
     setForm((current) => ({
       ...current,
+      from: routes.some(r => r.from === current.from && r.to === destination.code) ? current.from : "",
       to: destination.code,
     }));
 
@@ -181,6 +167,7 @@ function Destinations() {
 
     setForm((current) => ({
       ...current,
+      ...(name === "from" ? { to: routes.some(r => r.from === value && r.to === current.to) ? current.to : "" } : {}),
       [name]: value,
     }));
   };
@@ -425,7 +412,7 @@ function Destinations() {
                     <option value="">-- Chọn điểm đi --</option>
 
                     {AIRPORTS.filter(
-                      (airport) => airport.value !== form.to,
+                      (airport) => !form.to || routes.some(r => r.from === airport.value && r.to === form.to),
                     ).map((airport) => (
                       <option key={airport.value} value={airport.value}>
                         {airport.label}
@@ -441,7 +428,7 @@ function Destinations() {
                     <option value="">-- Chọn điểm đến --</option>
 
                     {AIRPORTS.filter(
-                      (airport) => airport.value !== form.from,
+                      (airport) => !form.from || routes.some(r => r.from === form.from && r.to === airport.value),
                     ).map((airport) => (
                       <option key={airport.value} value={airport.value}>
                         {airport.label}

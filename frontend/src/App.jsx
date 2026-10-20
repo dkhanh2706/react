@@ -65,6 +65,7 @@ import AdminDashboard from "./admin/AdminDashboard";
 import UserManagement from "./admin/UserManagement";
 import FlightManagement from "./admin/FlightManagement";
 import PaymentManagement from "./admin/PaymentManagement";
+import BookingManagement from "./admin/BookingManagement";
 
 // =====================================================
 // COMPONENTS
@@ -77,7 +78,7 @@ import ChatbotWrapper from "./components/ChatbotWrapper";
 // ADMIN EMAIL
 // =====================================================
 
-const ADMIN_EMAIL = "adminhdk@gmail.com";
+
 
 // =====================================================
 // LẤY THÔNG TIN ĐĂNG NHẬP TỪ LOCALSTORAGE
@@ -116,8 +117,7 @@ const checkIsAdmin = (user) => {
   }
 
   return (
-    user.role === "ADMIN" ||
-    user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()
+    user.role === "ADMIN"
   );
 };
 
@@ -384,6 +384,8 @@ function App() {
             </AdminRoute>
           }
         />
+
+        <Route path="/admin/bookings" element={<AdminRoute><BookingManagement /></AdminRoute>} />
 
         {/* NOT FOUND */}
 

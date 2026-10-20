@@ -1,6 +1,7 @@
 const express = require("express");
 
 const router = express.Router();
+const { verifyToken } = require("../middleware/auth.middleware");
 
 const seatController = require("../controllers/seat.controller");
 
@@ -9,6 +10,6 @@ const seatController = require("../controllers/seat.controller");
 // VD:
 // /api/seats/flight/1
 
-router.get("/flight/:flightId", seatController.getSeatsByFlight);
+router.get("/flight/:flightId", verifyToken, seatController.getSeatsByFlight);
 
 module.exports = router;

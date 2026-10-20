@@ -11,15 +11,16 @@ import "../styles/Profile.css";
 // API
 // =====================================================
 
-const API_ORIGIN = `${window.location.protocol}//${window.location.hostname}:5000`;
+const API_BASE = String(import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
+const API_ORIGIN = new URL(API_BASE, window.location.origin).origin;
 
-const PROFILE_API = `${API_ORIGIN}/api/users/profile`;
+const PROFILE_API = `${API_BASE}/users/profile`;
 
-const AVATAR_API = `${API_ORIGIN}/api/users/profile/avatar`;
+const AVATAR_API = `${API_BASE}/users/profile/avatar`;
 
-const PASSWORD_CODE_API = `${API_ORIGIN}/api/users/password/request-code`;
+const PASSWORD_CODE_API = `${API_BASE}/users/password/request-code`;
 
-const PASSWORD_CHANGE_API = `${API_ORIGIN}/api/users/password/change`;
+const PASSWORD_CHANGE_API = `${API_BASE}/users/password/change`;
 
 // =====================================================
 // ICON
@@ -807,8 +808,8 @@ function Profile() {
       return;
     }
 
-    if (newPassword.length < 8) {
-      const message = "Mật khẩu mới phải có ít nhất 8 ký tự";
+    if (newPassword.length < 8 || new TextEncoder().encode(newPassword).length > 72) {
+      const message = "Mật khẩu mới phải từ 8 ký tự và không vượt quá 72 byte";
 
       setPasswordError(message);
 

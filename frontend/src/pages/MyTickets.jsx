@@ -121,10 +121,15 @@ function MyTickets() {
                       </div>
 
                       <div className="ticket-status-pill">
-                        <span className="status-dot" /> Đã thanh toán
+                        <span className="status-dot" /> {ticket.status === "PAYMENT_REVIEW" ? "Cần đối soát / hoàn tiền" : ticket.payment_status === "REFUNDED" ? "Đã hoàn tiền" : ticket.current_flight_status === "CANCELLED" ? "Chuyến đã hủy" : "Đã thanh toán"}
                       </div>
                     </div>
 
+                    <div className="ticket-quick-meta">
+                      <span>Trạng thái chuyến hiện tại: <strong>{ticket.current_flight_status}</strong></span>
+                      <span>Lịch hiện tại: {ticket.current_departure_code} → {ticket.current_arrival_code}, {formatDate(ticket.current_flight_date)}, {ticket.current_departure_clock} – {ticket.current_arrival_clock}</span>
+                    </div>
+                    <p style={{ padding: "0 20px" }}>Thông tin tại thời điểm đặt vé:</p>
                     {/* TICKET ROUTE & SCHEDULE */}
                     <div className="ticket-flight-content">
                       <div className="ticket-route-display">

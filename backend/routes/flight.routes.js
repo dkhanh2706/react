@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 
 const flightController = require("../controllers/flight.controller");
+const demoFlights = require("../controllers/demoFlights.controller");
 
 const { verifyToken, isAdmin } = require("../middleware/auth.middleware");
 
@@ -13,6 +14,11 @@ const { verifyToken, isAdmin } = require("../middleware/auth.middleware");
 // GET
 // /api/flights/search
 router.get("/search", flightController.searchFlight);
+router.get("/catalog", flightController.catalog);
+router.get("/overview", verifyToken, isAdmin, flightController.overview);
+router.get("/demo/config", verifyToken, isAdmin, demoFlights.config);
+router.post("/demo/preview", verifyToken, isAdmin, demoFlights.preview);
+router.post("/demo/generate", verifyToken, isAdmin, demoFlights.generate);
 
 // =====================================================
 // ADMIN FLIGHT MANAGEMENT

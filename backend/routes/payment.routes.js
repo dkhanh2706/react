@@ -10,6 +10,9 @@ const { verifyToken, isAdmin } = require("../middleware/auth.middleware");
 // ADMIN - LẤY TẤT CẢ GIAO DỊCH / VÉ ĐÃ MUA
 // =====================================================
 router.get("/", verifyToken, isAdmin, paymentController.getAllPayments);
+router.get("/config", paymentController.config);
+router.get("/booking/:bookingId/status", verifyToken, paymentController.getStatus);
+router.post("/reviews/:reviewId/refund", verifyToken, isAdmin, paymentController.resolveReview);
 
 // =====================================================
 // TẠO THANH TOÁN MOMO

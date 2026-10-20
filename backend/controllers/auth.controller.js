@@ -1,3 +1,5 @@
+const { endpoint, fail } = require("../lib/http");
+const passwords = require("../services/password.service");
 const db = require("../config/database");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -88,8 +90,8 @@ function validatePassword(passwordValue) {
     return "Mật khẩu phải có ít nhất 8 ký tự";
   }
 
-  if (password.length > 100) {
-    return "Mật khẩu không được vượt quá 100 ký tự";
+  if (Buffer.byteLength(password) > 72) {
+    return "Mật khẩu không được vượt quá 72 byte";
   }
 
   return "";
@@ -339,6 +341,7 @@ exports.login = async (req, res) => {
       {
         id: user.id,
         role: user.role,
+        token_version: user.token_version,
       },
 
       process.env.JWT_SECRET,
@@ -361,6 +364,7 @@ exports.login = async (req, res) => {
         birth_date: user.birth_date || null,
         gender: user.gender || null,
         role: user.role,
+        is_primary_admin: user.is_primary_admin,
       },
     });
   } catch (error) {
@@ -377,229 +381,19 @@ exports.login = async (req, res) => {
 // FORGOT PASSWORD
 // ==========================
 
-exports.forgotPassword = async (req, res) => {
-  try {
-    let { email } = req.body;
+exports.forgotPassword = endpoint(async (req, res) => {
+  const email = String(req.body.email || "").trim().toLowerCase();
+  const error = validateEmail(email);
+  if (error) fail(400, error);
+  const user = (await db.query("SELECT id FROM users WHERE LOWER(email)=$1 AND NOT COALESCE(is_locked,false)", [email])).rows[0];
+  if (user) await passwords.requestCode(user.id, "forgot");
+  res.json({ message: "Nếu tài khoản hợp lệ, mã khôi phục sẽ được gửi qua email." });
+});
 
-    email = String(email || "")
-      .trim()
-      .toLowerCase();
-
-    if (!email) {
-      return res.status(400).json({
-        message: "Vui lòng nhập email",
-      });
-    }
-
-    const emailError = validateEmail(email);
-
-    if (emailError) {
-      return res.status(400).json({
-        message: emailError,
-      });
-    }
-
-    const user = await db.query(
-      `
-        SELECT *
-        FROM users
-        WHERE LOWER(email) = LOWER($1)
-        LIMIT 1
-      `,
-      [email],
-    );
-
-    if (user.rows.length === 0) {
-      return res.status(400).json({
-        message: "Email không tồn tại",
-      });
-    }
-
-    const account = user.rows[0];
-
-    // =====================================================
-    // TẠO MÃ 6 SỐ
-    // =====================================================
-
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-
-    await db.query(
-      `
-        INSERT INTO password_resets
-        (
-          user_id,
-          reset_code,
-          expires_at
-        )
-
-        VALUES
-        (
-          $1,
-          $2,
-          NOW() + INTERVAL '10 minutes'
-        )
-      `,
-      [account.id, code],
-    );
-
-    return res.json({
-      message: "Đã tạo mã reset",
-      code: code,
-    });
-  } catch (error) {
-    console.error("FORGOT PASSWORD ERROR:", error);
-
-    return res.status(500).json({
-      message: "Lỗi server",
-      error: error.message,
-    });
-  }
-};
-
-// ==========================
-// RESET PASSWORD
-// ==========================
-
-exports.resetPassword = async (req, res) => {
-  try {
-    let { email, code, newPassword } = req.body;
-
-    email = String(email || "")
-      .trim()
-      .toLowerCase();
-
-    code = String(code || "").trim();
-
-    newPassword = String(newPassword || "");
-
-    // =====================================================
-    // KIỂM TRA ĐẦU VÀO
-    // =====================================================
-
-    if (!email) {
-      return res.status(400).json({
-        message: "Vui lòng nhập email",
-      });
-    }
-
-    if (!code) {
-      return res.status(400).json({
-        message: "Vui lòng nhập mã reset",
-      });
-    }
-
-    if (!/^\d{6}$/.test(code)) {
-      return res.status(400).json({
-        message: "Mã reset phải gồm 6 chữ số",
-      });
-    }
-
-    const emailError = validateEmail(email);
-
-    if (emailError) {
-      return res.status(400).json({
-        message: emailError,
-      });
-    }
-
-    const passwordError = validatePassword(newPassword);
-
-    if (passwordError) {
-      return res.status(400).json({
-        message: passwordError,
-      });
-    }
-
-    // =====================================================
-    // TÌM USER
-    // =====================================================
-
-    const user = await db.query(
-      `
-        SELECT *
-        FROM users
-        WHERE LOWER(email) = LOWER($1)
-        LIMIT 1
-      `,
-      [email],
-    );
-
-    if (user.rows.length === 0) {
-      return res.status(400).json({
-        message: "Email không tồn tại",
-      });
-    }
-
-    const account = user.rows[0];
-
-    // =====================================================
-    // KIỂM TRA RESET CODE
-    // =====================================================
-
-    const reset = await db.query(
-      `
-        SELECT *
-        FROM password_resets
-
-        WHERE user_id = $1
-          AND reset_code = $2
-          AND expires_at > NOW()
-
-        ORDER BY id DESC
-
-        LIMIT 1
-      `,
-      [account.id, code],
-    );
-
-    if (reset.rows.length === 0) {
-      return res.status(400).json({
-        message: "Mã reset không đúng hoặc hết hạn",
-      });
-    }
-
-    // =====================================================
-    // HASH MẬT KHẨU MỚI
-    // =====================================================
-
-    const hash = await bcrypt.hash(newPassword, 10);
-
-    // =====================================================
-    // CẬP NHẬT PASSWORD
-    // =====================================================
-
-    await db.query(
-      `
-        UPDATE users
-
-        SET password_hash = $1
-
-        WHERE id = $2
-      `,
-      [hash, account.id],
-    );
-
-    // =====================================================
-    // XÓA RESET CODE SAU KHI DÙNG
-    // =====================================================
-
-    await db.query(
-      `
-        DELETE FROM password_resets
-        WHERE user_id = $1
-      `,
-      [account.id],
-    );
-
-    return res.json({
-      message: "Đổi mật khẩu thành công",
-    });
-  } catch (error) {
-    console.error("RESET PASSWORD ERROR:", error);
-
-    return res.status(500).json({
-      message: "Lỗi server",
-      error: error.message,
-    });
-  }
-};
+exports.resetPassword = endpoint(async (req, res) => {
+  const email = String(req.body.email || "").trim().toLowerCase();
+  const user = (await db.query("SELECT id FROM users WHERE LOWER(email)=$1", [email])).rows[0];
+  if (!user) fail(400, "Mã xác nhận hoặc tài khoản không hợp lệ");
+  await passwords.resetPassword(user.id, "forgot", req.body.code, req.body.newPassword);
+  res.json({ message: "Đổi mật khẩu thành công. Vui lòng đăng nhập lại." });
+});

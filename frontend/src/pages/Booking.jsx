@@ -154,6 +154,7 @@ function Booking() {
   const [loadingSeats, setLoadingSeats] = useState(false);
 
   const [creatingBooking, setCreatingBooking] = useState(false);
+  const [holdingSeat, setHoldingSeat] = useState(false);
 
   // ===================================================
   // LOGIN
@@ -232,6 +233,7 @@ function Booking() {
   // ===================================================
 
   const chooseSeat = async (seat) => {
+    if (holdingSeat || creatingBooking) return;
     const seatStatus = normalizeSeatStatus(seat.status);
 
     // BOOKED
@@ -242,13 +244,14 @@ function Booking() {
     }
 
     // HOLD
-    if (seatStatus === "HOLD") {
+    if (seatStatus === "HOLD" && !seat.held_by_me) {
       toast.error("Ghế này đang được người khác giữ");
 
       return;
     }
 
     try {
+      setHoldingSeat(true);
       const holdData = {
         flight_id: flight.id,
 
@@ -278,7 +281,7 @@ function Booking() {
       toast.error(error.response?.data?.message || "Không thể giữ ghế");
 
       await reloadSeats();
-    }
+    } finally { setHoldingSeat(false); }
   };
 
   // ===================================================
@@ -308,7 +311,7 @@ function Booking() {
       return basePrice * 1.5;
     }
 
-    return basePrice;
+    return seatClass === "FIRST" ? basePrice * 2 : basePrice;
   };
 
   // ===================================================
@@ -369,29 +372,6 @@ function Booking() {
 
         // SEAT
         seat_id: selectedSeat.id,
-
-        seat_class: normalizeSeatClass(selectedSeat.class),
-
-        // Price FE chỉ dùng tương thích.
-        // Backend mới sẽ tự tính lại.
-        price: totalPrice(),
-
-        // FLIGHT SNAPSHOT
-        flight_date: flight.date || null,
-
-        departure_place: flight.departure_code || flight.from || null,
-
-        arrival_place: flight.arrival_code || flight.to || null,
-
-        departure_time: formatTime(flight.departure_time),
-
-        arrival_time: formatTime(flight.arrival_time),
-
-        airline: flight.airline || null,
-
-        flight_number: flight.flight_number || null,
-
-        seat_number: selectedSeat.seat_number || null,
 
         // PASSENGER
         passenger: {
@@ -606,10 +586,10 @@ function Booking() {
       <button
         key={seat.id}
         type="button"
-        disabled={(isBooked || isHold) && !isSelected}
+        disabled={holdingSeat || creatingBooking || ((isBooked || (isHold && !seat.held_by_me)) && !isSelected)}
         className={seatClass}
         onClick={() => {
-          if (!isSelected && !isBooked && !isHold) {
+          if (!isSelected && !isBooked && (!isHold || seat.held_by_me)) {
             chooseSeat(seat);
           }
         }}

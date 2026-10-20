@@ -1,16 +1,14 @@
+const { endpoint, fail, transaction, positiveId } = require("../lib/http");
+const passwords = require("../services/password.service");
 const db = require("../config/database");
-const bcrypt = require("bcrypt");
-const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
-const { sendPasswordCode } = require("../services/email.service");
 
 // =====================================================
 // ADMIN DUY NHẤT
 // =====================================================
 
-const MAIN_ADMIN = "adminhdk@gmail.com";
 
 // =====================================================
 // GET USER ID
@@ -140,7 +138,7 @@ const validatePassword = (value) => {
   }
 
   if (password.length > 100) {
-    return "Mật khẩu không được vượt quá 100 ký tự";
+    return "Mật khẩu không được vượt quá 72 byte";
   }
 
   return "";
@@ -176,6 +174,7 @@ exports.getMyProfile = async (req, res) => {
 
           gender,
           role,
+          is_primary_admin,
           avatar_url,
           created_at
 
@@ -293,6 +292,7 @@ exports.updateMyProfile = async (req, res) => {
 
           gender,
           role,
+          is_primary_admin,
           avatar_url,
           created_at
       `,
@@ -381,6 +381,7 @@ exports.uploadAvatar = async (req, res) => {
 
           gender,
           role,
+          is_primary_admin,
           avatar_url,
           created_at
       `,
@@ -427,313 +428,15 @@ exports.uploadAvatar = async (req, res) => {
 // POST /api/users/password/request-code
 // =====================================================
 
-exports.requestPasswordChangeCode = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-
-    if (!userId) {
-      return res.status(401).json({
-        message: "Không xác định được tài khoản đăng nhập",
-      });
-    }
-
-    // =============================================
-    // USER
-    // =============================================
-
-    const userResult = await db.query(
-      `
-        SELECT
-          id,
-          full_name,
-          email
-
-        FROM users
-
-        WHERE id = $1
-
-        LIMIT 1
-      `,
-      [userId],
-    );
-
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({
-        message: "Không tìm thấy tài khoản",
-      });
-    }
-
-    const user = userResult.rows[0];
-
-    if (!user.email) {
-      return res.status(400).json({
-        message: "Tài khoản chưa có email để nhận mã xác nhận",
-      });
-    }
-
-    // =============================================
-    // OTP 6 SỐ
-    // =============================================
-
-    const code = crypto.randomInt(100000, 1000000).toString();
-
-    // =============================================
-    // XÓA OTP CŨ
-    // =============================================
-
-    await db.query(
-      `
-        DELETE FROM password_resets
-        WHERE user_id = $1
-      `,
-      [userId],
-    );
-
-    // =============================================
-    // LƯU OTP MỚI
-    // =============================================
-
-    await db.query(
-      `
-        INSERT INTO password_resets
-        (
-          user_id,
-          reset_code,
-          expires_at
-        )
-
-        VALUES
-        (
-          $1,
-          $2,
-          NOW() + INTERVAL '10 minutes'
-        )
-      `,
-      [userId, code],
-    );
-
-    // =============================================
-    // GỬI OTP QUA GMAIL
-    // =============================================
-
-    try {
-      await sendPasswordCode({
-        to: user.email,
-        code,
-        fullName: user.full_name || "Quý khách",
-        purpose: "change",
-      });
-    } catch (mailError) {
-      console.error("SEND PASSWORD EMAIL ERROR:", mailError);
-
-      // Nếu gửi mail thất bại thì xóa OTP vừa tạo
-      await db.query(
-        `
-          DELETE FROM password_resets
-          WHERE user_id = $1
-        `,
-        [userId],
-      );
-
-      return res.status(500).json({
-        message: "Không thể gửi mã xác nhận qua email",
-        error: mailError.message,
-      });
-    }
-
-    console.log(`✅ PASSWORD OTP SENT TO: ${user.email}`);
-
-    return res.status(200).json({
-      success: true,
-      message: "Mã xác nhận đã được gửi đến email của bạn",
-      email: user.email,
-      expires_in_minutes: 10,
-    });
-  } catch (error) {
-    console.error("REQUEST PASSWORD CODE ERROR:", error);
-
-    return res.status(500).json({
-      message: "Không thể gửi mã xác nhận",
-      error: error.message,
-    });
-  }
-};
-
-// =====================================================
-// ĐỔI MẬT KHẨU BẰNG OTP
-// POST /api/users/password/change
-// =====================================================
-
-exports.changePasswordWithCode = async (req, res) => {
-  const client = await db.connect();
-
-  try {
-    const userId = getUserId(req);
-
-    let { code, newPassword, confirmPassword } = req.body;
-
-    if (!userId) {
-      return res.status(401).json({
-        message: "Không xác định được tài khoản đăng nhập",
-      });
-    }
-
-    code = String(code || "").trim();
-
-    newPassword = String(newPassword || "");
-
-    confirmPassword = String(confirmPassword || "");
-
-    // CODE
-    if (!code) {
-      return res.status(400).json({
-        message: "Vui lòng nhập mã xác nhận",
-      });
-    }
-
-    if (!/^\d{6}$/.test(code)) {
-      return res.status(400).json({
-        message: "Mã xác nhận phải gồm 6 chữ số",
-      });
-    }
-
-    // PASSWORD
-    const passwordError = validatePassword(newPassword);
-
-    if (passwordError) {
-      return res.status(400).json({
-        message: passwordError,
-      });
-    }
-
-    if (newPassword !== confirmPassword) {
-      return res.status(400).json({
-        message: "Xác nhận mật khẩu không khớp",
-      });
-    }
-
-    await client.query("BEGIN");
-
-    // USER
-    const userResult = await client.query(
-      `
-        SELECT
-          id,
-          password_hash
-
-        FROM users
-
-        WHERE id = $1
-
-        LIMIT 1
-
-        FOR UPDATE
-      `,
-      [userId],
-    );
-
-    if (userResult.rows.length === 0) {
-      await client.query("ROLLBACK");
-
-      return res.status(404).json({
-        message: "Không tìm thấy tài khoản",
-      });
-    }
-
-    const user = userResult.rows[0];
-
-    // CHECK OTP
-    const resetResult = await client.query(
-      `
-        SELECT
-          id,
-          reset_code,
-          expires_at
-
-        FROM password_resets
-
-        WHERE user_id = $1
-          AND reset_code = $2
-          AND expires_at > NOW()
-
-        ORDER BY id DESC
-
-        LIMIT 1
-
-        FOR UPDATE
-      `,
-      [userId, code],
-    );
-
-    if (resetResult.rows.length === 0) {
-      await client.query("ROLLBACK");
-
-      return res.status(400).json({
-        message: "Mã xác nhận không đúng hoặc đã hết hạn",
-      });
-    }
-
-    // KHÔNG CHO DÙNG MẬT KHẨU CŨ
-    const samePassword = await bcrypt.compare(newPassword, user.password_hash);
-
-    if (samePassword) {
-      await client.query("ROLLBACK");
-
-      return res.status(400).json({
-        message: "Mật khẩu mới phải khác mật khẩu hiện tại",
-      });
-    }
-
-    // HASH
-    const passwordHash = await bcrypt.hash(newPassword, 10);
-
-    // UPDATE PASSWORD
-    await client.query(
-      `
-        UPDATE users
-
-        SET password_hash = $1
-
-        WHERE id = $2
-      `,
-      [passwordHash, userId],
-    );
-
-    // XÓA OTP
-    await client.query(
-      `
-        DELETE FROM password_resets
-        WHERE user_id = $1
-      `,
-      [userId],
-    );
-
-    await client.query("COMMIT");
-
-    return res.json({
-      message: "Đổi mật khẩu thành công. Vui lòng đăng nhập lại.",
-    });
-  } catch (error) {
-    try {
-      await client.query("ROLLBACK");
-    } catch {
-      //
-    }
-
-    console.error("CHANGE PASSWORD ERROR:", error);
-
-    return res.status(500).json({
-      message: "Không thể đổi mật khẩu",
-      error: error.message,
-    });
-  } finally {
-    client.release();
-  }
-};
-
-// =====================================================
-// ADMIN - GET ALL USERS
-// =====================================================
+exports.requestPasswordChangeCode = endpoint(async (req, res) => {
+  await passwords.requestCode(getUserId(req), "change");
+  res.json({ message: "Mã xác nhận đã được gửi qua email", expires_in_minutes: 10 });
+});
+exports.changePasswordWithCode = endpoint(async (req, res) => {
+  if (req.body.newPassword !== req.body.confirmPassword) fail(400, "Xác nhận mật khẩu không khớp");
+  await passwords.resetPassword(getUserId(req), "change", req.body.code, req.body.newPassword);
+  res.json({ message: "Đổi mật khẩu thành công. Vui lòng đăng nhập lại." });
+});
 
 exports.getAllUsers = async (req, res) => {
   try {
@@ -744,6 +447,7 @@ exports.getAllUsers = async (req, res) => {
         email,
         phone,
         role,
+        is_primary_admin,
         avatar_url,
         created_at,
         COALESCE(
@@ -783,6 +487,7 @@ exports.getUserById = async (req, res) => {
           email,
           phone,
           role,
+          is_primary_admin,
           avatar_url
 
         FROM users
@@ -813,238 +518,43 @@ exports.getUserById = async (req, res) => {
 // ADMIN - UPDATE ROLE
 // =====================================================
 
-exports.updateRole = async (req, res) => {
-  try {
-    const { id } = req.params;
+exports.updateRole = endpoint(async (req, res) => {
+  const id = positiveId(req.params.id);
+  if (req.body.role !== "CUSTOMER") fail(400, "Chỉ hỗ trợ quyền CUSTOMER; admin chính được bảo vệ");
+  const user = await transaction(async (client) => {
+    const target = (await client.query("SELECT * FROM users WHERE id=$1 FOR UPDATE", [id])).rows[0];
+    if (!target) fail(404, "Không tìm thấy tài khoản");
+    if (target.is_primary_admin || target.id === req.user.id) fail(403, "Không thể thay đổi quyền tài khoản này");
+    return (await client.query("UPDATE users SET role=$1, token_version=token_version+1 WHERE id=$2 RETURNING id, full_name, email, role", [req.body.role, id])).rows[0];
+  }, false);
+  res.json({ message: "Cập nhật quyền thành công", user });
+});
 
-    const { role } = req.body;
+exports.toggleLockUser = endpoint(async (req, res) => {
+  const id = positiveId(req.params.id);
+  if (req.body.is_locked !== undefined && typeof req.body.is_locked !== "boolean") fail(400, "Trạng thái khóa không hợp lệ");
+  const user = await transaction(async (client) => {
+    const target = (await client.query("SELECT * FROM users WHERE id=$1 FOR UPDATE", [id])).rows[0];
+    if (!target) fail(404, "Không tìm thấy tài khoản");
+    if (target.is_primary_admin || target.role === "ADMIN" || id === req.user.id) fail(403, "Không thể khóa tài khoản Admin");
+    const locked = req.body.is_locked ?? !target.is_locked;
+    return (await client.query("UPDATE users SET is_locked=$1, token_version=token_version+1 WHERE id=$2 RETURNING id, full_name, email, role, created_at, is_locked", [locked, id])).rows[0];
+  }, false);
+  res.json({ message: user.is_locked ? "Đã khóa tài khoản và thu hồi phiên đăng nhập" : "Đã mở khóa tài khoản", user });
+});
 
-    const checkUser = await db.query(
-      `
-        SELECT email
-        FROM users
-        WHERE id = $1
-      `,
-      [id],
-    );
-
-    if (checkUser.rows.length === 0) {
-      return res.status(404).json({
-        message: "Không tìm thấy user",
-      });
-    }
-
-    const email = checkUser.rows[0].email;
-
-    if (email?.toLowerCase() === MAIN_ADMIN.toLowerCase()) {
-      return res.status(403).json({
-        message: "Không thể thay đổi quyền Admin chính",
-      });
-    }
-
-    if (role === "ADMIN") {
-      return res.status(403).json({
-        message: "Hệ thống chỉ có một tài khoản Admin",
-      });
-    }
-
-    if (role !== "CUSTOMER") {
-      return res.status(400).json({
-        message: "Role không hợp lệ",
-      });
-    }
-
-    const result = await db.query(
-      `
-        UPDATE users
-
-        SET role = $1
-
-        WHERE id = $2
-
-        RETURNING
-          id,
-          full_name,
-          email,
-          role
-      `,
-      [role, id],
-    );
-
-    return res.json({
-      message: "Cập nhật quyền thành công",
-      user: result.rows[0],
-    });
-  } catch (error) {
-    console.error("UPDATE ROLE ERROR:", error);
-
-    return res.status(500).json({
-      message: "Lỗi cập nhật quyền",
-      error: error.message,
-    });
-  }
-};
-
-// =====================================================
-// ADMIN - DELETE USER
-// =====================================================
-
-exports.deleteUser = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const checkUser = await db.query(
-      `
-        SELECT
-          email,
-          avatar_url
-
-        FROM users
-
-        WHERE id = $1
-      `,
-      [id],
-    );
-
-    if (checkUser.rows.length === 0) {
-      return res.status(404).json({
-        message: "Không tìm thấy user",
-      });
-    }
-
-    const target = checkUser.rows[0];
-
-    if (target.email?.toLowerCase() === MAIN_ADMIN.toLowerCase()) {
-      return res.status(403).json({
-        message: "Không thể xóa tài khoản Admin chính",
-      });
-    }
-
-    const result = await db.query(
-      `
-        DELETE FROM users
-
-        WHERE id = $1
-
-        RETURNING
-          id,
-          email
-      `,
-      [id],
-    );
-
-    if (
-      target.avatar_url &&
-      target.avatar_url.startsWith("/uploads/avatars/")
-    ) {
-      try {
-        const filePath = path.join(
-          __dirname,
-          "..",
-          "uploads",
-          "avatars",
-          path.basename(target.avatar_url),
-        );
-
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-      } catch (error) {
-        console.error("DELETE USER AVATAR ERROR:", error);
-      }
-    }
-
-    return res.json({
-      message: "Xóa tài khoản thành công",
-      user: result.rows[0],
-    });
-  } catch (error) {
-    console.error("DELETE USER ERROR:", error);
-
-    return res.status(500).json({
-      message: "Không thể xóa user",
-      error: error.message,
-    });
-  }
-};
-
-// =====================================================
-// ADMIN - LOCK USER
-// =====================================================
-
-exports.toggleLockUser = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const { is_locked } = req.body;
-
-    const checkUser = await db.query(
-      `
-        SELECT
-          id,
-          email,
-          role,
-          is_locked
-
-        FROM users
-
-        WHERE id = $1
-      `,
-      [id],
-    );
-
-    if (checkUser.rows.length === 0) {
-      return res.status(404).json({
-        message: "Không tìm thấy user",
-      });
-    }
-
-    const targetUser = checkUser.rows[0];
-
-    if (
-      targetUser.role === "ADMIN" ||
-      targetUser.email?.toLowerCase() === MAIN_ADMIN.toLowerCase()
-    ) {
-      return res.status(403).json({
-        message: "Không thể khóa tài khoản Quản trị viên",
-      });
-    }
-
-    const newLockedState =
-      is_locked !== undefined ? Boolean(is_locked) : !targetUser.is_locked;
-
-    const result = await db.query(
-      `
-        UPDATE users
-
-        SET is_locked = $1
-
-        WHERE id = $2
-
-        RETURNING
-          id,
-          full_name,
-          email,
-          role,
-          created_at,
-          is_locked
-      `,
-      [newLockedState, id],
-    );
-
-    return res.json({
-      message: newLockedState
-        ? "Đã khóa tài khoản thành công"
-        : "Đã mở khóa tài khoản thành công",
-
-      user: result.rows[0],
-    });
-  } catch (error) {
-    console.error("TOGGLE LOCK USER ERROR:", error);
-
-    return res.status(500).json({
-      message: "Lỗi khi khóa/mở khóa tài khoản",
-      error: error.message,
-    });
-  }
-};
+exports.deleteUser = endpoint(async (req, res) => {
+  const id = positiveId(req.params.id);
+  await transaction(async (client) => {
+    const target = (await client.query("SELECT * FROM users WHERE id=$1 FOR UPDATE", [id])).rows[0];
+    if (!target) fail(404, "Không tìm thấy tài khoản");
+    if (target.is_primary_admin || target.role === "ADMIN" || id === req.user.id) fail(403, "Không thể xóa tài khoản Admin");
+    const related = await client.query(`SELECT EXISTS(SELECT FROM bookings WHERE user_id=$1)
+      OR EXISTS(SELECT FROM notifications WHERE user_id=$1)
+      OR EXISTS(SELECT FROM password_challenges WHERE user_id=$1)
+      OR EXISTS(SELECT FROM payment_review_cases WHERE resolved_by=$1) AS found`, [id]);
+    if (related.rows[0].found) fail(409, "Tài khoản có lịch sử liên quan. Hãy dùng chức năng khóa để bảo toàn dữ liệu.");
+    await client.query("DELETE FROM users WHERE id=$1", [id]);
+  }, false);
+  res.json({ message: "Đã xóa tài khoản chưa có dữ liệu liên quan" });
+});

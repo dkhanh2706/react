@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 
-const ADMIN_EMAIL = "adminhdk@gmail.com";
+
 
 function ProtectedRoute({ children, adminOnly = false }) {
   const location = useLocation();
@@ -42,8 +42,7 @@ function ProtectedRoute({ children, adminOnly = false }) {
   // =========================
 
   const isAdmin =
-    user?.role === "ADMIN" ||
-    user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    user?.role === "ADMIN";
 
   // Route yêu cầu ADMIN nhưng user không phải ADMIN
   if (adminOnly && !isAdmin) {

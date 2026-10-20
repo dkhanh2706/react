@@ -1,60 +1,26 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import api from "../api/axios";
 
-const AIRPORTS = [
-  {
-    value: "HAN",
-    label: "Nội Bài - Hà Nội",
-  },
-  {
-    value: "SGN",
-    label: "Tân Sơn Nhất - TP. Hồ Chí Minh",
-  },
-  {
-    value: "DAD",
-    label: "Đà Nẵng",
-  },
-  {
-    value: "PQC",
-    label: "Phú Quốc",
-  },
-  {
-    value: "CXR",
-    label: "Cam Ranh - Nha Trang",
-  },
-  {
-    value: "DLI",
-    label: "Liên Khương - Đà Lạt",
-  },
-  {
-    value: "HUI",
-    label: "Phú Bài - Huế",
-  },
-  {
-    value: "VCA",
-    label: "Cần Thơ",
-  },
-  {
-    value: "HND",
-    label: "Haneda - Tokyo",
-  },
-  {
-    value: "NRT",
-    label: "Narita - Tokyo",
-  },
-  {
-    value: "SIN",
-    label: "Changi - Singapore",
-  },
-];
+
 
 function FlightSearch() {
+  const [AIRPORTS, setAirports] = useState([]);
+  const [routes, setRoutes] = useState([]);
+  useEffect(() => {
+    let active = true;
+    api.get("/flights/catalog").then(r => { if (active) {
+      setAirports(r.data.airports.map(a => ({ ...a, value: a.code, label: `${a.name} - ${a.city || a.code}` })));
+      setRoutes(r.data.routes || []);
+    } })
+      .catch(() => toast.error("Không tải được danh sách sân bay"));
+    return () => { active = false; };
+  }, []);
   const navigate = useNavigate();
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(new Date());
 
   const [form, setForm] = useState({
     from: "",
@@ -69,6 +35,7 @@ function FlightSearch() {
 
     setForm((current) => ({
       ...current,
+      ...(name === "from" ? { to: routes.some(r => r.from === value && r.to === current.to) ? current.to : "" } : {}),
       [name]: value,
     }));
   };
@@ -145,10 +112,10 @@ function FlightSearch() {
         <div>
           <label>Điểm đến</label>
 
-          <select name="to" value={form.to} onChange={handleChange}>
+          <select name="to" value={form.to} onChange={handleChange} disabled={!form.from}>
             <option value="">-- Chọn điểm đến --</option>
 
-            {AIRPORTS.filter((airport) => airport.value !== form.from).map(
+            {AIRPORTS.filter((airport) => routes.some(r => r.from === form.from && r.to === airport.value)).map(
               (airport) => (
                 <option key={airport.value} value={airport.value}>
                   {airport.label}
@@ -170,6 +137,7 @@ function FlightSearch() {
           />
         </div>
       </div>
+      <p>Chuyến quốc tế đi/về qua Nội Bài (HAN) hoặc Tân Sơn Nhất (SGN).</p>
 
       <button
         type="button"

@@ -20,7 +20,7 @@ function createSignature(rawSignature) {
 // =====================================================
 // TẠO PAYMENT MOMO
 // =====================================================
-async function createMomoPayment({ bookingId, amount, orderInfo }) {
+async function createMomoPayment({ bookingId, amount, orderInfo, requestId, orderId }) {
   const partnerCode = process.env.MOMO_PARTNER_CODE;
   const accessKey = process.env.MOMO_ACCESS_KEY;
 
@@ -52,9 +52,9 @@ async function createMomoPayment({ bookingId, amount, orderInfo }) {
   // ID GIAO DỊCH
   // ===================================================
 
-  const requestId = `REQ_${Date.now()}_${bookingId}`;
 
-  const orderId = `BK_${bookingId}_${Date.now()}`;
+
+
 
   const requestType = "payWithMethod";
 
@@ -193,7 +193,9 @@ function verifyMomoIpnSignature(body) {
     .update(rawSignature)
     .digest("hex");
 
-  return expectedSignature === signature;
+  if (typeof signature !== "string" || !/^[a-fA-F0-9]{64}$/.test(signature)) return false;
+  if (partnerCode !== process.env.MOMO_PARTNER_CODE) return false;
+  return crypto.timingSafeEqual(Buffer.from(expectedSignature, "hex"), Buffer.from(signature, "hex"));
 }
 
 // =====================================================

@@ -118,8 +118,8 @@ function Register() {
       return "Mật khẩu phải có ít nhất 8 ký tự";
     }
 
-    if (password.length > 100) {
-      return "Mật khẩu không được vượt quá 100 ký tự";
+    if (new TextEncoder().encode(password).length > 72) {
+      return "Mật khẩu không được vượt quá 72 byte (ký tự có dấu có thể chiếm nhiều byte)";
     }
 
     return "";

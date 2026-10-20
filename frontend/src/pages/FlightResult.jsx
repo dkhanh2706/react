@@ -141,13 +141,17 @@ function FlightResult() {
 
   const navigate = useNavigate();
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = Math.max(1, Number(searchParams.get("page")) || 1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalResults, setTotalResults] = useState(0);
 
   // =====================================================
   // STATE
   // =====================================================
 
   const [flights, setFlights] = useState(location.state?.flights || []);
+  const [searchMessage, setSearchMessage] = useState("");
 
   const [searchInfo, setSearchInfo] = useState(
     location.state?.searchInfo || null,
@@ -162,11 +166,11 @@ function FlightResult() {
   // QUERY PARAMS TỪ CHATBOT
   // =====================================================
 
-  const queryFrom = searchParams.get("from");
+  const queryFrom = searchParams.get("from") || location.state?.searchInfo?.from;
 
-  const queryTo = searchParams.get("to");
+  const queryTo = searchParams.get("to") || location.state?.searchInfo?.to;
 
-  const queryDate = searchParams.get("date");
+  const queryDate = searchParams.get("date") || location.state?.searchInfo?.departDate;
 
   // =====================================================
   // TỰ ĐỘNG SEARCH KHI ĐI TỪ CHATBOT
@@ -175,15 +179,14 @@ function FlightResult() {
   useEffect(() => {
     // Nếu đã được truyền kết quả từ FlightSearch
     // thì không gọi API lần nữa
-    if (location.state?.flights) {
-      return;
-    }
+
 
     // Không có query params
     if (!queryFrom || !queryTo || !queryDate) {
       return;
     }
 
+    let active = true;
     const fetchFlights = async () => {
       try {
         setLoading(true);
@@ -199,6 +202,7 @@ function FlightResult() {
             from: queryFrom,
             to: queryTo,
             date: queryDate,
+            page,
           },
         });
 
@@ -206,25 +210,32 @@ function FlightResult() {
           ? response.data
           : response.data?.data || [];
 
+        if (!active) return;
         setFlights(flightData);
+        setSearchMessage(response.data.message || "");
+        setTotalPages(response.data.total_pages || 0);
+        setTotalResults(response.data.total || 0);
       } catch (error) {
+        if (!active) return;
         console.error(
           "CHATBOT SEARCH FLIGHT ERROR:",
           error.response?.data || error,
         );
 
         setFlights([]);
+        setSearchMessage(error.response?.data?.message || "Không thể tải chuyến bay");
 
         toast.error(
           error.response?.data?.message || "Không thể tìm chuyến bay",
         );
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
     fetchFlights();
-  }, [location.state, queryFrom, queryTo, queryDate]);
+    return () => { active = false; };
+  }, [queryFrom, queryTo, queryDate, page]);
 
   // =====================================================
   // BACK
@@ -391,7 +402,7 @@ function FlightResult() {
 
               <h2>Không tìm thấy chuyến bay</h2>
 
-              <p>Hãy quay lại và thử tìm với ngày bay hoặc hành trình khác.</p>
+              <p>{searchMessage || "Hãy thử ngày tiếp theo. Chuyến đã qua giờ, bị hủy hoặc hết ghế sẽ không còn mở bán."}</p>
 
               <button type="button" onClick={handleSearchAgain}>
                 Tìm chuyến bay khác
@@ -505,6 +516,11 @@ function FlightResult() {
             </div>
           )}
         </div>
+        {totalPages > 0 && <nav aria-label="Phân trang chuyến bay" style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 16, padding: 24 }}>
+          <button disabled={page <= 1 || loading} onClick={() => setSearchParams({ from: queryFrom, to: queryTo, date: queryDate, page: String(page-1) })}>Trang trước</button>
+          <span>Trang {page}/{totalPages} · {totalResults} chuyến</span>
+          <button disabled={page >= totalPages || loading} onClick={() => setSearchParams({ from: queryFrom, to: queryTo, date: queryDate, page: String(page+1) })}>Trang sau</button>
+        </nav>}
       </main>
 
       <Footer />

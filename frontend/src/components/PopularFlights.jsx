@@ -78,7 +78,7 @@ function PopularFlights() {
 
   // Khi nhấn nút đặt vé
   const handleBooking = () => {
-    navigate("/booking");
+    navigate("/destinations");
   };
 
   return (

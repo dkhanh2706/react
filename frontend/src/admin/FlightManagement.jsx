@@ -17,30 +17,26 @@ import {
 
 import api from "../api/axios";
 import AdminLayout from "../components/AdminLayout";
+import DemoFlightSchedule from "./DemoFlightSchedule";
 import "../styles/admin/FlightManagement.css";
 
-const AIRPORTS = [
-  { id: 1, code: "HAN", name: "Nội Bài - Hà Nội" },
-  { id: 2, code: "SGN", name: "Tân Sơn Nhất - TP.HCM" },
-  { id: 3, code: "DAD", name: "Đà Nẵng" },
-  { id: 4, code: "CXR", name: "Cam Ranh - Nha Trang" },
-  { id: 5, code: "PQC", name: "Phú Quốc" },
-];
-
-const AIRLINES = [
-  { id: 1, name: "Vietnam Airlines" },
-  { id: 2, name: "Vietjet Air" },
-  { id: 3, name: "Bamboo Airways" },
-  { id: 4, name: "Vietravel Airlines" },
-];
-
 function FlightManagement() {
+  const [catalog, setCatalog] = useState({ airports: [], airlines: [], airplanes: [] });
+  const AIRPORTS = catalog.airports;
+  const AIRLINES = catalog.airlines;
+  useEffect(() => {
+    let active = true;
+    api.get("/flights/catalog").then(r => { if (active) setCatalog(r.data); })
+      .catch(() => toast.error("Không tải được danh mục sân bay, hãng và máy bay"));
+    return () => { active = false; };
+  }, []);
   const [flights, setFlights] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [tablePage, setTablePage] = useState(1);
 
   // Modal form
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -146,6 +142,7 @@ function FlightManagement() {
 
     setForm((prev) => ({
       ...prev,
+      ...(name === "airline_id" ? { airplane_id: catalog.airplanes.find(p => p.airline_id === Number(value))?.id || "" } : {}),
       [name]:
         name === "price" || name.endsWith("_id")
           ? Number(value) || value
@@ -161,10 +158,10 @@ function FlightManagement() {
 
     setForm({
       flight_number: "",
-      airline_id: 1,
-      airplane_id: 1,
-      departure_airport_id: 1,
-      arrival_airport_id: 2,
+      airline_id: AIRLINES[0]?.id || "",
+      airplane_id: catalog.airplanes.find(p => p.airline_id === AIRLINES[0]?.id)?.id || "",
+      departure_airport_id: AIRPORTS[0]?.id || "",
+      arrival_airport_id: AIRPORTS[1]?.id || "",
       departure_time: "",
       arrival_time: "",
       price: 1500000,
@@ -274,13 +271,13 @@ function FlightManagement() {
 
       const token = localStorage.getItem("token");
 
-      await api.delete(`/flights/${deleteTarget.id}`, {
+      const response = await api.delete(`/flights/${deleteTarget.id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      toast.success(`Đã xóa chuyến bay ${deleteTarget.flight_number}`);
+      toast.success(response.data.message);
 
       setDeleteTarget(null);
 
@@ -315,6 +312,9 @@ function FlightManagement() {
       return matchSearch && matchStatus;
     });
   }, [flights, searchQuery, statusFilter]);
+  const tablePages = Math.max(1, Math.ceil(filteredFlights.length / 25));
+  const visiblePage = Math.min(tablePage, tablePages);
+  const visibleFlights = filteredFlights.slice((visiblePage - 1) * 25, visiblePage * 25);
 
   // =====================================================
   // STATS
@@ -378,6 +378,8 @@ function FlightManagement() {
           </div>
         </div>
 
+        <DemoFlightSchedule />
+
         {/* ================= STATS CARDS ================= */}
         <div className="adm-flight-stats-row">
           <div className="f-stat-card">
@@ -438,7 +440,7 @@ function FlightManagement() {
                 type="text"
                 placeholder="Tìm mã chuyến bay, hãng bay, sân bay..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => { setSearchQuery(e.target.value); setTablePage(1); }}
               />
 
               {searchQuery && (
@@ -457,7 +459,7 @@ function FlightManagement() {
 
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => { setStatusFilter(e.target.value); setTablePage(1); }}
               >
                 <option value="ALL">Tất cả trạng thái</option>
 
@@ -510,12 +512,13 @@ function FlightManagement() {
                 </thead>
 
                 <tbody>
-                  {filteredFlights.map((flight) => (
+                  {visibleFlights.map((flight) => (
                     <tr key={flight.id}>
                       <td>
                         <span className="flight-code-badge">
                           {flight.flight_number || `FL-${flight.id}`}
                         </span>
+                        {flight.demo_key && <span className="demo-flight-label">Demo</span>}
                       </td>
 
                       <td>
@@ -601,6 +604,11 @@ function FlightManagement() {
                   ))}
                 </tbody>
               </table>
+              {filteredFlights.length > 25 && <div className="demo-flight-pagination">
+                <button type="button" className="btn-refresh" disabled={visiblePage <= 1} onClick={() => setTablePage(visiblePage - 1)}>Trang trước</button>
+                <span>Trang {visiblePage}/{tablePages} · {filteredFlights.length.toLocaleString("vi-VN")} chuyến</span>
+                <button type="button" className="btn-refresh" disabled={visiblePage >= tablePages} onClick={() => setTablePage(visiblePage + 1)}>Trang sau</button>
+              </div>}
             </div>
           )}
         </div>
@@ -661,6 +669,13 @@ function FlightManagement() {
                     </select>
                   </div>
 
+                  <div className="adm-form-group">
+                    <label>Máy bay</label>
+                    <select name="airplane_id" value={form.airplane_id} onChange={handleChange} required>
+                      <option value="">Chọn máy bay</option>
+                      {catalog.airplanes.filter(p => p.airline_id === Number(form.airline_id)).map(p => <option key={p.id} value={p.id}>{p.model} — #{p.id} ({p.seat_capacity} ghế)</option>)}
+                    </select>
+                  </div>
                   {/* SÂN BAY ĐI */}
                   <div className="adm-form-group">
                     <label>Sân bay cất cánh</label>
@@ -805,7 +820,7 @@ function FlightManagement() {
               <p>
                 Bạn có chắc chắn muốn xóa chuyến bay{" "}
                 <strong>{deleteTarget.flight_number}</strong> khỏi hệ thống?
-                Thao tác này không thể hoàn tác.
+                Chuyến demo hoặc có lịch sử đặt vé sẽ được hủy và giữ lại để không tự tạo lại; đơn đã thu tiền được chuyển đối soát.
               </p>
 
               <div className="confirm-actions">

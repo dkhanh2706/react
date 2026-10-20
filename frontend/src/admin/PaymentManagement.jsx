@@ -19,6 +19,10 @@ import api from "../api/axios";
 import AdminLayout from "../components/AdminLayout";
 import "../styles/admin/PaymentManagement.css";
 
+const statusNames = { SUCCESS: "Thành công", PENDING: "Chờ thanh toán", FAILED: "Thất bại", EXPIRED: "Hết hạn", CANCELLED: "Đã hủy", PAYMENT_REVIEW: "Cần đối soát", REFUNDED: "Đã hoàn tiền" };
+const paymentStatus = item => item.review_status === "OPEN" ? "PAYMENT_REVIEW" :
+  ((!item.payment_status || item.payment_status === "PENDING") && ["EXPIRED", "CANCELLED", "PAYMENT_REVIEW"].includes(item.booking_status) ? item.booking_status : item.payment_status || item.booking_status);
+
 function PaymentManagement() {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -113,16 +117,8 @@ function PaymentManagement() {
         name.includes(query) ||
         flightNum.includes(query);
 
-      const status = String(
-        item.payment_status || item.booking_status || "",
-      ).toUpperCase();
-
-      const matchStatus =
-        statusFilter === "ALL" ||
-        (statusFilter === "SUCCESS" &&
-          (status === "SUCCESS" || status === "CONFIRMED")) ||
-        (statusFilter === "PENDING" && status === "PENDING") ||
-        (statusFilter === "FAILED" && status === "FAILED");
+      const status = paymentStatus(item);
+      const matchStatus = statusFilter === "ALL" || statusFilter === status;
 
       const method = String(item.payment_method || "").toUpperCase();
 
@@ -136,19 +132,19 @@ function PaymentManagement() {
   // =====================================================
   // STATISTICS
   // =====================================================
-  const totalTransactions = payments.length;
+  const totalTransactions = payments.filter(p => p.payment_id).length;
 
   const successfulPayments = payments.filter(
-    (p) => p.payment_status === "SUCCESS" || p.booking_status === "CONFIRMED",
+    (p) => p.payment_status === "SUCCESS",
   );
 
-  const totalRevenue = successfulPayments.reduce(
+  const totalRevenue = successfulPayments.filter(p => p.payment_method === "MOMO" && p.booking_status === "CONFIRMED" && p.review_status !== "OPEN").reduce(
     (sum, p) => sum + Number(p.payment_amount || p.total_price || 0),
     0,
   );
 
   const pendingCount = payments.filter(
-    (p) => p.payment_status === "PENDING" || p.booking_status === "PENDING",
+    (p) => paymentStatus(p) === "PENDING",
   ).length;
 
   // =====================================================
@@ -215,7 +211,7 @@ function PaymentManagement() {
             </div>
 
             <div>
-              <span className="p-stat-label">Tổng doanh thu vé</span>
+              <span className="p-stat-label">Doanh thu vé MoMo</span>
 
               <strong className="p-stat-val">
                 {formatPrice(totalRevenue)}{" "}
@@ -237,7 +233,7 @@ function PaymentManagement() {
             </div>
 
             <div>
-              <span className="p-stat-label">Vé đã thanh toán</span>
+              <span className="p-stat-label">Giao dịch thành công</span>
 
               <strong className="p-stat-val">
                 {successfulPayments.length}
@@ -309,6 +305,10 @@ function PaymentManagement() {
                 <option value="PENDING">Chờ thanh toán</option>
 
                 <option value="FAILED">Thất bại</option>
+                <option value="EXPIRED">Hết hạn</option>
+                <option value="CANCELLED">Đã hủy</option>
+                <option value="PAYMENT_REVIEW">Cần đối soát</option>
+                <option value="REFUNDED">Đã hoàn tiền</option>
               </select>
 
               <select
@@ -365,16 +365,11 @@ function PaymentManagement() {
 
                 <tbody>
                   {filteredPayments.map((p) => {
-                    const isSuccess =
-                      p.payment_status === "SUCCESS" ||
-                      p.booking_status === "CONFIRMED";
-
-                    const isPending =
-                      p.payment_status === "PENDING" ||
-                      p.booking_status === "PENDING";
-
+                    const status = paymentStatus(p);
+                    const isSuccess = status === "SUCCESS";
+                    const isPending = status === "PENDING";
                     const method = String(
-                      p.payment_method || "MOCK",
+                      p.payment_method || "Chưa tạo",
                     ).toUpperCase();
 
                     const custName = p.customer_name || "Khách vãng lai";
@@ -382,7 +377,7 @@ function PaymentManagement() {
                     const custEmail = p.customer_email || "Chưa có email";
 
                     return (
-                      <tr key={p.booking_id}>
+                      <tr key={p.payment_id || `booking-${p.booking_id}`}>
                         {/* MÃ ĐẶT VÉ & NGÀY */}
                         <td>
                           <div className="booking-code-cell">
@@ -474,7 +469,7 @@ function PaymentManagement() {
                           >
                             {method.includes("MOMO")
                               ? "Ví MoMo"
-                              : "Giả lập (MOCK)"}
+                              : method === "MOCK" ? "Giả lập (MOCK)" : "Chưa tạo thanh toán"}
                           </span>
                         </td>
 
@@ -501,7 +496,7 @@ function PaymentManagement() {
                             </span>
                           ) : (
                             <span className="pay-status-badge failed">
-                              Thất bại
+                              {statusNames[status] || status}
                             </span>
                           )}
                         </td>
@@ -621,7 +616,7 @@ function PaymentManagement() {
                         : "mock"
                     }`}
                   >
-                    {selectedPayment.payment_method || "MOCK"}
+                    {selectedPayment.payment_method || "Chưa tạo"}
                   </span>
                 </div>
 

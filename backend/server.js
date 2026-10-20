@@ -319,7 +319,9 @@ const PORT = Number(process.env.PORT) || 5000;
 
 const HOST = "0.0.0.0";
 
-app.listen(PORT, HOST, () => {
+async function start() {
+  await require("./lib/schema").assertSchemaReady(db);
+  app.listen(PORT, HOST, () => {
   console.log("======================================");
 
   console.log(`Backend running on port ${PORT}`);
@@ -365,4 +367,11 @@ app.listen(PORT, HOST, () => {
   console.log("✅ avatar directory:", avatarDirectory);
 
   console.log("======================================");
+  });
+}
+
+start().catch(async error => {
+  console.error("Backend startup failed:", error.message);
+  await db.end();
+  process.exitCode = 1;
 });

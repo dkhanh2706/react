@@ -55,7 +55,12 @@ function UserManagement() {
   };
 
   useEffect(() => {
-    fetchUsers();
+    let active = true;
+    api.get("/users").then(response => {
+      if (active) setUsers(Array.isArray(response.data) ? response.data : []);
+    }).catch(error => { if (active) toast.error(error.response?.data?.message || "Không tải được tài khoản"); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, []);
 
   // KHÓA / MỞ KHÓA USER (chỉ dành cho khách hàng)
@@ -432,7 +437,7 @@ function UserManagement() {
               <h3>Xác nhận xóa tài khoản?</h3>
               <p>
                 Bạn có chắc chắn muốn xóa tài khoản{" "}
-                <strong>{deleteTarget.email || deleteTarget.full_name}</strong> khỏi hệ thống? Tất cả dữ liệu liên quan sẽ bị xóa.
+                <strong>{deleteTarget.email || deleteTarget.full_name}</strong> khỏi hệ thống? Chỉ có thể xóa khi chưa có dữ liệu liên quan. Với tài khoản đã phát sinh giao dịch, hãy dùng chức năng khóa để giữ lịch sử.
               </p>
               <div className="confirm-actions">
                 <button

@@ -14,7 +14,7 @@ import {
 import api from "../api/axios";
 import AuthLayout from "../components/AuthLayout";
 
-const ADMIN_EMAIL = "adminhdk@gmail.com";
+
 
 function Login() {
   const navigate = useNavigate();
@@ -56,8 +56,7 @@ function Login() {
       // KIỂM TRA ADMIN
       // =============================
       const isAdmin =
-        user?.role === "ADMIN" ||
-        user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+        user?.role === "ADMIN";
 
       // =============================
       // CHUYỂN TRANG

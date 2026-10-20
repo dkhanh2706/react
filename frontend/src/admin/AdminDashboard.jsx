@@ -8,10 +8,7 @@ import {
   ArrowUpRight,
   ShieldCheck,
   Activity,
-  Compass,
-  Calendar,
   Sparkles,
-  Search,
 } from "lucide-react";
 
 import api from "../api/axios";
@@ -25,6 +22,8 @@ function AdminDashboard() {
   const [userCount, setUserCount] = useState(0);
   const [recentFlights, setRecentFlights] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [overview, setOverview] = useState(null);
+  const [loadError, setLoadError] = useState("");
 
   const getUser = () => {
     try {
@@ -44,11 +43,14 @@ function AdminDashboard() {
         const config = { headers: { Authorization: `Bearer ${token}` } };
 
         // Fetch flights and users in parallel
-        const [flightsRes, usersRes] = await Promise.allSettled([
+        const [flightsRes, usersRes, overviewRes] = await Promise.allSettled([
           api.get("/flights", config),
           api.get("/users", config),
+          api.get("/flights/overview", config),
         ]);
 
+        if (overviewRes.status === "fulfilled") setOverview(overviewRes.value.data);
+        if ([flightsRes, usersRes, overviewRes].some(r => r.status === "rejected")) setLoadError("Một số số liệu chưa tải được. Vui lòng thử lại.");
         if (flightsRes.status === "fulfilled") {
           const list = flightsRes.value.data?.data || flightsRes.value.data || [];
           setFlightCount(Array.isArray(list) ? list.length : 0);
@@ -72,6 +74,7 @@ function AdminDashboard() {
   return (
     <AdminLayout pageTitle="Tổng quan Dashboard">
       <div className="adm-dashboard-page">
+        {loadError && <p role="alert">{loadError}</p>}
         {/* ================= HERO BANNER ================= */}
         <section className="adm-hero-banner">
           <div className="adm-hero-info">
@@ -144,7 +147,7 @@ function AdminDashboard() {
                 <Users size={24} />
               </div>
               <span className="kpi-trend positive">
-                <ArrowUpRight size={14} /> +8.5%
+                <ArrowUpRight size={14} /> Tài khoản
               </span>
             </div>
             <div className="kpi-data">
@@ -165,11 +168,11 @@ function AdminDashboard() {
               </span>
             </div>
             <div className="kpi-data">
-              <span className="kpi-label">Ước tính doanh số</span>
+              <span className="kpi-label">Doanh thu vé MoMo</span>
               <strong className="kpi-number">
-                {loading ? "..." : `${(flightCount * 1850000).toLocaleString("vi-VN")}đ`}
+                {loading ? "..." : overview ? `${Number(overview.revenue).toLocaleString("vi-VN")}đ` : "—"}
               </strong>
-              <small className="kpi-desc">Tổng lượt booking quy đổi</small>
+              <small className="kpi-desc">Không gồm giả lập và khoản chờ hoàn tiền</small>
             </div>
           </div>
 
@@ -183,8 +186,8 @@ function AdminDashboard() {
             </div>
             <div className="kpi-data">
               <span className="kpi-label">Hiệu suất tải ghế</span>
-              <strong className="kpi-number">94.8%</strong>
-              <small className="kpi-desc">Tỷ lệ lấp đầy khoang bay</small>
+              <strong className="kpi-number">{loading ? "..." : overview ? `${(Number(overview.offered_seats) ? Number(overview.booked_seats) / Number(overview.offered_seats) * 100 : 0).toFixed(1)}%` : "—"}</strong>
+              <small className="kpi-desc">Ghế đã đặt / ghế của chuyến sắp bay</small>
             </div>
           </div>
         </section>
@@ -246,9 +249,9 @@ function AdminDashboard() {
                         </td>
                         <td>
                           <div className="adm-route-tag">
-                            <span>{item.departure_code || item.from || "HAN"}</span>
+                            <span>{item.departure_code || item.from || "---"}</span>
                             <span className="arrow">➔</span>
-                            <span>{item.arrival_code || item.to || "SGN"}</span>
+                            <span>{item.arrival_code || item.to || "---"}</span>
                           </div>
                         </td>
                         <td>
@@ -302,7 +305,7 @@ function AdminDashboard() {
                   <div className="shortcut-icon purple">👥</div>
                   <div>
                     <strong>Phân quyền người dùng</strong>
-                    <small>Cấp quyền Admin hoặc khóa tài khoản</small>
+                    <small>Khóa/mở khóa và bảo vệ lịch sử tài khoản</small>
                   </div>
                 </button>
 
@@ -326,14 +329,14 @@ function AdminDashboard() {
                 <ShieldCheck size={28} />
               </div>
               <div>
-                <h3>Hệ thống an ninh tối đa</h3>
+                <h3>Quản lý truy cập</h3>
                 <p>
                   Toàn bộ kết nối API được bảo vệ với JWT Authentication & Role-Based Access Control.
                 </p>
               </div>
               <div className="security-status-indicator">
                 <span className="dot" />
-                <span>Mã hóa TLS 1.3 đang hoạt động</span>
+                <span>Kiểm tra quyền và trạng thái tài khoản</span>
               </div>
             </div>
           </div>

@@ -1065,11 +1065,11 @@
   margin-bottom: 10px;
   padding: 12px 16px;
 
-  border: 1.5px dashed #16a34a;
+  border: 1.5px solid #16a34a;
   border-radius: 12px;
 
-  background: #f0fdf4;
-  color: #15803d;
+  background: #16a34a;
+  color: #fff;
 
   font-size: 14px;
   font-weight: 700;
@@ -1080,7 +1080,7 @@
 }
 
 .btn-mock-payment:hover:not(:disabled) {
-  background: #dcfce7;
+  background: #15803d;
 
   border-color: #15803d;
 
@@ -1107,9 +1107,9 @@
   width: 17px;
   height: 17px;
 
-  border: 2px solid rgba(21, 128, 61, 0.25);
+  border: 2px solid rgba(255, 255, 255, 0.35);
 
-  border-top-color: #15803d;
+  border-top-color: #fff;
 
   border-radius: 50%;
 

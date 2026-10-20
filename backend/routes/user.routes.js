@@ -1,6 +1,8 @@
 const express = require("express");
 
 const router = express.Router();
+const rateLimit = require("../middleware/rateLimit");
+router.use("/password", rateLimit({ max: 10 }));
 
 const userController = require("../controllers/user.controller");
 

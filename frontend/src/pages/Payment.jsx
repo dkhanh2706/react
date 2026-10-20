@@ -116,6 +116,12 @@ function Payment() {
   const [paying, setPaying] = useState(false);
 
   const [mockPaying, setMockPaying] = useState(false);
+  const [demoEnabled, setDemoEnabled] = useState(false);
+  useEffect(() => {
+    let active = true;
+    api.get("/payments/config").then(r => { if (active) setDemoEnabled(r.data.demo_payments_enabled === true); }).catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   // ===================================================
   // LOGIN
@@ -311,7 +317,7 @@ function Payment() {
 
       sessionStorage.setItem("last_booking_id", String(bookingId));
 
-      navigate("/my-tickets", {
+      navigate(`/payment-result?bookingId=${bookingId}`, {
         replace: true,
       });
     } catch (error) {
@@ -504,7 +510,7 @@ function Payment() {
                       PHƯƠNG THỨC THANH TOÁN
                     </span>
 
-                    <h2>Thanh toán bằng MoMo</h2>
+                    <h2>{demoEnabled ? "Chọn cách thanh toán" : "Thanh toán bằng MoMo"}</h2>
                   </div>
 
                   <div className="momo-logo-box">MoMo</div>
@@ -512,7 +518,7 @@ function Payment() {
 
                 <p className="methods-subtitle">
                   Sau khi nhấn thanh toán, bạn sẽ được chuyển sang cổng MoMo
-                  Sandbox.
+                  để hoàn tất giao dịch.
                 </p>
 
                 <div className="momo-method-selected">
@@ -567,17 +573,17 @@ function Payment() {
                   </div>
                 </div>
 
-                <div className="mock-payment-notice">
+                {demoEnabled && <div className="mock-payment-notice">
                   <span className="notice-icon">🎓</span>
 
                   <div>
                     <strong>Chế độ demo đồ án</strong>
 
                     <p>
-                      Có thể dùng nút giả lập thanh toán để test toàn bộ luồng.
+                      Nhấn “Thanh toán giả lập (Demo)” để xác nhận vé ngay, không cần mở MoMo hoặc quét mã. Không trừ tiền thật.
                     </p>
                   </div>
-                </div>
+                </div>}
 
                 {holdExpiresAt && (
                   <div className="hold-payment-notice">
@@ -720,6 +726,25 @@ function Payment() {
                   </div>
                 </div>
 
+                {demoEnabled && <button
+                  type="button"
+                  className="btn-mock-payment"
+                  disabled={paying || mockPaying}
+                  onClick={handleMockPayment}
+                >
+                  {mockPaying ? (
+                    <>
+                      <span className="mock-spinner" />
+                      Đang xác nhận thanh toán...
+                    </>
+                  ) : (
+                    <>
+                      <span>🎓</span>
+                      Thanh toán giả lập (Demo)
+                    </>
+                  )}
+                </button>}
+
                 {/* MOMO */}
 
                 <button
@@ -737,27 +762,6 @@ function Payment() {
                     <>
                       Thanh toán bằng MoMo
                       <span>{formatMoney(totalPrice)}</span>
-                    </>
-                  )}
-                </button>
-
-                {/* MOCK */}
-
-                <button
-                  type="button"
-                  className="btn-mock-payment"
-                  disabled={paying || mockPaying}
-                  onClick={handleMockPayment}
-                >
-                  {mockPaying ? (
-                    <>
-                      <span className="mock-spinner" />
-                      Đang giả lập thanh toán...
-                    </>
-                  ) : (
-                    <>
-                      <span>🧪</span>
-                      Giả lập thanh toán thành công
                     </>
                   )}
                 </button>

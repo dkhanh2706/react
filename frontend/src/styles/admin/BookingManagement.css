@@ -1,0 +1,9 @@
+.booking-detail-modal { width: min(780px, 95vw); max-height: 90vh; overflow: auto; }
+.booking-detail-body { padding: 24px; }
+.booking-detail-body h3 { margin: 22px 0 12px; }
+.booking-detail-body p { margin: 8px 0; overflow-wrap: anywhere; }
+.booking-review, .booking-action-form { margin: 16px 0; padding: 16px; border: 1px solid #dbe3ed; border-radius: 12px; }
+.booking-action-form label { display: block; margin: 12px 0; }
+.booking-action-form textarea, .booking-action-form input:not([type="checkbox"]) { display: block; width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 6px; }
+.booking-action-form textarea { min-height: 80px; }
+.booking-action-form button { margin: 8px 8px 0 0; }
