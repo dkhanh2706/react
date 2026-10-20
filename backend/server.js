@@ -93,6 +93,7 @@ const allowedOrigins = [
   "http://192.168.190.70:5173",
   "http://172.20.10.5:5173",
   "http://192.168.1.138:5173",
+  "http://192.168.1.44:5173",
 ];
 
 // Nếu .env có FRONTEND_URL
