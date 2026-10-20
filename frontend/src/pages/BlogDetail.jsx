@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 
 import Header from "../components/Header";
@@ -12,6 +12,10 @@ function BlogDetail() {
   const { slug } = useParams();
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [slug]);
 
   const post = useMemo(() => {
     return blogPosts.find((item) => item.slug === slug);
