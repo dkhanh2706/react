@@ -13,6 +13,7 @@ import {
   Calendar,
   Plane,
   Eye,
+  X,
 } from "lucide-react";
 
 import api from "../api/axios";
@@ -523,13 +524,26 @@ function PaymentManagement() {
 
         {/* ================= MODAL ================= */}
         {selectedPayment && (
-          <div className="adm-modal-overlay">
-            <div className="adm-modal-card" style={{ maxWidth: 580 }}>
-              <div className="adm-modal-head">
+          <div
+            className="pay-modal-overlay"
+            onClick={(event) => {
+              if (event.target === event.currentTarget) setSelectedPayment(null);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setSelectedPayment(null);
+            }}
+          >
+            <div
+              className="pay-modal-card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="pay-modal-title"
+            >
+              <div className="pay-modal-header">
                 <div>
-                  <span className="adm-modal-tag">CHI TIẾT ĐƠN HÀNG</span>
+                  <span className="pay-modal-tag">CHI TIẾT ĐƠN HÀNG</span>
 
-                  <h3>
+                  <h3 id="pay-modal-title">
                     Hóa đơn #
                     {selectedPayment.booking_code || selectedPayment.booking_id}
                   </h3>
@@ -537,10 +551,12 @@ function PaymentManagement() {
 
                 <button
                   type="button"
-                  className="adm-modal-close"
+                  className="pay-modal-close"
+                  aria-label="Đóng chi tiết đơn hàng"
+                  autoFocus
                   onClick={() => setSelectedPayment(null)}
                 >
-                  ✕
+                  <X size={20} />
                 </button>
               </div>
 
@@ -620,21 +636,10 @@ function PaymentManagement() {
                   </span>
                 </div>
 
-                <div
-                  className="pay-detail-item full-width"
-                  style={{
-                    borderTop: "1px dashed #e2e8f0",
-                    paddingTop: 12,
-                  }}
-                >
+                <div className="pay-detail-item full-width pay-detail-total">
                   <label>Tổng tiền thanh toán</label>
 
-                  <strong
-                    style={{
-                      fontSize: 20,
-                      color: "#7c3aed",
-                    }}
-                  >
+                  <strong>
                     {formatPrice(
                       selectedPayment.payment_amount ||
                         selectedPayment.total_price,
@@ -644,10 +649,10 @@ function PaymentManagement() {
                 </div>
               </div>
 
-              <div className="adm-modal-actions">
+              <div className="pay-modal-actions">
                 <button
                   type="button"
-                  className="btn-cancel"
+                  className="pay-modal-dismiss"
                   onClick={() => setSelectedPayment(null)}
                 >
                   Đóng

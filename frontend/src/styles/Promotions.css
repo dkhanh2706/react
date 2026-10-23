@@ -8,6 +8,10 @@
   background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
 }
 
+.reviews-message { text-align: center; color: #64748b; padding: 24px; }
+.review-order { font-size: 11px; color: #0a66c2; font-weight: 700; margin-bottom: 12px; }
+.review-comment { white-space: pre-wrap; overflow-wrap: anywhere; }
+
 .reviews-wrapper {
   width: 100%;
   max-width: 1250px;

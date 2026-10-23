@@ -89,11 +89,11 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
 
-  "http://192.168.1.9:5173",
+  "http://192.168.1.7:5173",
   "http://192.168.190.70:5173",
   "http://172.20.10.5:5173",
-  "http://192.168.1.138:5173",
-  "http://192.168.1.44:5173",
+  "http://192.168.1.8:5173",
+  "http://192.168.1.16:5173",
 ];
 
 // Nếu .env có FRONTEND_URL
@@ -245,6 +245,7 @@ app.use("/api/users", userRoutes);
 
 // PAYMENTS
 app.use("/api/payments", paymentRoutes);
+app.use("/api/reviews", loadRouter("./routes/review.routes", "reviewRoutes"));
 
 // CHATBOT AI
 app.use("/api/chat", chatRoutes);
@@ -322,55 +323,55 @@ const HOST = "0.0.0.0";
 async function start() {
   await require("./lib/schema").assertSchemaReady(db);
   app.listen(PORT, HOST, () => {
-  console.log("======================================");
+    console.log("======================================");
 
-  console.log(`Backend running on port ${PORT}`);
+    console.log(`Backend running on port ${PORT}`);
 
-  console.log(`Local: http://localhost:${PORT}`);
+    console.log(`Local: http://localhost:${PORT}`);
 
-  console.log(`LAN: http://192.168.1.138:${PORT}`);
+    console.log(`LAN: http://192.168.1.138:${PORT}`);
 
-  console.log(
-    `Frontend: ${process.env.FRONTEND_URL || "http://localhost:5173"}`,
-  );
+    console.log(
+      `Frontend: ${process.env.FRONTEND_URL || "http://localhost:5173"}`,
+    );
 
-  console.log(`Uploads: http://localhost:${PORT}/uploads`);
+    console.log(`Uploads: http://localhost:${PORT}/uploads`);
 
-  console.log("Allowed CORS origins:", allowedOrigins);
+    console.log("Allowed CORS origins:", allowedOrigins);
 
-  console.log("--------------------------------------");
+    console.log("--------------------------------------");
 
-  console.log("✅ authRoutes:", typeof authRoutes);
+    console.log("✅ authRoutes:", typeof authRoutes);
 
-  console.log("✅ flightRoutes:", typeof flightRoutes);
+    console.log("✅ flightRoutes:", typeof flightRoutes);
 
-  console.log("✅ seatRoutes:", typeof seatRoutes);
+    console.log("✅ seatRoutes:", typeof seatRoutes);
 
-  console.log("✅ bookingRoutes:", typeof bookingRoutes);
+    console.log("✅ bookingRoutes:", typeof bookingRoutes);
 
-  console.log("✅ userRoutes:", typeof userRoutes);
+    console.log("✅ userRoutes:", typeof userRoutes);
 
-  console.log("✅ paymentRoutes:", typeof paymentRoutes);
+    console.log("✅ paymentRoutes:", typeof paymentRoutes);
 
-  console.log("✅ chatRoutes:", typeof chatRoutes);
+    console.log("✅ chatRoutes:", typeof chatRoutes);
 
-  console.log(
-    "✅ Groq API:",
-    process.env.GROQ_API_KEY ? "Đã cấu hình" : "CHƯA CẤU HÌNH",
-  );
+    console.log(
+      "✅ Groq API:",
+      process.env.GROQ_API_KEY ? "Đã cấu hình" : "CHƯA CẤU HÌNH",
+    );
 
-  console.log(
-    "✅ Groq model:",
-    process.env.GROQ_MODEL || "openai/gpt-oss-120b",
-  );
+    console.log(
+      "✅ Groq model:",
+      process.env.GROQ_MODEL || "openai/gpt-oss-120b",
+    );
 
-  console.log("✅ avatar directory:", avatarDirectory);
+    console.log("✅ avatar directory:", avatarDirectory);
 
-  console.log("======================================");
+    console.log("======================================");
   });
 }
 
-start().catch(async error => {
+start().catch(async (error) => {
   console.error("Backend startup failed:", error.message);
   await db.end();
   process.exitCode = 1;

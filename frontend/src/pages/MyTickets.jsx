@@ -5,6 +5,8 @@ import toast from "react-hot-toast";
 import api from "../api/axios";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import TicketReview from "../components/TicketReview";
+import { airportName } from "../utils/airportNames";
 
 import "../styles/MyTickets.css";
 
@@ -14,6 +16,21 @@ function MyTickets() {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedTicket, setExpandedTicket] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsReady, setReviewsReady] = useState(false);
+
+  const updateReview = (item) => {
+    setReviews(current => [...current.filter(existing => existing.booking_id !== item.booking_id), item]);
+    api.get("/reviews/mine").then(({ data }) => setReviews(data.data)).catch(() => {});
+  };
+
+  useEffect(() => {
+    let active = true;
+    api.get("/reviews/mine").then(({ data }) => {
+      if (active) { setReviews(data.data); setReviewsReady(true); }
+    }).catch(() => { /* Tickets stay available if reviews have not been migrated. */ });
+    return () => { active = false; };
+  }, []);
 
   // LOAD VÉ
   useEffect(() => {
@@ -125,11 +142,11 @@ function MyTickets() {
                       </div>
                     </div>
 
-                    <div className="ticket-quick-meta">
+                    <div className="ticket-current-schedule">
                       <span>Trạng thái chuyến hiện tại: <strong>{ticket.current_flight_status}</strong></span>
-                      <span>Lịch hiện tại: {ticket.current_departure_code} → {ticket.current_arrival_code}, {formatDate(ticket.current_flight_date)}, {ticket.current_departure_clock} – {ticket.current_arrival_clock}</span>
+                      <span>Lịch hiện tại: {airportName(ticket.current_departure_code)} → {airportName(ticket.current_arrival_code)}, {formatDate(ticket.current_flight_date)}, {ticket.current_departure_clock} – {ticket.current_arrival_clock}</span>
                     </div>
-                    <p style={{ padding: "0 20px" }}>Thông tin tại thời điểm đặt vé:</p>
+                    <p className="ticket-snapshot-label">VÉ ĐIỆN TỬ · THÔNG TIN LÚC ĐẶT</p>
                     {/* TICKET ROUTE & SCHEDULE */}
                     <div className="ticket-flight-content">
                       <div className="ticket-route-display">
@@ -138,7 +155,7 @@ function MyTickets() {
                             {ticket.departure_time_text || "--:--"}
                           </span>
                           <strong className="airport-name">
-                            {ticket.departure_place || "Điểm đi"}
+                            {airportName(ticket.departure_place, "Điểm đi")}
                           </strong>
                           <small>Khởi hành</small>
                         </div>
@@ -162,7 +179,7 @@ function MyTickets() {
                             {ticket.arrival_time_text || "--:--"}
                           </span>
                           <strong className="airport-name">
-                            {ticket.arrival_place || "Điểm đến"}
+                            {airportName(ticket.arrival_place, "Điểm đến")}
                           </strong>
                           <small>Hạ cánh</small>
                         </div>
@@ -211,6 +228,7 @@ function MyTickets() {
                     </div>
 
                     {/* EXPANDED DETAILS */}
+                    <TicketReview ticket={ticket} review={reviews.find(item => item.booking_id === ticket.id)} ready={reviewsReady} onChange={updateReview} />
                     {expanded && (
                       <div className="ticket-expanded-section">
                         <div className="expanded-grid">
@@ -232,7 +250,7 @@ function MyTickets() {
                             <div className="row-item">
                               <span>Tuyến bay:</span>
                               <strong>
-                                {ticket.departure_place} → {ticket.arrival_place}
+                                {airportName(ticket.departure_place)} → {airportName(ticket.arrival_place)}
                               </strong>
                             </div>
                             <div className="row-item">

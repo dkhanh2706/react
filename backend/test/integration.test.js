@@ -105,16 +105,20 @@ before(async () => {
   finally { cleanupClient.release(); }
   await assertSchemaReady(pool);
   const mailPath = require.resolve("../services/email.service");
+  const customerReviews = fs.readFileSync(path.join(__dirname, "../migrations/006_customer_reviews.sql"), "utf8");
+  await pool.query(customerReviews);
+  await pool.query(customerReviews);
   require.cache[mailPath] = { id: mailPath, filename: mailPath, loaded: true, exports: { sendPasswordCode: async info => { delivered.push(info); }, sendPaymentSuccessEmail: async () => {} } };
   const momo = require("../services/momo.service");
   momo.createMomoPayment = async args => { momoCreates++; return { ...args, payUrl: "https://example.test/pay/" + args.orderId }; };
   const express = require("express");
   const app = express();
   app.use(express.json());
-  for (const name of ["auth", "user", "flight", "seat", "booking", "payment"]) {
+  for (const name of ["auth", "user", "flight", "seat", "booking", "payment", "review"]) {
     const route = { user: "users", flight: "flights", seat: "seats", booking: "bookings", payment: "payments" }[name] || name;
-    app.use(`/api/${route}`, require(`../routes/${name}.routes`));
+    app.use(`/api/${name === "review" ? "reviews" : route}`, require(`../routes/${name}.routes`));
   }
+  app.use((req,res) => res.status(404).json({ message: "API route not found" }));
   app.use((err, req, res, next) => { console.error(err); res.status(500).json({ message: err.message }); });
   server = await new Promise(resolve => { const s = app.listen(0, "127.0.0.1", () => resolve(s)); });
   base = `http://127.0.0.1:${server.address().port}`;
@@ -512,3 +516,66 @@ check("order deletion rolls back every child deletion when an unexpected referen
   }
 });
 
+
+async function reviewBooking(status = "CONFIRMED", paymentStatus = "SUCCESS") {
+  const row = (await pool.query("INSERT INTO bookings(user_id,booking_code,status,total_price,departure_place,arrival_place) VALUES(2,$1,$2,1000000,'HAN','SGN') RETURNING id", [crypto.randomUUID(), status])).rows[0];
+  await pool.query("INSERT INTO payments(booking_id,method,amount,status) VALUES($1,'MOCK',1000000,$2)", [row.id,paymentStatus]);
+  return row.id;
+}
+const postReview = (id, body = { rating: 5, comment: "Trải nghiệm đặt vé thuận tiện" }, token = customerToken) => request(`/api/reviews/${id}`, { method: "POST", token, body });
+
+test("customer reviews require owner, confirmed payment and valid stars/comment", async () => {
+  const id = await reviewBooking();
+  assert.equal((await postReview(id, undefined, secondToken)).status,404);
+  assert.equal((await postReview(id, undefined, null)).status,401);
+  for (const body of [{rating:0,comment:"test"},{rating:6,comment:"test"},{rating:2.5,comment:"test"},{rating:"5",comment:"test"},{rating:5,comment:"   "},{rating:5,comment:"x".repeat(1001)}]) {
+    assert.equal((await postReview(id,body)).status,400);
+  }
+  for (const [status,paymentStatus] of [["PENDING","SUCCESS"],["CONFIRMED","FAILED"],["CONFIRMED","REFUNDED"],["PAYMENT_REVIEW","SUCCESS"]]) {
+    assert.equal((await postReview(await reviewBooking(status,paymentStatus))).status,409);
+  }
+  const payment = (await pool.query("SELECT id FROM payments WHERE booking_id=$1",[id])).rows[0];
+  await pool.query("INSERT INTO payment_review_cases(booking_id,payment_id,reason) VALUES($1,$2,'test review')",[id,payment.id]);
+  assert.equal((await postReview(id)).status,409);
+});
+
+test("review sends once, cannot edit, owner may delete permanently without reopening submission", async () => {
+  const id = await reviewBooking();
+  const outcomes = await Promise.all([postReview(id),postReview(id)]);
+  assert.deepEqual(outcomes.map(result => result.status).sort(),[201,409]);
+  const review = outcomes.find(result => result.status === 201).data.data;
+  const listing = await request("/api/reviews");
+  const publicRow = listing.data.data.find(item => item.id === review.id);
+  assert.equal(publicRow.departure_place,"HAN");
+  assert.equal(publicRow.arrival_place,"SGN");
+  assert.equal(publicRow.name,"Customer Test");
+  assert.equal(publicRow.booking_id,undefined);
+  assert.equal((await request(`/api/reviews/${review.id}`,{token:customerToken,method:"PATCH",body:{rating:1}})).status,404);
+  assert.equal((await request(`/api/reviews/${review.id}`,{token:secondToken,method:"DELETE"})).status,404);
+  assert.equal((await request(`/api/reviews/${review.id}`,{token:customerToken,method:"DELETE"})).status,200);
+  assert.equal((await postReview(id)).status,409);
+  const mine = (await request("/api/reviews/mine",{token:customerToken})).data.data.find(item => item.booking_id === id);
+  assert.equal(mine.id,null);
+  assert.ok(mine.customer_reviewed_at);
+});
+
+test("concurrent new reviews retain only the newest configured limit in the database", async () => {
+  const { MAX_REVIEWS } = require("../config/reviews");
+  const ids = [];
+  for (let i=0;i<MAX_REVIEWS+1;i++) ids.push(await reviewBooking());
+  const responses = await Promise.all(ids.map(id => postReview(id)));
+  assert.ok(responses.every(response => response.status === 201));
+  const listing = (await request("/api/reviews")).data.data;
+  assert.equal(listing.length,MAX_REVIEWS);
+  const stored = (await pool.query("SELECT * FROM customer_reviews ORDER BY created_at DESC,id DESC")).rows;
+  assert.equal(stored.length,MAX_REVIEWS);
+  assert.deepEqual(listing.map(item => item.id),stored.map(item => item.id));
+  const removed = responses.map(response => response.data.data).find(item => !stored.some(row => row.id === item.id));
+  assert.ok(removed);
+  assert.equal((await postReview(removed.booking_id)).status,409);
+  // Admin deletion still works with the new review foreign key.
+  const latest = stored[0];
+  const code = (await pool.query("SELECT booking_code FROM bookings WHERE id=$1",[latest.booking_id])).rows[0].booking_code;
+  assert.equal((await request(`/api/bookings/${latest.booking_id}`,{token:adminToken,method:"DELETE",body:{booking_code:code}})).status,200);
+  assert.equal((await pool.query("SELECT id FROM customer_reviews WHERE id=$1",[latest.id])).rowCount,0);
+});

@@ -436,6 +436,48 @@
 }
 
 /* RESPONSIVE */
+.my-tickets-wrapper .ticket-card-modern { border-color: #d9e5ef; box-shadow: 0 10px 30px #1636530a; }
+.my-tickets-wrapper .ticket-header-bar { background: linear-gradient(110deg, #123e6b, #0a66c2); gap: 15px; }
+.my-tickets-wrapper .ticket-airline-info strong { color: white; }
+.my-tickets-wrapper .flight-pnr { color: #d5e9ff; }
+.my-tickets-wrapper .airline-emblem { background: #ffffff22; border: 1px solid #ffffff40; }
+.ticket-current-schedule { display: flex; flex-wrap: wrap; gap: 8px 24px; padding: 14px 24px; background: #f0f7fd; font-size: 12px; color: #52667d; }
+.ticket-snapshot-label { padding: 18px 28px 0; margin: 0; font-size: 10px; color: #708399; letter-spacing: .1em; font-weight: 700; }
+.my-tickets-wrapper .pnr-code { overflow-wrap: anywhere; }
+.my-tickets-wrapper .meta-pill { min-width: 0; }
+.my-tickets-wrapper .ticket-card-footer { border-top: 2px dashed #dbe6f1; padding: 17px 24px; }
+.ticket-review-section { padding: 20px 28px; border-top: 1px solid #e4edf5; background: #f8fbff; }
+.ticket-review-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.ticket-review-heading strong { color: #163653; font-size: 14px; }
+.ticket-review-section p { color: #64748b; font-size: 13px; margin: 6px 0; }
+.ticket-review-section button { border: 1px solid #bfd5ea; border-radius: 9px; background: white; color: #0a66c2; padding: 10px 16px; cursor: pointer; font-weight: 600; }
+.ticket-review-section button:disabled { opacity: .5; cursor: not-allowed; }
+.ticket-review-form { display: grid; gap: 12px; margin-top: 20px; }
+.ticket-review-route { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; border-radius: 12px; background: #eaf3fc; color: #52667d; font-size: 12px; }
+.ticket-review-route strong { display: block; color: #163653; font-size: 18px; margin-top: 4px; }
+.ticket-review-form fieldset { padding: 0; border: 0; }
+.ticket-review-form legend, .ticket-review-form > label { font-size: 13px; font-weight: 600; color: #334155; }
+.ticket-review-stars { display: flex; gap: 10px; margin-top: 8px; }
+.ticket-review-stars label { position: relative; cursor: pointer; }
+.ticket-review-stars input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.ticket-review-stars span:not(.review-sr-only) { color: #cbd5e1; font-size: 34px; }
+.ticket-review-stars span.selected { color: #d99b0c; }
+.ticket-review-stars input:focus-visible + span { outline: 2px solid #0a66c2; outline-offset: 3px; }
+.review-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.ticket-review-form textarea { box-sizing: border-box; width: 100%; border: 1px solid #cad9e8; border-radius: 12px; padding: 14px; font: inherit; font-size: 14px; resize: vertical; }
+.ticket-review-form small { color: #64748b; }
+.ticket-review-form > button { justify-self: end; background: #0a66c2; color: white; border-color: #0a66c2; }
+.ticket-review-comment { white-space: pre-wrap; overflow-wrap: anywhere; }
+.ticket-review-confirm { padding: 14px; margin-top: 12px; background: #fff1f2; border-radius: 10px; }
+.ticket-review-confirm button { margin: 8px 8px 0 0; }
+@media (max-width: 600px) {
+  .my-tickets-wrapper .ticket-header-bar, .ticket-review-heading { align-items: flex-start; flex-direction: column; }
+  .ticket-review-section { padding: 20px; }
+  .my-tickets-wrapper .ticket-flight-content { padding: 20px 16px; }
+  .my-tickets-wrapper .ticket-status-pill { font-size: 11px; }
+  .my-tickets-wrapper .ticket-quick-meta .meta-pill:first-child { grid-column: 1 / -1; }
+}
+
 @media (max-width: 800px) {
   .ticket-quick-meta {
     grid-template-columns: 1fr 1fr;
