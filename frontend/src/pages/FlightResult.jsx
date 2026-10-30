@@ -1,19 +1,18 @@
+import { formatNumber, formatDate, formatTime } from "../utils/format.js";
+import { airportName } from "../utils/airportNames.js";
+
 import { useEffect, useState } from "react";
 
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import toast from "react-hot-toast";
 
-import Header from "../components/Header";
-import Footer from "../components/Footer";
+import Header from "../layouts/Header";
+import Footer from "../layouts/Footer";
 
 import api from "../api/axios";
 
 import "../styles/FlightResult.css";
-
-// =====================================================
-// ICON
-// =====================================================
 
 const Icon = ({ children, size = 20 }) => (
   <svg
@@ -52,90 +51,6 @@ const CalendarIcon = () => (
   </Icon>
 );
 
-// =====================================================
-// FORMAT TIME
-// =====================================================
-
-const formatTime = (value) => {
-  if (!value) {
-    return "--:--";
-  }
-
-  const stringValue = String(value);
-
-  // HH:mm
-  if (/^\d{2}:\d{2}$/.test(stringValue)) {
-    return stringValue;
-  }
-
-  // HH:mm:ss
-  if (/^\d{2}:\d{2}:\d{2}/.test(stringValue)) {
-    return stringValue.slice(0, 5);
-  }
-
-  // datetime
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "--:--";
-  }
-
-  return date.toLocaleTimeString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
-// =====================================================
-// FORMAT DATE
-// =====================================================
-
-const formatDate = (value) => {
-  if (!value) {
-    return "Chưa cập nhật";
-  }
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
-    const [year, month, day] = String(value).split("-");
-
-    return `${day}/${month}/${year}`;
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return String(value);
-  }
-
-  return date.toLocaleDateString("vi-VN");
-};
-
-// =====================================================
-// AIRPORT NAME
-// =====================================================
-
-const getAirportName = (code) => {
-  const airports = {
-    HAN: "Hà Nội",
-    SGN: "TP. Hồ Chí Minh",
-    DAD: "Đà Nẵng",
-    PQC: "Phú Quốc",
-    CXR: "Nha Trang",
-    DLI: "Đà Lạt",
-    HUI: "Huế",
-    VCA: "Cần Thơ",
-    HND: "Tokyo - Haneda",
-    NRT: "Tokyo - Narita",
-    SIN: "Singapore",
-  };
-
-  return airports[code] || code || "---";
-};
-
-// =====================================================
-// FLIGHT RESULT
-// =====================================================
-
 function FlightResult() {
   const location = useLocation();
 
@@ -145,10 +60,6 @@ function FlightResult() {
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalResults, setTotalResults] = useState(0);
-
-  // =====================================================
-  // STATE
-  // =====================================================
 
   const [flights, setFlights] = useState(location.state?.flights || []);
   const [searchMessage, setSearchMessage] = useState("");
@@ -162,24 +73,15 @@ function FlightResult() {
   const source =
     location.state?.source || (searchParams.get("from") ? "chatbot" : "home");
 
-  // =====================================================
-  // QUERY PARAMS TỪ CHATBOT
-  // =====================================================
-
   const queryFrom = searchParams.get("from") || location.state?.searchInfo?.from;
 
   const queryTo = searchParams.get("to") || location.state?.searchInfo?.to;
 
   const queryDate = searchParams.get("date") || location.state?.searchInfo?.departDate;
 
-  // =====================================================
-  // TỰ ĐỘNG SEARCH KHI ĐI TỪ CHATBOT
-  // =====================================================
-
   useEffect(() => {
     // Nếu đã được truyền kết quả từ FlightSearch
     // thì không gọi API lần nữa
-
 
     // Không có query params
     if (!queryFrom || !queryTo || !queryDate) {
@@ -237,10 +139,6 @@ function FlightResult() {
     return () => { active = false; };
   }, [queryFrom, queryTo, queryDate, page]);
 
-  // =====================================================
-  // BACK
-  // =====================================================
-
   const handleBack = () => {
     if (source === "destinations") {
       navigate("/destinations");
@@ -260,10 +158,6 @@ function FlightResult() {
     navigate("/home");
   };
 
-  // =====================================================
-  // TÌM LẠI
-  // =====================================================
-
   const handleSearchAgain = () => {
     if (source === "destinations") {
       navigate("/destinations");
@@ -272,10 +166,6 @@ function FlightResult() {
 
     navigate("/home");
   };
-
-  // =====================================================
-  // MUA VÉ
-  // =====================================================
 
   const handleBuyFlight = (flight) => {
     const token = localStorage.getItem("token");
@@ -299,10 +189,6 @@ function FlightResult() {
       },
     });
   };
-
-  // =====================================================
-  // UI
-  // =====================================================
 
   return (
     <div className="flight-result-page">
@@ -351,7 +237,7 @@ function FlightResult() {
               <div className="flight-search-summary-item">
                 <span>Điểm đi</span>
 
-                <strong>{getAirportName(searchInfo.from)}</strong>
+                <strong>{airportName(searchInfo.from, "---")}</strong>
 
                 <small>{searchInfo.from}</small>
               </div>
@@ -361,7 +247,7 @@ function FlightResult() {
               <div className="flight-search-summary-item">
                 <span>Điểm đến</span>
 
-                <strong>{getAirportName(searchInfo.to)}</strong>
+                <strong>{airportName(searchInfo.to, "---")}</strong>
 
                 <small>{searchInfo.to}</small>
               </div>
@@ -372,7 +258,7 @@ function FlightResult() {
                 <div>
                   <span>Ngày bay</span>
 
-                  <strong>{formatDate(searchInfo.departDate)}</strong>
+                  <strong>{formatDate(searchInfo.departDate, { fallback: "Chưa cập nhật" })}</strong>
                 </div>
               </div>
             </div>
@@ -489,7 +375,7 @@ function FlightResult() {
                       <span>Ngày bay</span>
 
                       <strong>
-                        {formatDate(item.date || searchInfo?.departDate)}
+                        {formatDate(item.date || searchInfo?.departDate, { fallback: "Chưa cập nhật" })}
                       </strong>
                     </div>
                   </div>
@@ -500,7 +386,7 @@ function FlightResult() {
                     <span className="flight-price-label">Giá vé</span>
 
                     <strong className="flight-price">
-                      {Number(item.price || 0).toLocaleString("vi-VN")}đ
+                      {formatNumber(item.price || 0)}đ
                     </strong>
 
                     <button

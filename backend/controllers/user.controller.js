@@ -1,3 +1,4 @@
+const { errorPayload } = require("../lib/errors");
 const { endpoint, fail, transaction, positiveId } = require("../lib/http");
 const passwords = require("../services/password.service");
 const db = require("../config/database");
@@ -199,10 +200,7 @@ exports.getMyProfile = async (req, res) => {
   } catch (error) {
     console.error("GET PROFILE ERROR:", error);
 
-    return res.status(500).json({
-      message: "Không thể tải hồ sơ cá nhân",
-      error: error.message,
-    });
+    return res.status(500).json(errorPayload("Không thể tải hồ sơ cá nhân", error));
   }
 };
 
@@ -312,10 +310,7 @@ exports.updateMyProfile = async (req, res) => {
   } catch (error) {
     console.error("UPDATE PROFILE ERROR:", error);
 
-    return res.status(500).json({
-      message: "Không thể cập nhật hồ sơ",
-      error: error.message,
-    });
+    return res.status(500).json(errorPayload("Không thể cập nhật hồ sơ", error));
   }
 };
 
@@ -416,10 +411,7 @@ exports.uploadAvatar = async (req, res) => {
   } catch (error) {
     console.error("UPLOAD AVATAR ERROR:", error);
 
-    return res.status(500).json({
-      message: "Không thể cập nhật ảnh đại diện",
-      error: error.message,
-    });
+    return res.status(500).json(errorPayload("Không thể cập nhật ảnh đại diện", error));
   }
 };
 
@@ -464,10 +456,7 @@ exports.getAllUsers = async (req, res) => {
   } catch (error) {
     console.error("GET USERS ERROR:", error);
 
-    return res.status(500).json({
-      message: "Lỗi lấy danh sách user",
-      error: error.message,
-    });
+    return res.status(500).json(errorPayload("Lỗi lấy danh sách user", error));
   }
 };
 
@@ -507,10 +496,7 @@ exports.getUserById = async (req, res) => {
   } catch (error) {
     console.error("GET USER ERROR:", error);
 
-    return res.status(500).json({
-      message: "Lỗi server",
-      error: error.message,
-    });
+    return res.status(500).json(errorPayload("Lỗi server", error));
   }
 };
 

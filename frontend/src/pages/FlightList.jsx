@@ -1,61 +1,17 @@
+import { formatDate, formatTime, formatMoney } from "../utils/format.js";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
-import Header from "../components/Header";
-import Footer from "../components/Footer";
+import Header from "../layouts/Header";
+import Footer from "../layouts/Footer";
 
 import "../styles/FlightList.css";
-
-// =====================================================
-// FORMAT HELPERS
-// =====================================================
-
-const formatMoney = (money) => {
-  return Number(money || 0).toLocaleString("vi-VN") + " VNĐ";
-};
-
-const formatDate = (value) => {
-  if (!value) return "---";
-
-  const str = String(value);
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
-    const [y, m, d] = str.split("-");
-    return `${d}/${m}/${y}`;
-  }
-
-  return str;
-};
-
-const formatTime = (value) => {
-  if (!value) return "--:--";
-
-  const str = String(value);
-
-  if (/^\d{2}:\d{2}$/.test(str)) {
-    return str;
-  }
-
-  if (/^\d{2}:\d{2}:\d{2}/.test(str)) {
-    return str.slice(0, 5);
-  }
-
-  return str;
-};
-
-// =====================================================
-// FLIGHT LIST
-// =====================================================
 
 function FlightList() {
   const location = useLocation();
   const navigate = useNavigate();
 
   const flights = location.state?.flights || [];
-
-  // ===================================================
-  // CHỌN CHUYẾN BAY
-  // ===================================================
 
   const chooseFlight = (flight) => {
     const token = localStorage.getItem("token");
@@ -70,24 +26,12 @@ function FlightList() {
       return;
     }
 
-    // =================================================
-    // KHÔNG ĐI THẲNG SANG BOOKING NỮA
-    //
-    // Chọn chuyến
-    // -> PassengerInfo
-    // -> Booking
-    // =================================================
-
     navigate("/passenger-info", {
       state: {
         flight,
       },
     });
   };
-
-  // ===================================================
-  // RENDER
-  // ===================================================
 
   return (
     <div className="flight-list-page">
@@ -217,7 +161,7 @@ function FlightList() {
                     <div className="price-tag">
                       <small>Giá mỗi vé từ</small>
 
-                      <h3>{formatMoney(flight.price)}</h3>
+                      <h3>{formatMoney(flight.price, { suffix: " VNĐ" })}</h3>
                     </div>
 
                     <button

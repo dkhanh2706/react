@@ -1,0 +1,12 @@
+.refund-review { padding: 20px; margin-top: 16px; border: 1px solid #ddd6fe; border-radius: 12px; background: #faf5ff; color: #334155; }
+.refund-review h4 { margin: 0 0 8px; font-size: 15px; font-weight: 700; }
+.refund-review p { margin: 8px 0; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.refund-review form, .refund-review label { display: flex; flex-direction: column; gap: 8px; }
+.refund-review form { gap: 14px; }
+.refund-review label { font-size: 13px; font-weight: 600; }
+.refund-review input:not([type=checkbox]), .refund-review textarea { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: white; color: #0f172a; font: inherit; }
+.refund-review .refund-confirm { flex-direction: row; align-items: flex-start; font-weight: 400; line-height: 1.5; }
+.refund-confirm input { margin-top: 4px; flex-shrink: 0; }
+.refund-review button { align-self: flex-start; border: 0; padding: 10px 16px; border-radius: 8px; background: #7c3aed; color: white; font-weight: 600; cursor: pointer; }
+.refund-review button:disabled { opacity: .5; cursor: not-allowed; }
+.pay-modal-card > .refund-review { margin: 0 28px 24px; }

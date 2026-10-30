@@ -1,11 +1,12 @@
+import { formatDate, formatNumber as formatMoney } from "../utils/format.js";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import api from "../api/axios";
-import Header from "../components/Header";
-import Footer from "../components/Footer";
-import TicketReview from "../components/TicketReview";
+import Header from "../layouts/Header";
+import Footer from "../layouts/Footer";
+import TicketReview from "../components/booking/TicketReview";
 import { airportName } from "../utils/airportNames";
 
 import "../styles/MyTickets.css";
@@ -51,22 +52,6 @@ function MyTickets() {
     loadTickets();
   }, []);
 
-  const formatMoney = (value) => {
-    return Number(value || 0).toLocaleString("vi-VN");
-  };
-
-  const formatDate = (value) => {
-    if (!value) return "Chưa cập nhật";
-    const str = String(value);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
-      const [y, m, d] = str.split("-");
-      return `${d}/${m}/${y}`;
-    }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return str;
-    return date.toLocaleDateString("vi-VN");
-  };
-
   const className = (seatClass) => {
     switch (seatClass) {
       case "BUSINESS":
@@ -89,6 +74,7 @@ function MyTickets() {
               <span className="tickets-tag">HÀNH TRÌNH ĐÃ ĐẶT</span>
               <h1>Vé máy bay của tôi</h1>
               <p>Quản lý toàn bộ vé máy bay điện tử, chi tiết chỗ ngồi và dịch vụ đã đặt</p>
+              <button type="button" className="btn-toggle-details" onClick={() => navigate("/my-orders")}>Xem đơn chờ thanh toán và lịch sử đặt vé →</button>
             </div>
 
             <button
@@ -144,7 +130,7 @@ function MyTickets() {
 
                     <div className="ticket-current-schedule">
                       <span>Trạng thái chuyến hiện tại: <strong>{ticket.current_flight_status}</strong></span>
-                      <span>Lịch hiện tại: {airportName(ticket.current_departure_code)} → {airportName(ticket.current_arrival_code)}, {formatDate(ticket.current_flight_date)}, {ticket.current_departure_clock} – {ticket.current_arrival_clock}</span>
+                      <span>Lịch hiện tại: {airportName(ticket.current_departure_code)} → {airportName(ticket.current_arrival_code)}, {formatDate(ticket.current_flight_date, { fallback: "Chưa cập nhật" })}, {ticket.current_departure_clock} – {ticket.current_arrival_clock}</span>
                     </div>
                     <p className="ticket-snapshot-label">VÉ ĐIỆN TỬ · THÔNG TIN LÚC ĐẶT</p>
                     {/* TICKET ROUTE & SCHEDULE */}
@@ -170,7 +156,7 @@ function MyTickets() {
                             <span className="p-dot" />
                           </div>
                           <span className="flight-date-tag">
-                            {formatDate(ticket.flight_date)}
+                            {formatDate(ticket.flight_date, { fallback: "Chưa cập nhật" })}
                           </span>
                         </div>
 
@@ -255,7 +241,7 @@ function MyTickets() {
                             </div>
                             <div className="row-item">
                               <span>Ngày bay:</span>
-                              <strong>{formatDate(ticket.flight_date)}</strong>
+                              <strong>{formatDate(ticket.flight_date, { fallback: "Chưa cập nhật" })}</strong>
                             </div>
                           </div>
 

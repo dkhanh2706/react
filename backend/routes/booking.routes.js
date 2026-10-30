@@ -11,6 +11,9 @@ const { verifyToken, isAdmin } = require("../middleware/auth.middleware");
 // =====================================================
 
 router.get("/admin", verifyToken, isAdmin, bookingController.getAdminBookings);
+router.get("/mine", verifyToken, bookingController.getMyOrders);
+router.get("/:bookingId/checkout", verifyToken, bookingController.getCheckout);
+router.patch("/:bookingId/cancel", verifyToken, isAdmin, bookingController.cancelBooking);
 router.delete("/:bookingId", verifyToken, isAdmin, bookingController.deleteBooking);
 
 router.post("/hold-seat", verifyToken, bookingController.holdSeat);

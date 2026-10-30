@@ -1,8 +1,10 @@
+import { formatDate, formatNumber } from "../utils/format.js";
+
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import api from "../api/axios";
-import Header from "../components/Header";
-import Footer from "../components/Footer";
+import Header from "../layouts/Header";
+import Footer from "../layouts/Footer";
 import { Check, Plane, Clock3 } from "lucide-react";
 import { airportName } from "../utils/airportNames";
 import "../styles/PaymentResult.css";
@@ -49,7 +51,7 @@ export default function PaymentResult() {
       {data && <div className="result-boarding-pass">
         <div className="result-pass-header"><span><Plane size={18} /> {data.booking.airline_name || "Thông tin đặt vé"}</span><strong>{data.booking.flight_number_snapshot}</strong></div>
         <div className="result-pass-route"><div><small>ĐIỂM ĐI</small><strong>{airportName(data.booking.departure_place)}</strong><span>{data.booking.departure_time_text || "—"}</span></div><Plane aria-hidden="true" /><div><small>ĐIỂM ĐẾN</small><strong>{airportName(data.booking.arrival_place)}</strong><span>{data.booking.arrival_time_text || "—"}</span></div></div>
-        <div className="result-pass-meta"><div><small>Ngày bay</small><strong>{data.booking.flight_date ? new Date(`${String(data.booking.flight_date).slice(0, 10)}T00:00:00`).toLocaleDateString("vi-VN") : "—"}</strong></div><div><small>Ghế ngồi</small><strong>{data.booking.seat_number_snapshot || "—"}</strong></div><div><small>Số tiền đơn</small><strong>{Number(data.booking.total_price).toLocaleString("vi-VN")}đ</strong></div></div>
+        <div className="result-pass-meta"><div><small>Ngày bay</small><strong>{formatDate(data.booking.flight_date, { fallback: "—" })}</strong></div><div><small>Ghế ngồi</small><strong>{data.booking.seat_number_snapshot || "—"}</strong></div><div><small>Số tiền đơn</small><strong>{formatNumber(data.booking.total_price)}đ</strong></div></div>
         <div className="result-pass-code"><small>MÃ ĐẶT CHỖ</small><strong>{data.booking.booking_code}</strong></div>
       </div>}
       {demoSuccess && !review && <p>Vé và ghế đã được xác nhận trong chế độ demo. Không trừ tiền thật. Bạn có thể xem vé trong “Vé của tôi”.</p>}

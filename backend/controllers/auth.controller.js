@@ -1,3 +1,4 @@
+const { errorPayload } = require("../lib/errors");
 const { endpoint, fail } = require("../lib/http");
 const passwords = require("../services/password.service");
 const db = require("../config/database");
@@ -256,10 +257,7 @@ exports.register = async (req, res) => {
       });
     }
 
-    return res.status(500).json({
-      message: "Lỗi server khi đăng ký tài khoản",
-      error: error.message,
-    });
+    return res.status(500).json(errorPayload("Lỗi server khi đăng ký tài khoản", error));
   }
 };
 
@@ -348,6 +346,7 @@ exports.login = async (req, res) => {
 
       {
         expiresIn: "7d",
+        jwtid: require('node:crypto').randomUUID(),
       },
     );
 
@@ -363,6 +362,7 @@ exports.login = async (req, res) => {
         phone: user.phone || "",
         birth_date: user.birth_date || null,
         gender: user.gender || null,
+        avatar_url: user.avatar_url || null,
         role: user.role,
         is_primary_admin: user.is_primary_admin,
       },
@@ -370,10 +370,7 @@ exports.login = async (req, res) => {
   } catch (error) {
     console.error("LOGIN ERROR:", error);
 
-    return res.status(500).json({
-      message: "Lỗi server khi đăng nhập",
-      error: error.message,
-    });
+    return res.status(500).json(errorPayload("Lỗi server khi đăng nhập", error));
   }
 };
 

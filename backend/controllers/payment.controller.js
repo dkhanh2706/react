@@ -120,7 +120,7 @@ exports.getAllPayments = endpoint(async (req, res) => {
       d.passenger_name,d.email AS passenger_email,d.phone AS passenger_phone,d.seat_class,d.seat_status,
       d.baggage_weight,d.baggage_price,d.meal_type,d.meal_price,d.insurance,d.insurance_price,
       p.method AS payment_method,p.status AS payment_status,p.amount AS payment_amount,p.paid_at,p.transaction_id,
-      r.id AS review_id,r.status AS review_status,r.reason AS review_reason
+      r.id AS review_id,r.status AS review_status,r.reason AS review_reason,r.refund_reference,r.resolution_note
       FROM bookings b JOIN users u ON u.id=b.user_id
       LEFT JOIN LATERAL(SELECT * FROM booking_details WHERE booking_id=b.id ORDER BY id DESC LIMIT 1) d ON true
       LEFT JOIN payments p ON p.booking_id=b.id LEFT JOIN payment_review_cases r ON r.payment_id=p.id

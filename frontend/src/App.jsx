@@ -1,129 +1,42 @@
+import { getAuth, isAdminUser as checkIsAdmin } from "./utils/auth.js";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-// =====================================================
-// AUTH
-// =====================================================
-
 import Login from "./pages/Login";
-import ScrollToTop from "./components/ScrollToTop";
+import ScrollToTop from "./components/common/ScrollToTop";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 
-// =====================================================
-// HOME
-// =====================================================
-
 import Home from "./pages/Home";
 
-// =====================================================
-// DESTINATIONS
-// =====================================================
-
 import Destinations from "./pages/Destinations";
-
-// =====================================================
-// BLOG
-// =====================================================
 
 import Blog from "./pages/Blog";
 import BlogDetail from "./pages/BlogDetail";
 
-// =====================================================
-// FLIGHT
-// =====================================================
-
 import FlightResult from "./pages/FlightResult";
 import FlightList from "./pages/FlightList";
-
-// =====================================================
-// BOOKING + PASSENGER + PAYMENT
-// =====================================================
 
 import PassengerInfo from "./pages/PassengerInfo";
 import Booking from "./pages/Booking";
 import Payment from "./pages/Payment";
 import PaymentResult from "./pages/PaymentResult";
 
-// =====================================================
-// MY TICKETS
-// =====================================================
-
 import MyTickets from "./pages/MyTickets";
-
-// =====================================================
-// PROFILE
-// =====================================================
+import MyOrders from "./pages/MyOrders";
 
 import Profile from "./pages/Profile";
-
-// =====================================================
-// ADMIN
-// =====================================================
 
 import AdminDashboard from "./admin/AdminDashboard";
 import UserManagement from "./admin/UserManagement";
 import FlightManagement from "./admin/FlightManagement";
 import PaymentManagement from "./admin/PaymentManagement";
 import BookingManagement from "./admin/BookingManagement";
+import ChatManagement from "./admin/ChatManagement";
 
-// =====================================================
-// COMPONENTS
-// =====================================================
-
-import ProtectedRoute from "./components/ProtectedRoute";
-import ChatbotWrapper from "./components/ChatbotWrapper";
-
-// =====================================================
-// ADMIN EMAIL
-// =====================================================
-
-
-
-// =====================================================
-// LẤY THÔNG TIN ĐĂNG NHẬP TỪ LOCALSTORAGE
-// =====================================================
-
-const getAuth = () => {
-  const token = localStorage.getItem("token");
-
-  let user = null;
-
-  try {
-    const storedUser = localStorage.getItem("user");
-
-    if (storedUser) {
-      user = JSON.parse(storedUser);
-    }
-  } catch (error) {
-    console.error("Lỗi đọc user từ localStorage:", error);
-
-    localStorage.removeItem("user");
-  }
-
-  return {
-    token,
-    user,
-  };
-};
-
-// =====================================================
-// KIỂM TRA ADMIN
-// =====================================================
-
-const checkIsAdmin = (user) => {
-  if (!user) {
-    return false;
-  }
-
-  return (
-    user.role === "ADMIN"
-  );
-};
-
-// =====================================================
-// ROUTE GỐC
-// =====================================================
+import ProtectedRoute from "./components/common/ProtectedRoute";
+import ChatbotWrapper from "./components/chat/ChatbotWrapper";
+import AdminChatProvider from "./contexts/AdminChatProvider";
 
 function RootRedirect() {
   const { token, user } = getAuth();
@@ -139,10 +52,6 @@ function RootRedirect() {
   return <Navigate to="/home" replace />;
 }
 
-// =====================================================
-// LOGIN ROUTE
-// =====================================================
-
 function LoginRoute() {
   const { token, user } = getAuth();
 
@@ -157,37 +66,13 @@ function LoginRoute() {
   return <Navigate to="/home" replace />;
 }
 
-// =====================================================
-// HOME ROUTE
-// =====================================================
-
 function HomeRoute() {
-  const { token, user } = getAuth();
-
-  if (token && checkIsAdmin(user)) {
-    return <Navigate to="/admin" replace />;
-  }
-
   return <Home />;
 }
 
-// =====================================================
-// CUSTOMER PUBLIC ROUTE
-// =====================================================
-
 function CustomerPublicRoute({ children }) {
-  const { token, user } = getAuth();
-
-  if (token && checkIsAdmin(user)) {
-    return <Navigate to="/admin" replace />;
-  }
-
   return children;
 }
-
-// =====================================================
-// ADMIN ROUTE
-// =====================================================
 
 function AdminRoute({ children }) {
   const { token, user } = getAuth();
@@ -203,13 +88,10 @@ function AdminRoute({ children }) {
   return children;
 }
 
-// =====================================================
-// APP
-// =====================================================
-
 function App() {
   return (
     <BrowserRouter>
+      <AdminChatProvider>
       <ScrollToTop />
       <Routes>
         {/* AUTH */}
@@ -336,6 +218,8 @@ function App() {
           }
         />
 
+        <Route path="/my-orders" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
+        <Route path="/my-bookings" element={<Navigate to="/my-orders" replace />} />
         {/* MY TICKETS */}
 
         <Route
@@ -386,6 +270,7 @@ function App() {
         />
 
         <Route path="/admin/bookings" element={<AdminRoute><BookingManagement /></AdminRoute>} />
+        <Route path="/admin/chat" element={<AdminRoute><ChatManagement /></AdminRoute>} />
 
         {/* NOT FOUND */}
 
@@ -393,6 +278,7 @@ function App() {
       </Routes>
 
       <ChatbotWrapper />
+      </AdminChatProvider>
     </BrowserRouter>
   );
 }

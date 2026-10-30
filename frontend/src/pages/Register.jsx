@@ -11,7 +11,7 @@ import {
   Loader2,
 } from "lucide-react";
 import api from "../api/axios";
-import AuthLayout from "../components/AuthLayout";
+import AuthLayout from "../layouts/AuthLayout";
 
 function Register() {
   const navigate = useNavigate();
@@ -26,9 +26,6 @@ function Register() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // =====================================================
-  // THAY ĐỔI DỮ LIỆU FORM
-  // =====================================================
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -38,9 +35,6 @@ function Register() {
     }));
   };
 
-  // =====================================================
-  // KIỂM TRA HỌ TÊN
-  // =====================================================
   const validateFullName = (fullName) => {
     const name = fullName.trim();
 
@@ -66,9 +60,6 @@ function Register() {
     return "";
   };
 
-  // =====================================================
-  // KIỂM TRA EMAIL
-  // =====================================================
   const validateEmail = (emailValue) => {
     const email = emailValue.trim().toLowerCase();
 
@@ -106,9 +97,6 @@ function Register() {
     return "";
   };
 
-  // =====================================================
-  // KIỂM TRA MẬT KHẨU
-  // =====================================================
   const validatePassword = (password) => {
     if (!password) {
       return "Vui lòng nhập mật khẩu";
@@ -125,9 +113,6 @@ function Register() {
     return "";
   };
 
-  // =====================================================
-  // KIỂM TRA SỐ ĐIỆN THOẠI
-  // =====================================================
   const validatePhone = (phoneValue) => {
     const phone = phoneValue.trim();
 
@@ -145,9 +130,6 @@ function Register() {
     return "";
   };
 
-  // =====================================================
-  // ĐĂNG KÝ
-  // =====================================================
   const handleRegister = async () => {
     if (loading) {
       return;

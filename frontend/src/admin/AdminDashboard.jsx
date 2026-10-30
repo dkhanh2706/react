@@ -1,3 +1,5 @@
+import { formatNumber } from "../utils/format.js";
+import { getStoredUser } from "../utils/auth.js";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -12,7 +14,7 @@ import {
 } from "lucide-react";
 
 import api from "../api/axios";
-import AdminLayout from "../components/AdminLayout";
+import AdminLayout from "../layouts/AdminLayout";
 import "../styles/admin/AdminDashboard.css";
 
 function AdminDashboard() {
@@ -25,15 +27,7 @@ function AdminDashboard() {
   const [overview, setOverview] = useState(null);
   const [loadError, setLoadError] = useState("");
 
-  const getUser = () => {
-    try {
-      return JSON.parse(localStorage.getItem("user"));
-    } catch {
-      return null;
-    }
-  };
-
-  const user = getUser();
+  const user = getStoredUser();
   const adminName = user?.full_name || user?.name || "Administrator";
 
   useEffect(() => {
@@ -170,7 +164,7 @@ function AdminDashboard() {
             <div className="kpi-data">
               <span className="kpi-label">Doanh thu vé MoMo</span>
               <strong className="kpi-number">
-                {loading ? "..." : overview ? `${Number(overview.revenue).toLocaleString("vi-VN")}đ` : "—"}
+                {loading ? "..." : overview ? `${formatNumber(overview.revenue)}đ` : "—"}
               </strong>
               <small className="kpi-desc">Không gồm giả lập và khoản chờ hoàn tiền</small>
             </div>
@@ -261,7 +255,7 @@ function AdminDashboard() {
                         </td>
                         <td>
                           <strong className="adm-price-highlight">
-                            {Number(item.price || 0).toLocaleString("vi-VN")}đ
+                            {formatNumber(item.price || 0)}đ
                           </strong>
                         </td>
                         <td>

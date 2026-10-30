@@ -1,4 +1,6 @@
-# Quản lý đặt vé: xem chi tiết và xóa vĩnh viễn
+# Quản lý đặt vé: xem chi tiết và xóa vĩnh viễn (bản lịch sử)
+
+> Cập nhật 23/10/2026: tài liệu dưới đây ghi lại yêu cầu cũ. Bản hiện tại có hủy từng đơn và form ghi nhận hoàn tiền, đồng thời chặn xóa mọi đơn có lịch sử thanh toán hoặc vé đã cấp. Xem [report-readiness.md](report-readiness.md) để sử dụng quy tắc và kết quả kiểm thử hiện tại.
 
 Theo yêu cầu chủ dự án: trang `/admin/bookings` xem mã đơn, khách hàng, hành khách, chuyến/ghế, tổng tiền, trạng thái và lý do hủy. Không có thao tác hủy từng đơn hay ghi nhận hoàn tiền trên trang này.
 

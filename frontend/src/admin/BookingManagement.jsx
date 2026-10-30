@@ -1,8 +1,10 @@
+import { formatDate, formatDateTime, formatMoney as money } from "../utils/format.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Eye, Filter, Mail, Plane, RefreshCw, Search, Ticket, Trash2, X } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../api/axios";
-import AdminLayout from "../components/AdminLayout";
+import AdminLayout from "../layouts/AdminLayout";
+import RefundReview from "../components/booking/RefundReview";
 import "../styles/admin/FlightManagement.css";
 import "../styles/admin/UserManagement.css";
 import "../styles/admin/BookingManagement.css";
@@ -12,11 +14,17 @@ const paymentNames = { PENDING: "Chờ thanh toán", SUCCESS: "Thành công", FA
 const classes = { ECONOMY: "Phổ thông", BUSINESS: "Thương gia", FIRST: "Hạng nhất" };
 const seatNames = { HOLD: "Đang giữ ghế", BOOKED: "Đã đặt", EXPIRED: "Hết hạn", CANCELLED: "Đã hủy" };
 const flightNames = { AVAILABLE: "Theo lịch", DELAYED: "Hoãn giờ", CANCELLED: "Đã hủy", SCHEDULED: "Đã lên lịch" };
-const money = value => `${Number(value || 0).toLocaleString("vi-VN")}đ`;
-const dateTime = value => value ? new Date(value).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" }) : "Chưa có thông tin";
-const flightDate = value => value ? String(value).slice(0, 10).split("-").reverse().join("/") : "Chưa có ngày bay";
+
 const cancellationReason = b => b.cancellation_reason || (b.status === "CANCELLED" || b.cancelled_at ? "Chưa có lý do được lưu" : "—");
 const flightNumber = b => b.flight_number_snapshot || b.details?.[0]?.flight_number || "Chưa có mã chuyến";
+
+const canDeleteOrder = b => !b.payments?.length && !b.reviews?.length && !["CONFIRMED", "PAYMENT_REVIEW"].includes(b.status);
+function OrderActions({ booking, onDelete, onCancel }) {
+  return <>
+    {!["CANCELLED", "PAYMENT_REVIEW", "EXPIRED"].includes(booking.status) && <button className="bk-delete" onClick={() => onCancel(booking)}>Hủy đơn</button>}
+    {canDeleteOrder(booking) && <button className="btn-action delete" aria-label={`Xóa đơn ${booking.booking_code}`} title="Xóa đơn chưa có giao dịch" onClick={() => onDelete(booking)}><Trash2 size={15} /></button>}
+  </>;
+}
 
 function Status({ value, labels = names }) {
   return <span className={`status-badge bk-status bk-status-${String(value).toLowerCase()}`}>{labels[value] || value || "Chưa rõ"}</span>;
@@ -65,6 +73,9 @@ export default function BookingManagement() {
   const [confirmation, setConfirmation] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -83,6 +94,19 @@ export default function BookingManagement() {
   const visible = filtered.slice((currentPage - 1) * 10, currentPage * 10);
   const selected = bookings.find(b => b.id === selectedId);
   const beginDelete = booking => { setSelectedId(null); setDeleteTarget(booking); setConfirmation(""); };
+  const beginCancel = booking => { setSelectedId(null); setCancelTarget(booking); setCancelReason(""); };
+  const reload = () => { setLoading(true); setRefresh(n => n + 1); };
+  const cancelBooking = async () => {
+    if (cancelling || cancelReason.trim().length < 5) return;
+    setCancelling(true);
+    try {
+      const { data } = await api.patch(`/bookings/${cancelTarget.id}/cancel`, { reason: cancelReason.trim() });
+      toast.success(data.message);
+      setCancelTarget(null);
+      reload();
+    } catch (e) { toast.error(e.response?.data?.message || "Không hủy được đơn"); }
+    finally { setCancelling(false); }
+  };
   const deleteBooking = async () => {
     if (deleting || confirmation !== deleteTarget.booking_code) return;
     setDeleting(true);
@@ -110,36 +134,40 @@ export default function BookingManagement() {
       {loading ? <div className="adm-table-empty-state"><div className="loading-spinner-circle" /><p>Đang tải danh sách đặt vé…</p></div> : <>
         <div className="adm-table-responsive"><table className="adm-modern-table bk-table"><thead><tr><th>Mã đơn / Ngày đặt</th><th>Khách hàng / Email</th><th>Chuyến bay / Ghế</th><th>Tổng tiền</th><th>Trạng thái / Lý do hủy</th><th className="text-right">Hành động</th></tr></thead>
           <tbody>{visible.map(b => <tr key={b.id}>
-            <td><span className="bk-order-code" title={b.booking_code}>{b.booking_code}</span><small className="date-text">{dateTime(b.created_at)}</small></td>
+            <td><span className="bk-order-code" title={b.booking_code}>{b.booking_code}</span><small className="date-text">{formatDateTime(b.created_at, { fallback: "Chưa có thông tin" })}</small></td>
             <td><div className="user-profile-cell"><div className="user-table-avatar">{b.customer_name?.trim().charAt(0).toUpperCase() || "K"}</div><div className="bk-customer"><strong className="user-name-text">{b.customer_name}</strong><span className="user-email-text" title={b.customer_email}><Mail size={12} />{b.customer_email}</span></div></div></td>
             <td><strong className="bk-flight-code"><Plane size={14} />{flightNumber(b)}</strong><small>{b.departure_place && b.arrival_place ? `${b.departure_place} → ${b.arrival_place}` : "Chưa lưu hành trình"} · Ghế {b.seat_number_snapshot || b.details?.[0]?.seat_number || "—"}</small></td>
             <td><strong className="price-tag-modern">{money(b.total_price)}</strong></td>
             <td><Status value={b.status} />{(b.cancellation_reason || b.cancelled_at || b.status === "CANCELLED") && <span className="bk-reason" title={cancellationReason(b)}>{cancellationReason(b)}</span>}</td>
-            <td className="text-right"><div className="action-buttons-inline"><button className="btn-action edit bk-view" onClick={() => setSelectedId(b.id)} title="Xem chi tiết đơn"><Eye size={15} /><span className="btn-action-text">Xem</span></button><button className="btn-action delete" aria-label={`Xóa đơn ${b.booking_code}`} title="Xóa đơn đặt vé" onClick={() => beginDelete(b)}><Trash2 size={15} /></button></div></td>
+            <td className="text-right"><div className="action-buttons-inline"><button className="btn-action edit bk-view" onClick={() => setSelectedId(b.id)} title="Xem chi tiết đơn"><Eye size={15} /><span className="btn-action-text">Xem</span></button><OrderActions booking={b} onDelete={beginDelete} onCancel={beginCancel} /></div></td>
           </tr>)}</tbody></table></div>
         {!visible.length && !error && <div className="adm-table-empty-state"><Ticket size={36} /><h3>Không tìm thấy đơn đặt vé</h3><p>Thử tìm kiếm với từ khóa hoặc bộ lọc trạng thái khác.</p></div>}
         <footer className="bk-pagination"><span>{filtered.length ? `${(currentPage - 1) * 10 + 1}–${Math.min(currentPage * 10, filtered.length)}` : "0"} / {filtered.length} đơn</span><div><button className="bk-icon-button" aria-label="Trang trước" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}><ChevronLeft size={18} /></button><span>Trang {currentPage} / {pages}</span><button className="bk-icon-button" aria-label="Trang sau" disabled={currentPage === pages} onClick={() => setPage(currentPage + 1)}><ChevronRight size={18} /></button></div></footer>
       </>}
     </section>
-    {selected && <Dialog title="Chi tiết đơn đặt vé" onClose={() => setSelectedId(null)} footer={<><button className="bk-delete" onClick={() => beginDelete(selected)}><Trash2 size={16} />Xóa đơn đặt vé</button><button className="btn-cancel" onClick={() => setSelectedId(null)}>Đóng chi tiết</button></>}>
-      <div className="bk-detail-summary"><div><span className="bk-label">Mã đơn</span><strong className="bk-detail-code">{selected.booking_code}</strong><span className="bk-muted">Tạo lúc {dateTime(selected.created_at)}</span></div><div className="bk-summary-right"><Status value={selected.status} /><span className="bk-label">Tổng tiền đơn</span><strong className="bk-total">{money(selected.total_price)}</strong></div></div>
-      {(selected.cancellation_reason || selected.cancelled_at || selected.status === "CANCELLED") && <section className="bk-cancellation"><h3>Lý do hủy đơn</h3><p>{cancellationReason(selected)}</p><small>Thời gian hủy: {dateTime(selected.cancelled_at)}</small></section>}
+    {selected && <Dialog title="Chi tiết đơn đặt vé" onClose={() => setSelectedId(null)} footer={<><OrderActions booking={selected} onDelete={beginDelete} onCancel={beginCancel} /><button className="btn-cancel" onClick={() => setSelectedId(null)}>Đóng chi tiết</button></>}>
+      <div className="bk-detail-summary"><div><span className="bk-label">Mã đơn</span><strong className="bk-detail-code">{selected.booking_code}</strong><span className="bk-muted">Tạo lúc {formatDateTime(selected.created_at, { fallback: "Chưa có thông tin" })}</span></div><div className="bk-summary-right"><Status value={selected.status} /><span className="bk-label">Tổng tiền đơn</span><strong className="bk-total">{money(selected.total_price)}</strong></div></div>
+      {(selected.cancellation_reason || selected.cancelled_at || selected.status === "CANCELLED") && <section className="bk-cancellation"><h3>Lý do hủy đơn</h3><p>{cancellationReason(selected)}</p><small>Thời gian hủy: {formatDateTime(selected.cancelled_at, { fallback: "Chưa có thông tin" })}</small></section>}
       <div className="bk-detail-grid"><section className="bk-panel"><h3>Khách hàng đặt vé</h3><dl><Field label="Họ và tên">{selected.customer_name}</Field><Field label="Email tài khoản">{selected.customer_email}</Field></dl></section>
-        <section className="bk-panel"><h3>Vé lúc đặt</h3><div className="bk-route"><strong>{selected.departure_place || "—"}</strong><ArrowRight size={20} /><strong>{selected.arrival_place || "—"}</strong></div><dl className="bk-fields-grid"><Field label="Chuyến bay">{selected.flight_number_snapshot}</Field><Field label="Hãng bay">{selected.airline_name}</Field><Field label="Ngày bay">{flightDate(selected.flight_date)}</Field><Field label="Giờ đi / đến">{selected.departure_time_text && selected.arrival_time_text ? `${selected.departure_time_text} – ${selected.arrival_time_text}` : "Chưa lưu lịch bay"}</Field></dl></section></div>
+        <section className="bk-panel"><h3>Vé lúc đặt</h3><div className="bk-route"><strong>{selected.departure_place || "—"}</strong><ArrowRight size={20} /><strong>{selected.arrival_place || "—"}</strong></div><dl className="bk-fields-grid"><Field label="Chuyến bay">{selected.flight_number_snapshot}</Field><Field label="Hãng bay">{selected.airline_name}</Field><Field label="Ngày bay">{formatDate(selected.flight_date, { fallback: "Chưa có ngày bay" })}</Field><Field label="Giờ đi / đến">{selected.departure_time_text && selected.arrival_time_text ? `${selected.departure_time_text} – ${selected.arrival_time_text}` : "Chưa lưu lịch bay"}</Field></dl></section></div>
       <section className="bk-panel"><h3>Hành khách & chỗ ngồi <span className="bk-count">{selected.details?.length || 0}</span></h3>
         {(selected.details || []).map((d, index) => <div className="bk-passenger" key={d.id}><div className="bk-passenger-heading"><span className="bk-avatar">{index + 1}</span><div><strong>{d.passenger_name || "Chưa nhập hành khách"}</strong><small>{classes[d.seat_class] || d.seat_class} · Ghế {d.seat_number || "—"}</small></div><span className="bk-seat-state">{seatNames[d.seat_status] || d.seat_status}</span></div>
-          <dl className="bk-fields-grid"><Field label="Email hành khách">{d.email}</Field><Field label="Điện thoại">{d.phone}</Field><Field label="Chuyến hiện tại">{d.flight_number}</Field><Field label="Trạng thái chuyến">{flightNames[d.flight_status] || d.flight_status}</Field><Field label="Khởi hành hiện tại">{dateTime(d.departure_time)}</Field><Field label="Đến nơi hiện tại">{dateTime(d.arrival_time)}</Field></dl></div>)}
+          <dl className="bk-fields-grid"><Field label="Email hành khách">{d.email}</Field><Field label="Điện thoại">{d.phone}</Field><Field label="Chuyến hiện tại">{d.flight_number}</Field><Field label="Trạng thái chuyến">{flightNames[d.flight_status] || d.flight_status}</Field><Field label="Khởi hành hiện tại">{formatDateTime(d.departure_time, { fallback: "Chưa có thông tin" })}</Field><Field label="Đến nơi hiện tại">{formatDateTime(d.arrival_time, { fallback: "Chưa có thông tin" })}</Field></dl></div>)}
         {!selected.details?.length && <p className="bk-muted">Chưa có thông tin hành khách.</p>}
       </section>
       <section className="bk-panel"><h3>Lịch sử thanh toán <span className="bk-count">{selected.payments?.length || 0}</span></h3>
-        {selected.payments?.length ? <div className="bk-table-scroll"><table className="bk-table bk-payment-table"><thead><tr><th>Phương thức / thời gian</th><th>Số tiền</th><th>Trạng thái</th><th>Mã giao dịch</th></tr></thead><tbody>{selected.payments.map(p => <tr key={p.id}><td><strong>{p.method === "MOCK" ? "Giả lập (Demo)" : p.method}</strong><small>{dateTime(p.paid_at || p.created_at)}</small></td><td><strong>{money(p.amount)}</strong></td><td><Status value={p.status} labels={paymentNames} /></td><td className="bk-transaction">{p.transaction_id || p.momo_order_id || "—"}</td></tr>)}</tbody></table></div> : <p className="bk-muted">Chưa có giao dịch thanh toán.</p>}
+        {selected.payments?.length ? <div className="bk-table-scroll"><table className="bk-table bk-payment-table"><thead><tr><th>Phương thức / thời gian</th><th>Số tiền</th><th>Trạng thái</th><th>Mã giao dịch</th></tr></thead><tbody>{selected.payments.map(p => <tr key={p.id}><td><strong>{p.method === "MOCK" ? "Giả lập (Demo)" : p.method}</strong><small>{formatDateTime(p.paid_at || p.created_at, { fallback: "Chưa có thông tin" })}</small></td><td><strong>{money(p.amount)}</strong></td><td><Status value={p.status} labels={paymentNames} /></td><td className="bk-transaction">{p.transaction_id || p.momo_order_id || "—"}</td></tr>)}</tbody></table></div> : <p className="bk-muted">Chưa có giao dịch thanh toán.</p>}
       </section>
-      {!!selected.reviews?.length && <section className="bk-panel"><h3>Đối soát / hoàn tiền</h3>{selected.reviews.map(r => <div className="bk-review" key={r.id}><Status value={r.status} labels={{ OPEN: "Đang đối soát", REFUNDED: "Đã hoàn tiền" }} /><p>{r.reason}</p><dl className="bk-fields-grid"><Field label="Ghi chú xử lý">{r.resolution_note}</Field><Field label="Mã hoàn tiền">{r.refund_reference}</Field></dl></div>)}</section>}
+      {!!selected.reviews?.length && <section className="bk-panel"><h3>Đối soát / hoàn tiền</h3>{selected.reviews.map(r => <RefundReview key={r.id} review={r} payment={selected.payments?.find(p => p.id === r.payment_id)} onSaved={() => { setSelectedId(null); reload(); }} />)}</section>}
+    </Dialog>}
+    {cancelTarget && <Dialog title="Hủy đơn đặt vé" danger busy={cancelling} onClose={() => setCancelTarget(null)} footer={<><button className="bk-button" disabled={cancelling} onClick={() => setCancelTarget(null)}>Giữ lại đơn</button><button className="bk-delete bk-delete-solid" disabled={cancelling || cancelReason.trim().length < 5} onClick={cancelBooking}>{cancelling ? "Đang hủy…" : "Xác nhận hủy đơn"}</button></>}>
+      <strong className="bk-detail-code">{cancelTarget.booking_code}</strong><p>Ghế sẽ được giải phóng. Đơn và lịch sử thanh toán vẫn được giữ lại. Khoản đã thu chuyển sang đối soát, chưa tự động hoàn tiền.</p>
+      <label className="bk-confirm-label">Lý do hủy<textarea rows={3} minLength={5} maxLength={1000} value={cancelReason} onChange={e => setCancelReason(e.target.value)} disabled={cancelling} /></label>
     </Dialog>}
     {deleteTarget && <Dialog title="Xóa vĩnh viễn đơn đặt vé?" danger busy={deleting} onClose={() => setDeleteTarget(null)} footer={<><button className="bk-button" disabled={deleting} onClick={() => setDeleteTarget(null)}>Giữ lại đơn</button><button className="bk-delete bk-delete-solid" disabled={deleting || confirmation !== deleteTarget.booking_code} onClick={deleteBooking}><Trash2 size={16} />{deleting ? "Đang xóa…" : "Xóa vĩnh viễn"}</button></>}>
       <div className="bk-delete-summary"><strong>{deleteTarget.customer_name}</strong><span>{money(deleteTarget.total_price)}</span><Status value={deleteTarget.status} /></div>
-      <p>Đơn sẽ bị xóa cùng thông tin hành khách, vé, lịch sử thanh toán và hồ sơ đối soát liên quan. Ghế đang giữ hoặc đã đặt của đơn sẽ được giải phóng. Vé cũng biến mất khỏi tài khoản khách hàng.</p>
-      <div className="bk-alert">Thao tác không thể hoàn tác và không hoàn tiền qua MoMo. Xóa giao dịch sẽ thay đổi số liệu thanh toán, doanh thu trong hệ thống.</div>
+      <p>Chỉ xóa đơn chưa có giao dịch thanh toán hoặc vé đã xác nhận. Thông tin hành khách của đơn sẽ bị xóa và ghế đang giữ được giải phóng.</p>
+      <div className="bk-alert">Thao tác không thể hoàn tác. Đơn có lịch sử thanh toán được bảo vệ ở backend; hãy dùng Hủy đơn để giữ lịch sử.</div>
       <label className="bk-confirm-label">Nhập đầy đủ mã đơn để xác nhận<strong>{deleteTarget.booking_code}</strong><input autoComplete="off" spellCheck={false} value={confirmation} disabled={deleting} onChange={e => setConfirmation(e.target.value)} placeholder="Nhập mã đơn ở trên" /></label>
     </Dialog>}
   </div></AdminLayout>;

@@ -1,3 +1,4 @@
+import { clearAuthStorage } from "../utils/auth.js";
 import axios from "axios";
 
 const api = axios.create({
@@ -7,10 +8,6 @@ const api = axios.create({
     "Content-Type": "application/json",
   },
 });
-
-// ==========================================
-// TỰ ĐỘNG GẮN TOKEN VÀO MỌI REQUEST
-// ==========================================
 
 api.interceptors.request.use(
   (config) => {
@@ -28,10 +25,6 @@ api.interceptors.request.use(
   },
 );
 
-// ==========================================
-// TOKEN HẾT HẠN / KHÔNG HỢP LỆ
-// ==========================================
-
 api.interceptors.response.use(
   (response) => {
     return response;
@@ -39,8 +32,7 @@ api.interceptors.response.use(
 
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
+      clearAuthStorage();
 
       // Không reload liên tục nếu đang ở login
       if (window.location.pathname !== "/login") {

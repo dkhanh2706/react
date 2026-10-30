@@ -1,3 +1,4 @@
+import { formatDate } from "../utils/format.js";
 import { useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
 import {
@@ -17,7 +18,8 @@ import {
 } from "lucide-react";
 
 import api from "../api/axios";
-import AdminLayout from "../components/AdminLayout";
+import AdminLayout from "../layouts/AdminLayout";
+import AccountAvatar from "../components/common/AccountAvatar";
 import "../styles/admin/UserManagement.css";
 
 function UserManagement() {
@@ -134,17 +136,6 @@ function UserManagement() {
   const totalCustomers = users.filter((u) => u.role === "CUSTOMER").length;
   const totalAdmins = users.filter((u) => u.role === "ADMIN").length;
   const totalLocked = users.filter((u) => u.is_locked).length;
-
-  const formatDate = (val) => {
-    if (!val) return "---";
-    const d = new Date(val);
-    if (Number.isNaN(d.getTime())) return String(val).substring(0, 10);
-    return d.toLocaleDateString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
 
   return (
     <AdminLayout pageTitle="Quản lý tài khoản">
@@ -286,7 +277,7 @@ function UserManagement() {
                         <td>
                           <div className="user-profile-cell">
                             <div className={`user-table-avatar ${isAdmin ? "admin-avatar" : isLocked ? "locked-avatar" : ""}`}>
-                              {initial}
+                              <AccountAvatar url={u.avatar_url} name={displayName} fallback={initial} />
                             </div>
                             <div>
                               <strong className="user-name-text">{displayName}</strong>
@@ -314,7 +305,7 @@ function UserManagement() {
                         <td>
                           <span className="date-text">
                             <Calendar size={12} style={{ display: "inline", marginRight: 4 }} />
-                            {formatDate(u.created_at)}
+                            {formatDate(u.created_at, { padded: true })}
                           </span>
                         </td>
 

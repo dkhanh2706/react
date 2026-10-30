@@ -13,8 +13,8 @@ import {
   LayoutGrid,
 } from "lucide-react";
 
-import Header from "../components/Header";
-import Footer from "../components/Footer";
+import Header from "../layouts/Header";
+import Footer from "../layouts/Footer";
 
 import blogPosts, { blogCategories } from "../data/blogData";
 

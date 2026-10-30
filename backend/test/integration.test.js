@@ -119,7 +119,7 @@ before(async () => {
     app.use(`/api/${name === "review" ? "reviews" : route}`, require(`../routes/${name}.routes`));
   }
   app.use((req,res) => res.status(404).json({ message: "API route not found" }));
-  app.use((err, req, res, next) => { console.error(err); res.status(500).json({ message: err.message }); });
+  app.use(require("../lib/errors").errorHandler);
   server = await new Promise(resolve => { const s = app.listen(0, "127.0.0.1", () => resolve(s)); });
   base = `http://127.0.0.1:${server.address().port}`;
   const login = async email => {
@@ -136,6 +136,34 @@ after(async () => {
   if (pool) await pool.end();
 });
 const check = (name, fn) => test(name, { skip: !enabled }, fn);
+
+check("avatar upload stays with its owner across fresh login, profile and admin listing", async () => {
+  const form = new FormData();
+  const sharp = require("sharp");
+  const png = await sharp({ create: { width: 16, height: 16, channels: 3, background: "blue" } }).png().toBuffer();
+  form.append("avatar", new Blob([png], { type: "image/png" }), "avatar.png");
+  const response = await fetch(base + "/api/users/profile/avatar", {
+    method: "POST", headers: { Authorization: `Bearer ${customerToken}` }, body: form,
+  });
+  const uploaded = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(uploaded));
+  const avatar = uploaded.user.avatar_url;
+  assert.match(avatar, /^\/uploads\/avatars\/user-2-[\w.-]+\.webp$/);
+  try {
+    const metadata = await sharp(fs.readFileSync(path.join(__dirname, "../uploads/avatars", path.basename(avatar)))).metadata();
+    assert.equal(metadata.format, "webp");
+    assert.equal((await pool.query("SELECT avatar_url FROM users WHERE id=2")).rows[0].avatar_url, avatar);
+    const fresh = await request("/api/auth/login", { method: "POST", body: { email: "test@example.test", password: "ReviewPassword123" } });
+    assert.equal(fresh.data.user.avatar_url, avatar);
+    assert.equal((await request("/api/users/profile", { token: fresh.data.token })).data.user.avatar_url, avatar);
+    const users = (await request("/api/users", { token: adminToken })).data;
+    assert.equal(users.find(user => user.id === 2).avatar_url, avatar);
+    assert.equal(users.find(user => user.id === 3).avatar_url, null);
+  } finally {
+    await pool.query("UPDATE users SET avatar_url=NULL WHERE id=2");
+    fs.unlinkSync(path.join(__dirname, "../uploads/avatars", path.basename(avatar)));
+  }
+});
 
 check("locked accounts immediately lose previously issued tokens; unlocking does not revive them", async () => {
   assert.equal((await request("/api/users/3/toggle-lock", { token: adminToken, method: "PUT", body: { is_locked: true } })).status, 200);
@@ -322,7 +350,7 @@ check("flight validation enforces turnaround time and protects booked flight ide
   await pool.query("UPDATE flights SET status='AVAILABLE' WHERE id=$1", [flightId]);
 });
 
-check("admin can inspect bookings but cannot cancel an individual booking", async () => {
+check("admin can inspect bookings; unsupported cancellation methods do not change payment state", async () => {
   const b = (await booking(seats[10].id)).data.booking;
   const created = (await attempt(b.id)).data;
   const adminBookings = await request("/api/bookings/admin", { token: adminToken });
@@ -476,7 +504,7 @@ check("admin can remove an unused user and manual flight after legacy tables are
   assert.equal((await pool.query('SELECT id FROM flights WHERE id=$1',[flight.id])).rows.length,0);
 });
 
-check("only admin can permanently delete a confirmed order and its children after confirming its code", async () => {
+check("confirmed orders cannot be deleted; admin cancellation and refund preserve every historical row", async () => {
   const before = Number((await pool.query("SELECT count(*) FROM bookings")).rows[0].count);
   const b = (await pool.query(`INSERT INTO bookings(user_id,booking_code,total_price,status)
     VALUES(2,'DELETE_ORDER_TEST',1000000,'CONFIRMED') RETURNING *`)).rows[0];
@@ -491,17 +519,27 @@ check("only admin can permanently delete a confirmed order and its children afte
   assert.equal((await request(`/api/bookings/${b.id}`, { ...options, token: customerToken })).status,403);
   assert.equal((await request(`/api/bookings/${b.id}`, { method: "DELETE", token: adminToken, body: { booking_code: "WRONG" } })).status,400);
   assert.equal((await pool.query("SELECT seat_status FROM booking_details WHERE id=$1", [detail.id])).rows[0].seat_status,"BOOKED");
-  assert.equal((await request(`/api/bookings/${b.id}`, { ...options, token: adminToken })).status,200);
+  assert.equal((await request(`/api/bookings/${b.id}`, { ...options, token: adminToken })).status,409);
+  assert.equal((await request(`/api/bookings/${b.id}/cancel`, { method: "PATCH", token: customerToken, body: { reason: "Cancel paid test" } })).status,403);
+  assert.equal((await request(`/api/bookings/${b.id}/cancel`, { method: "PATCH", token: adminToken, body: { reason: "Cancel paid test" } })).status,200);
+  assert.equal((await pool.query("SELECT seat_status FROM booking_details WHERE id=$1", [detail.id])).rows[0].seat_status,"CANCELLED");
+  assert.equal((await pool.query("SELECT status FROM bookings WHERE id=$1", [b.id])).rows[0].status,"PAYMENT_REVIEW");
+  const refund = { method: "POST", token: adminToken, body: { note: "Refunded test payment", refund_reference: "TEST-REFUND-ORDER" } };
+  assert.equal((await request(`/api/payments/reviews/${review.id}/refund`, { ...refund, token: customerToken })).status,403);
+  assert.equal((await request(`/api/payments/reviews/${review.id}/refund`, refund)).status,200);
+  assert.equal((await request(`/api/payments/reviews/${review.id}/refund`, refund)).status,200);
+  assert.equal((await pool.query("SELECT status FROM payments WHERE id=$1",[payment.id])).rows[0].status,"REFUNDED");
+  assert.equal((await pool.query("SELECT status FROM bookings WHERE id=$1",[b.id])).rows[0].status,"CANCELLED");
   for (const [table,id] of [["bookings",b.id],["booking_details",detail.id],["payments",payment.id],["payment_review_cases",review.id],["passengers",passengerRow.id],["tickets",ticket.id]]) {
-    assert.equal((await pool.query(`SELECT id FROM ${table} WHERE id=$1`, [id])).rows.length,0,table);
+    assert.equal((await pool.query(`SELECT id FROM ${table} WHERE id=$1`, [id])).rows.length,1,table);
   }
-  assert.equal(Number((await pool.query("SELECT count(*) FROM bookings")).rows[0].count),before);
+  assert.equal(Number((await pool.query("SELECT count(*) FROM bookings")).rows[0].count),before+1);
   assert.equal((await pool.query("SELECT id FROM seats WHERE id=$1",[seats[0].id])).rows.length,1);
   assert.equal((await pool.query("SELECT id FROM flights WHERE id=$1",[flightId])).rows.length,1);
-  assert.equal((await request(`/api/bookings/${b.id}`, { ...options, token: adminToken })).status,404);
+  assert.equal((await request(`/api/bookings/${b.id}`, { ...options, token: adminToken })).status,409);
 });
 
-check("order deletion rolls back every child deletion when an unexpected reference blocks it", async () => {
+check("orders with payment history cannot be deleted even when other orders reference their passengers", async () => {
   const b = (await pool.query("INSERT INTO bookings(user_id,booking_code,total_price,status) VALUES(2,'DELETE_ROLLBACK_TEST',1000000,'PAYMENT_REVIEW') RETURNING id")).rows[0];
   const other = (await pool.query("INSERT INTO bookings(user_id,booking_code,total_price,status) VALUES(2,'DELETE_NEIGHBOR_TEST',0,'PENDING') RETURNING id")).rows[0];
   const passengerRow = (await pool.query("INSERT INTO passengers(booking_id,full_name) VALUES($1,'Referenced Passenger') RETURNING id",[b.id])).rows[0];
@@ -523,6 +561,63 @@ async function reviewBooking(status = "CONFIRMED", paymentStatus = "SUCCESS") {
   return row.id;
 }
 const postReview = (id, body = { rating: 5, comment: "Trải nghiệm đặt vé thuận tiện" }, token = customerToken) => request(`/api/reviews/${id}`, { method: "POST", token, body });
+
+async function resumableOrder(code) {
+  const plane = (await pool.query("INSERT INTO airplanes(airline_id,model,seat_capacity) VALUES(1,$1,1) RETURNING id", [code])).rows[0];
+  const seat = (await pool.query("INSERT INTO seats(airplane_id,seat_number,class) VALUES($1,'1A','BUSINESS') RETURNING id", [plane.id])).rows[0];
+  const flight = (await pool.query(`INSERT INTO flights(flight_number,airline_id,airplane_id,departure_airport_id,arrival_airport_id,departure_time,arrival_time,status,price)
+    VALUES($1,1,$2,1,2,'2099-08-01 06:00','2099-08-01 08:00','AVAILABLE',1000000) RETURNING id`, [code,plane.id])).rows[0];
+  assert.equal((await request('/api/bookings/hold-seat',{token:customerToken,method:'POST',body:{flight_id:flight.id,seat_id:seat.id}})).status,200);
+  const result = await request('/api/bookings',{token:customerToken,method:'POST',body:{flight_id:flight.id,seat_id:seat.id,passenger,services:{baggage_weight:10}}});
+  assert.equal(result.status,200);
+  return { booking:result.data.booking, seat, flight };
+}
+
+check("owner can resume a pending order at its saved price and hold deadline; other accounts cannot", async () => {
+  const { booking: b, flight } = await resumableOrder('RESUME_PRICE');
+  const first = await request(`/api/bookings/${b.id}/checkout`,{token:customerToken});
+  assert.equal(first.status,200);
+  assert.equal(Number(first.data.booking.total_price),1650000);
+  assert.equal(Number(first.data.pricing.base_price),1000000);
+  await pool.query('UPDATE flights SET price=9000000 WHERE id=$1',[flight.id]);
+  const again = await request(`/api/bookings/${b.id}/checkout`,{token:customerToken});
+  assert.equal(again.data.hold_expires_at,first.data.hold_expires_at);
+  assert.equal(Number(again.data.booking.total_price),1650000);
+  assert.equal((await request(`/api/bookings/${b.id}/checkout`,{token:secondToken})).status,404);
+  const mine = (await request('/api/bookings/mine',{token:customerToken})).data.data;
+  assert.equal(mine.find(o=>o.id===b.id).can_pay,true);
+  assert.equal((await request('/api/bookings/mine',{token:secondToken})).data.data.some(o=>o.id===b.id),false);
+  await pool.query("UPDATE booking_details SET hold_expires_at=LOCALTIMESTAMP-interval '1 minute' WHERE booking_id=$1",[b.id]);
+  assert.equal((await request(`/api/bookings/${b.id}/checkout`,{token:customerToken})).status,409);
+  const expired = (await request('/api/bookings/mine',{token:customerToken})).data.data.find(o=>o.id===b.id);
+  assert.equal(expired.status,'EXPIRED');
+  assert.equal(expired.can_pay,false);
+});
+
+check("pending provider attempts are retained for late callback after admin cancellation", async () => {
+  const { booking: b } = await resumableOrder('RESUME_MOMO');
+  const pending = await request('/api/payments/momo/create',{token:customerToken,method:'POST',body:{bookingId:b.id}});
+  assert.equal(pending.status,200);
+  assert.equal((await request(`/api/bookings/${b.id}/checkout`,{token:customerToken})).data.pending_momo,true);
+  assert.equal((await request(`/api/bookings/${b.id}`,{token:adminToken,method:'DELETE',body:{booking_code:b.booking_code}})).status,409);
+  assert.equal((await request(`/api/bookings/${b.id}/cancel`,{token:adminToken,method:'PATCH',body:{reason:'Customer asked to cancel'}})).status,200);
+  const callback = ipnBody(pending.data,b.id,0,{amount:1650000});
+  assert.equal((await request('/api/payments/momo/ipn',{method:'POST',body:callback})).status,200);
+  const state = (await request(`/api/payments/booking/${b.id}/status`,{token:customerToken})).data;
+  assert.equal(state.booking.status,'PAYMENT_REVIEW');
+  assert.equal(state.payments[0].status,'SUCCESS');
+  assert.equal(state.reviews.length,1);
+  assert.equal((await request(`/api/bookings/${b.id}/checkout`,{token:customerToken})).status,409);
+});
+
+check("admin may delete an unpaid order with no payment attempts after exact code confirmation", async () => {
+  const { booking:b } = await resumableOrder('UNPAID_DELETE');
+  assert.equal((await request(`/api/bookings/${b.id}`,{token:customerToken,method:'DELETE',body:{booking_code:b.booking_code}})).status,403);
+  assert.equal((await request(`/api/bookings/${b.id}`,{token:adminToken,method:'DELETE',body:{booking_code:'WRONG'}})).status,400);
+  assert.equal((await request(`/api/bookings/${b.id}`,{token:adminToken,method:'DELETE',body:{booking_code:b.booking_code}})).status,200);
+  assert.equal((await pool.query('SELECT id FROM bookings WHERE id=$1',[b.id])).rowCount,0);
+  assert.equal((await pool.query('SELECT id FROM booking_details WHERE booking_id=$1',[b.id])).rowCount,0);
+});
 
 test("customer reviews require owner, confirmed payment and valid stars/comment", async () => {
   const id = await reviewBooking();
@@ -549,6 +644,18 @@ test("review sends once, cannot edit, owner may delete permanently without reope
   assert.equal(publicRow.departure_place,"HAN");
   assert.equal(publicRow.arrival_place,"SGN");
   assert.equal(publicRow.name,"Customer Test");
+  // Public reviews use the owner's current avatar, independently of the viewer's session.
+  const avatar = "/uploads/avatars/review-owner.png";
+  try {
+    await pool.query("UPDATE users SET avatar_url=$1 WHERE id=2", [avatar]);
+    const updated = (await request("/api/reviews")).data.data.find(item => item.id === review.id);
+    assert.equal(updated.avatar_url, avatar);
+    await pool.query("UPDATE users SET avatar_url=$1 WHERE id=2", ["/uploads/avatars/review-owner-new.png"]);
+    const changed = (await request("/api/reviews")).data.data.find(item => item.id === review.id);
+    assert.equal(changed.avatar_url, "/uploads/avatars/review-owner-new.png");
+  } finally {
+    await pool.query("UPDATE users SET avatar_url=NULL WHERE id=2");
+  }
   assert.equal(publicRow.booking_id,undefined);
   assert.equal((await request(`/api/reviews/${review.id}`,{token:customerToken,method:"PATCH",body:{rating:1}})).status,404);
   assert.equal((await request(`/api/reviews/${review.id}`,{token:secondToken,method:"DELETE"})).status,404);
@@ -573,9 +680,47 @@ test("concurrent new reviews retain only the newest configured limit in the data
   const removed = responses.map(response => response.data.data).find(item => !stored.some(row => row.id === item.id));
   assert.ok(removed);
   assert.equal((await postReview(removed.booking_id)).status,409);
-  // Admin deletion still works with the new review foreign key.
+  // Deletion must also preserve reviews attached to paid orders.
   const latest = stored[0];
   const code = (await pool.query("SELECT booking_code FROM bookings WHERE id=$1",[latest.booking_id])).rows[0].booking_code;
-  assert.equal((await request(`/api/bookings/${latest.booking_id}`,{token:adminToken,method:"DELETE",body:{booking_code:code}})).status,200);
-  assert.equal((await pool.query("SELECT id FROM customer_reviews WHERE id=$1",[latest.id])).rowCount,0);
+  assert.equal((await request(`/api/bookings/${latest.booking_id}`,{token:adminToken,method:"DELETE",body:{booking_code:code}})).status,409);
+  assert.equal((await pool.query("SELECT id FROM customer_reviews WHERE id=$1",[latest.id])).rowCount,1);
+});
+
+test("authenticated password change validates confirmation, isolates OTP purpose and revokes old sessions", async () => {
+  const email = "password-flow@example.test", oldPassword = "OldPassword123", newPassword = "ChangedPassword123";
+  const account = (await pool.query("INSERT INTO users(full_name,email,password_hash,phone,role) VALUES('Password Flow',$1,$2,'0900000010','CUSTOMER') RETURNING id,token_version", [email, await bcrypt.hash(oldPassword, 4)])).rows[0];
+  const oldToken = require("jsonwebtoken").sign({ id: account.id, token_version: account.token_version }, process.env.JWT_SECRET, { expiresIn: "1h" });
+  const requested = await request("/api/users/password/request-code", { token: oldToken, method: "POST", body: {} });
+  assert.equal(requested.status, 200);
+  assert.equal(requested.data.code, undefined);
+  const delivery = delivered.at(-1);
+  assert.equal(delivery.to, email);
+  assert.equal(delivery.purpose, "change");
+  const code = delivery.code;
+  const change = body => request("/api/users/password/change", { token: oldToken, method: "POST", body });
+  assert.equal((await change({ code, newPassword, confirmPassword: "Mismatch123" })).status, 400);
+  assert.equal((await request("/api/auth/reset-password", { method: "POST", body: { email, code, newPassword } })).status, 400);
+  assert.equal((await change({ code, newPassword, confirmPassword: newPassword })).status, 200);
+  assert.equal((await request("/api/users/profile", { token: oldToken })).status, 401);
+  const fresh = await request("/api/auth/login", { method: "POST", body: { email, password: newPassword } });
+  assert.equal(fresh.status, 200);
+  assert.equal((await request("/api/users/password/change", { token: fresh.data.token, method: "POST", body: { code, newPassword: "NextPassword123", confirmPassword: "NextPassword123" } })).status, 400);
+  assert.equal((await request("/api/auth/login", { method: "POST", body: { email, password: oldPassword } })).status, 400);
+  const saved = (await pool.query("SELECT password_hash,token_version FROM users WHERE id=$1", [account.id])).rows[0];
+  assert.equal(saved.token_version, account.token_version + 1);
+  assert.equal(await bcrypt.compare(newPassword, saved.password_hash), true);
+});
+
+test("profile update rejects invalid input and never accepts forged account role or identity fields", async () => {
+  const account = (await pool.query("INSERT INTO users(full_name,email,password_hash,phone,role) VALUES('Profile Flow','profile-flow@example.test',$1,'0900000011','CUSTOMER') RETURNING id,token_version", [await bcrypt.hash("ProfilePassword123", 4)])).rows[0];
+  const token = require("jsonwebtoken").sign({ id: account.id, role: "ADMIN", token_version: account.token_version }, process.env.JWT_SECRET, { expiresIn: "1h" });
+  assert.equal((await request("/api/users", { token })).status, 403);
+  const updated = await request("/api/users/profile", { token, method: "PUT", body: { full_name: "Profile Updated", phone: "0900000012", birth_date: "2000-01-01", gender: "Nam", role: "ADMIN", email: "admin@example.test", is_primary_admin: true } });
+  assert.equal(updated.status, 200);
+  assert.equal(updated.data.user.role, "CUSTOMER");
+  assert.equal(updated.data.user.email, "profile-flow@example.test");
+  assert.equal(updated.data.user.is_primary_admin, false);
+  assert.equal((await request("/api/users/profile", { token, method: "PUT", body: { full_name: "123-invalid", phone: "0900000012" } })).status, 400);
+  assert.equal((await pool.query("SELECT full_name FROM users WHERE id=$1", [account.id])).rows[0].full_name, "Profile Updated");
 });

@@ -30,6 +30,7 @@
 
 /* Detail popup follows the admin modal styles; only its content is booking-specific. */
 .adm-modal-overlay.bk-overlay { z-index: 1200; }
+.bk-confirm-label textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; resize: vertical; }
 .adm-modal-card.bk-dialog { max-width: 860px; max-height: calc(100dvh - 40px); display: flex; flex-direction: column; outline: none; }
 .bk-dialog-header { flex-shrink: 0; gap: 16px; }
 .bk-modal-heading { display: flex; gap: 14px; align-items: center; min-width: 0; }

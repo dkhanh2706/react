@@ -1,3 +1,4 @@
+import { formatDateTime as formatDate, formatNumber as formatPrice } from "../utils/format.js";
 import { useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
 
@@ -17,7 +18,8 @@ import {
 } from "lucide-react";
 
 import api from "../api/axios";
-import AdminLayout from "../components/AdminLayout";
+import AdminLayout from "../layouts/AdminLayout";
+import RefundReview from "../components/booking/RefundReview";
 import "../styles/admin/PaymentManagement.css";
 
 const statusNames = { SUCCESS: "Thành công", PENDING: "Chờ thanh toán", FAILED: "Thất bại", EXPIRED: "Hết hạn", CANCELLED: "Đã hủy", PAYMENT_REVIEW: "Cần đối soát", REFUNDED: "Đã hoàn tiền" };
@@ -36,9 +38,6 @@ function PaymentManagement() {
   // Selected for view detail
   const [selectedPayment, setSelectedPayment] = useState(null);
 
-  // =====================================================
-  // FETCH PAYMENTS - dùng cho nút "Làm mới dữ liệu"
-  // =====================================================
   const fetchPayments = async () => {
     try {
       setLoading(true);
@@ -61,9 +60,6 @@ function PaymentManagement() {
     }
   };
 
-  // =====================================================
-  // LOAD LẦN ĐẦU KHI MỞ TRANG
-  // =====================================================
   useEffect(() => {
     let cancelled = false;
 
@@ -100,9 +96,6 @@ function PaymentManagement() {
     };
   }, []);
 
-  // =====================================================
-  // FILTERED PAYMENTS
-  // =====================================================
   const filteredPayments = useMemo(() => {
     return payments.filter((item) => {
       const code = (item.booking_code || "").toLowerCase();
@@ -130,9 +123,6 @@ function PaymentManagement() {
     });
   }, [payments, searchQuery, statusFilter, methodFilter]);
 
-  // =====================================================
-  // STATISTICS
-  // =====================================================
   const totalTransactions = payments.filter(p => p.payment_id).length;
 
   const successfulPayments = payments.filter(
@@ -147,34 +137,6 @@ function PaymentManagement() {
   const pendingCount = payments.filter(
     (p) => paymentStatus(p) === "PENDING",
   ).length;
-
-  // =====================================================
-  // FORMAT PRICE
-  // =====================================================
-  const formatPrice = (price) => {
-    return Number(price || 0).toLocaleString("vi-VN");
-  };
-
-  // =====================================================
-  // FORMAT DATE
-  // =====================================================
-  const formatDate = (val) => {
-    if (!val) return "---";
-
-    const d = new Date(val);
-
-    if (Number.isNaN(d.getTime())) {
-      return String(val).substring(0, 10);
-    }
-
-    return d.toLocaleDateString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   return (
     <AdminLayout pageTitle="Quản lý thanh toán">
@@ -649,6 +611,14 @@ function PaymentManagement() {
                 </div>
               </div>
 
+              {selectedPayment.review_id && <RefundReview key={selectedPayment.review_id}
+                payment={{ id: selectedPayment.payment_id, method: selectedPayment.payment_method, amount: selectedPayment.payment_amount }}
+                review={{ id: selectedPayment.review_id, status: selectedPayment.review_status, reason: selectedPayment.review_reason,
+                  refund_reference: selectedPayment.refund_reference, resolution_note: selectedPayment.resolution_note }}
+                onSaved={async () => {
+                  setSelectedPayment(null);
+                  await fetchPayments();
+                }} />}
               <div className="pay-modal-actions">
                 <button
                   type="button"

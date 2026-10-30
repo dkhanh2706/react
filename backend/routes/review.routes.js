@@ -13,7 +13,7 @@ router.use(async (req, res, next) => {
 
 router.get("/", endpoint(async (req, res) => {
   const { rows } = await pool.query(`SELECT r.id,r.rating,r.comment,r.created_at,
-    u.full_name AS name,b.departure_place,b.arrival_place
+    u.full_name AS name,u.avatar_url,b.departure_place,b.arrival_place
     FROM customer_reviews r JOIN bookings b ON b.id=r.booking_id JOIN users u ON u.id=b.user_id
     ORDER BY r.created_at DESC,r.id DESC LIMIT $1`, [MAX_REVIEWS]);
   res.json({ data: rows });

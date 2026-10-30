@@ -1,14 +1,14 @@
+import { formatNumber, vietnamToday } from "../utils/format.js";
+
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
-import Header from "../components/Header";
-import Footer from "../components/Footer";
+import Header from "../layouts/Header";
+import Footer from "../layouts/Footer";
 import api from "../api/axios";
 
 import "../styles/Destinations.css";
-
-
 
 const DESTINATIONS = [
   {
@@ -114,7 +114,7 @@ function Destinations() {
   }, []);
   const navigate = useNavigate();
 
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(new Date());
+  const today = vietnamToday();
 
   const [activeCategory, setActiveCategory] = useState("Tất cả");
   const [searchText, setSearchText] = useState("");
@@ -339,7 +339,7 @@ function Destinations() {
                           <span>Vé từ</span>
 
                           <strong>
-                            {destination.price.toLocaleString("vi-VN")}đ
+                            {formatNumber(destination.price)}đ
                           </strong>
                         </div>
 

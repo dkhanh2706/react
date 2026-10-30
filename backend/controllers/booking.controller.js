@@ -113,11 +113,71 @@ exports.getAdminBookings = endpoint(async (req, res) => {
   res.json({ data });
 });
 
+exports.getMyOrders = endpoint(async (req, res) => {
+  const data = await transaction(async client => {
+    await flow.expireHolds(client);
+    return (await client.query(`SELECT b.*,d.hold_expires_at,d.seat_status,
+      f.status AS flight_status,f.departure_time,
+      (b.status='PENDING' AND d.seat_status='HOLD' AND d.hold_expires_at>LOCALTIMESTAMP
+        AND f.status='AVAILABLE' AND f.departure_time>LOCALTIMESTAMP) AS can_pay,
+      p.status AS payment_status,p.method AS payment_method
+      FROM bookings b JOIN booking_details d ON d.booking_id=b.id JOIN flights f ON f.id=d.flight_id
+      LEFT JOIN LATERAL(SELECT status,method FROM payments WHERE booking_id=b.id ORDER BY id DESC LIMIT 1) p ON true
+      WHERE b.user_id=$1 AND b.booking_code NOT LIKE 'TMP%' ORDER BY b.created_at DESC`, [req.user.id])).rows;
+  });
+  res.json({ data });
+});
+
+exports.getCheckout = endpoint(async (req, res) => {
+  const data = await transaction(async client => {
+    await flow.expireHolds(client);
+    const loaded = await flow.loadBooking(client, positiveId(req.params.bookingId), req.user.id);
+    await flow.requirePayable(client, loaded);
+    const { booking: b, detail: d } = loaded;
+    const seatFare = Number(d.price);
+    const multiplier = { ECONOMY: 1, BUSINESS: 1.5, FIRST: 2 }[d.seat_class] || 1;
+    const basePrice = Math.round(seatFare / multiplier);
+    const pendingMomo = await client.query("SELECT id FROM payments WHERE booking_id=$1 AND method='MOMO' AND status='PENDING' LIMIT 1", [b.id]);
+    return {
+      booking: b, hold_expires_at: d.hold_expires_at, pending_momo: pendingMomo.rowCount > 0,
+      flight: { id: d.flight_id, airline: b.airline_name, flight_number: b.flight_number_snapshot,
+        from: b.departure_place, to: b.arrival_place, date: b.flight_date,
+        departure_time: b.departure_time_text, arrival_time: b.arrival_time_text },
+      seat: { id: d.seat_id, seat_number: b.seat_number_snapshot, class: d.seat_class },
+      passenger: { full_name: d.passenger_name, email: d.email, phone: d.phone, gender: d.gender,
+        date_of_birth: d.date_of_birth, document_type: d.document_type, document_number: d.document_number },
+      services: { baggage_weight: d.baggage_weight, baggage_price: d.baggage_price,
+        meal_type: d.meal_type, meal_price: d.meal_price, insurance: d.insurance, insurance_price: d.insurance_price },
+      pricing: { base_price: basePrice, seat_fare: seatFare, seat_surcharge: seatFare - basePrice,
+        baggage_price: d.baggage_price, meal_price: d.meal_price, insurance_price: d.insurance_price, total_price: b.total_price },
+    };
+  });
+  res.json(data);
+});
+
+exports.cancelBooking = endpoint(async (req, res) => {
+  const reason = String(req.body.reason || "").trim();
+  if (reason.length < 5 || reason.length > 1000) fail(400, "Nhập lý do hủy từ 5 đến 1000 ký tự");
+  await transaction(async client => {
+    await flow.expireHolds(client);
+    const loaded = await flow.loadBooking(client, positiveId(req.params.bookingId));
+    if (["CANCELLED", "PAYMENT_REVIEW"].includes(loaded.booking.status)) return;
+    await flow.cancelBooking(client, loaded, reason);
+  });
+  res.json({ message: "Đã hủy đơn, giải phóng ghế và giữ lịch sử. Khoản đã thu được chuyển đối soát." });
+});
+
 exports.deleteBooking = endpoint(async (req, res) => {
   const id = positiveId(req.params.bookingId);
   await transaction(async client => {
     const { booking } = await flow.loadBooking(client, id);
     if (req.body?.booking_code !== booking.booking_code) fail(400, "Nhập đúng mã đơn để xác nhận xóa vĩnh viễn");
+    const history = await client.query(`SELECT id FROM payments WHERE booking_id=$1
+      UNION ALL SELECT id FROM payment_review_cases WHERE booking_id=$1
+      UNION ALL SELECT id FROM tickets WHERE booking_id=$1`, [id]);
+    if (history.rowCount || ["CONFIRMED", "PAYMENT_REVIEW"].includes(booking.status)) {
+      fail(409, "Đơn có lịch sử thanh toán hoặc vé đã xác nhận không được xóa. Hãy hủy đơn để giữ lịch sử.");
+    }
     // Delete only this order's children. The shared write lock also serializes payment callbacks.
     await client.query("DELETE FROM payment_review_cases WHERE booking_id=$1", [id]);
     await client.query("DELETE FROM tickets WHERE booking_id=$1", [id]);

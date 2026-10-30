@@ -1,8 +1,11 @@
 const Groq = require("groq-sdk");
+const { parseChatInput, boundedHistory } = require("../lib/chatInput");
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+// Shared by the HTTP chatbot and the live-chat worker in this backend process.
+let activeRequests = 0;
+let budgetStarted = 0;
+let requestsInWindow = 0;
+const busyError = () => Object.assign(new Error("Trợ lý AI đang bận. Vui lòng thử lại sau."), { status: 429, code: "AI_BUSY" });
 
 const SYSTEM_PROMPT = `
 Bạn là trợ lý AI của website đặt vé máy bay.
@@ -31,67 +34,49 @@ Quy tắc:
    mã OTP, số CVV hoặc thông tin thẻ ngân hàng.
 `;
 
+exports.generateReply = async (history) => {
+  if (!process.env.GROQ_API_KEY) throw new Error('Chatbot AI chưa được cấu hình.');
+  const now = Date.now();
+  if (now - budgetStarted >= 60000) { budgetStarted = now; requestsInWindow = 0; }
+  if (activeRequests >= 4 || requestsInWindow >= 120) throw busyError();
+  activeRequests++;
+  requestsInWindow++;
+  try {
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY, timeout: 20000, maxRetries: 0 });
+    const completion = await groq.chat.completions.create({
+      model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
+      messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...boundedHistory(history)],
+      temperature: 0.6,
+      max_completion_tokens: 600,
+    });
+    const reply = completion.choices?.[0]?.message?.content?.trim();
+    if (!reply) throw new Error('AI không trả về nội dung.');
+    return reply;
+  } finally { activeRequests--; }
+};
+
 exports.chat = async (req, res) => {
   try {
-    const { message, history = [] } = req.body;
-
-    if (!message || !message.trim()) {
-      return res.status(400).json({
-        message: "Vui lòng nhập nội dung.",
-      });
-    }
+    const history = parseChatInput(req.body);
 
     if (!process.env.GROQ_API_KEY) {
       console.error("Thiếu GROQ_API_KEY");
 
-      return res.status(500).json({
+      return res.status(503).json({
         message: "Chatbot AI chưa được cấu hình.",
       });
     }
 
-    const safeHistory = Array.isArray(history)
-      ? history
-          .slice(-10)
-          .filter((item) => item?.text)
-          .map((item) => ({
-            role: item.sender === "user" ? "user" : "assistant",
-            content: String(item.text),
-          }))
-      : [];
-
-    const completion = await groq.chat.completions.create({
-      model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
-
-      messages: [
-        {
-          role: "system",
-          content: SYSTEM_PROMPT,
-        },
-
-        ...safeHistory,
-
-        {
-          role: "user",
-          content: message.trim(),
-        },
-      ],
-
-      temperature: 0.6,
-      max_completion_tokens: 600,
-    });
-
-    const reply = completion.choices?.[0]?.message?.content?.trim();
-
-    if (!reply) {
-      return res.status(502).json({
-        message: "AI không trả về nội dung.",
-      });
-    }
+    const reply = await exports.generateReply(history);
 
     return res.status(200).json({
       reply,
     });
   } catch (error) {
+    if (error.code === "CHAT_INPUT" || error.code === "AI_BUSY") {
+      if (error.status === 429) res.set("Retry-After", "60");
+      return res.status(error.status).json({ message: error.message });
+    }
     console.error(
       "GROQ CHAT ERROR:",
       error?.response?.data || error?.message || error,

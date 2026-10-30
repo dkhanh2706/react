@@ -1,9 +1,9 @@
-import Header from "../components/Header";
-import FlightSearch from "../components/FlightSearch";
-import PopularFlights from "../components/PopularFlights";
-import Promotions from "../components/Promotions";
-import AirlinePartners from "../components/AirlinePartners";
-import Footer from "../components/Footer";
+import Header from "../layouts/Header";
+import FlightSearch from "../components/flights/FlightSearch";
+import PopularFlights from "../components/home/PopularFlights";
+import Promotions from "../components/home/Promotions";
+import AirlinePartners from "../components/home/AirlinePartners";
+import Footer from "../layouts/Footer";
 
 import "../styles/home.css";
 

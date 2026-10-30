@@ -12,9 +12,7 @@ import {
 } from "lucide-react";
 
 import api from "../api/axios";
-import AuthLayout from "../components/AuthLayout";
-
-
+import AuthLayout from "../layouts/AuthLayout";
 
 function Login() {
   const navigate = useNavigate();
@@ -44,23 +42,15 @@ function Login() {
         return;
       }
 
-      // =============================
-      // LƯU THÔNG TIN ĐĂNG NHẬP
-      // =============================
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
+      window.dispatchEvent(new Event('auth-changed'));
 
       toast.success("Đăng nhập thành công");
 
-      // =============================
-      // KIỂM TRA ADMIN
-      // =============================
       const isAdmin =
         user?.role === "ADMIN";
 
-      // =============================
-      // CHUYỂN TRANG
-      // =============================
       setTimeout(() => {
         if (isAdmin) {
           navigate("/admin", { replace: true });

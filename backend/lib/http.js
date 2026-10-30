@@ -1,4 +1,5 @@
 const pool = require("../config/database");
+const { errorPayload } = require("./errors");
 
 function fail(status, message) {
   const error = new Error(message);
@@ -10,7 +11,7 @@ const endpoint = (handler) => async (req, res, next) => {
   try {
     await handler(req, res);
   } catch (error) {
-    if (error.status) return res.status(error.status).json({ message: error.message });
+    if (error.status) return res.status(error.status).json(error.status >= 500 ? errorPayload("Server error", error) : { message: error.message });
     if (error.code === "23505") return res.status(409).json({ message: "Dữ liệu đã tồn tại hoặc ghế vừa được đặt. Vui lòng tải lại." });
     if (error.code === "23503") return res.status(409).json({ message: "Dữ liệu đang được sử dụng, không thể xóa." });
     next(error);
