@@ -25,13 +25,16 @@ module.exports = async function browserLive({ browser, backendUrl, db, runDir, a
   }
 
   await tab.visit("/register", "!!document.querySelector('input[name=full_name]')");
-  for (const [name, value] of Object.entries({ full_name: "Nguyen Van Test", email: customerEmail, password, phone: "0900000000" })) await tab.fill(`input[name=${name}]`, value);
+  await tab.clickText("Đăng ký tài khoản");
+  await tab.wait("document.querySelectorAll('[aria-invalid=true]').length===7", "inline required errors");
+  for (const [name, value] of Object.entries({ full_name: "Nguyen Van Test", email: customerEmail, password, confirm_password: password, phone: "0900000000", birth_date: "2000-01-01" })) await tab.fill(`input[name=${name}]`, value);
+  await tab.fill('select[name=gender]', 'Nam');
   await tab.clickText("Đăng ký tài khoản");
   await tab.wait("location.pathname==='/login'", "register redirect");
   const customerToken = await login(tab, customerEmail, password);
   const customer = (await db.query("SELECT id,role,password_hash FROM users WHERE email=$1", [customerEmail])).rows[0];
   assert.equal(customer.role, "CUSTOMER"); assert.ok(customer.password_hash.startsWith("$2"));
-  const duplicate = await api("/auth/register", { method: "POST", body: { full_name: "Nguyen Van Test", email: customerEmail, password, phone: "0900000000" } });
+  const duplicate = await api("/auth/register", { method: "POST", body: { full_name: "Nguyen Van Test", email: customerEmail, password, confirm_password: password, phone: "0900000000", birth_date: "2000-01-01", gender: "Nam" } });
   assert.equal(duplicate.status, 400);
   assert.equal((await api("/users", { token: customerToken })).status, 403);
   pass("registration, login, duplicate account and admin API authorization");
@@ -58,6 +61,12 @@ module.exports = async function browserLive({ browser, backendUrl, db, runDir, a
   await tab.wait("location.pathname==='/flights'&&!!document.querySelector('.flight-select-button')", "search results");
   await tab.click(".flight-select-button");
   await tab.wait("location.pathname==='/passenger-info'&&!!document.querySelector('input[name=document_number]')", "passenger information");
+  await tab.wait("document.querySelector('input[name=date_of_birth]').value==='2000-01-01'&&document.querySelector('select[name=gender]').value==='MALE'", "passenger profile prefill");
+  assert.equal(await tab.evaluate("document.querySelector('input[name=full_name]').value"), 'Nguyen Van Updated');
+  assert.equal(await tab.evaluate("document.querySelector('input[name=email]').value"), customerEmail);
+  assert.equal(await tab.evaluate("document.querySelector('input[name=phone]').value"), '0900000000');
+  assert.equal(await tab.evaluate("document.querySelector('input[name=document_number]').value"), '');
+  assert.ok((await tab.evaluate("document.querySelector('.passenger-profile-notice').innerText")).includes('số giấy tờ'));
   await tab.fill('input[name=date_of_birth]', "2000-01-01"); await tab.fill('input[name=document_number]', "123456789012");
   await tab.click(".baggage-options button:nth-child(2)"); await tab.fill(".meal-select", "CHICKEN_RICE"); await tab.click(".insurance-option");
   await tab.clickText("Tiếp tục"); await tab.wait("!!document.querySelector('.seat.economy')", "seat map");
@@ -72,7 +81,7 @@ module.exports = async function browserLive({ browser, backendUrl, db, runDir, a
   await tab.evaluate("document.querySelector('a[href*=bookingId]').click()"); await tab.wait("!!document.querySelector('.order-summary-card')", "resume checkout");
   assert.equal(+new Date((await db.query("SELECT hold_expires_at FROM booking_details WHERE booking_id=$1", [bookingId])).rows[0].hold_expires_at), holdDeadline);
   const otherEmail = "full.other@example.test";
-  assert.equal((await api("/auth/register", { method: "POST", body: { full_name: "Other Customer", email: otherEmail, password, phone: "0900000001" } })).status, 201);
+  assert.equal((await api("/auth/register", { method: "POST", body: { full_name: "Other Customer", email: otherEmail, password, confirm_password: password, phone: "0900000001", birth_date: "2000-01-01", gender: "Nam" } })).status, 201);
   const otherToken = (await api("/auth/login", { method: "POST", body: { email: otherEmail, password } })).data.token;
   assert.equal((await api(`/bookings/${bookingId}/checkout`, { token: otherToken })).status, 404);
   pass("real search/demo flight, passenger/services, seat hold, reload/resume and order isolation");
@@ -109,6 +118,20 @@ module.exports = async function browserLive({ browser, backendUrl, db, runDir, a
 
   // A separate browser context logs in as admin; the customer's real session remains separate.
   const admin = await browser.tab(); const adminToken = await login(admin, adminEmail, adminPassword);
+  await admin.wait("!!document.querySelector('.dash-donut')", "dashboard statistics loaded");
+  await admin.fill('.dash-filters input[name=from]', date); await admin.fill('.dash-filters input[name=to]', date);
+  await admin.evaluate("document.querySelector('.dash-filters form').requestSubmit()");
+  await admin.wait("!!document.querySelector('.dash-donut')&&document.querySelector('.dash-flight-panel').innerText.includes('HAN')", "dashboard flight range");
+  assert.equal(await admin.evaluate("document.querySelectorAll('.dash-chart').length"), 2);
+  assert.ok((await admin.evaluate("document.querySelector('.dash-projection').innerText")).includes('1.780.000'));
+  assert.ok((await admin.evaluate("document.querySelector('.dash-donut').innerText")).includes('5.0%'));
+  await admin.click('.dash-bar-button'); await admin.wait("document.querySelector('.dash-chart-detail').innerText.includes('MoMo:')", "dashboard chart details");
+  await admin.screenshot(path.join(runDir, "dashboard-desktop.png"));
+  await admin.command("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  assert.ok(await admin.evaluate("document.documentElement.scrollWidth<=innerWidth+1"), "Mobile dashboard overflow");
+  await admin.screenshot(path.join(runDir, "dashboard-mobile.png"));
+  await admin.command("Emulation.clearDeviceMetricsOverride");
+  pass("dashboard real statistics, three charts, passenger profile prefill and mobile layout");
   await admin.visit("/admin/users", `document.body.innerText.includes(${JSON.stringify(customerEmail)})`);
   const customerRow = `[...document.querySelectorAll('tr')].find(row=>row.textContent.includes(${JSON.stringify(customerEmail)}))`;
   await admin.evaluate(`${customerRow}.querySelector('button[title="Khóa tài khoản này"]').click()`); await admin.clickText("Xác nhận khóa tài khoản");
@@ -151,19 +174,59 @@ module.exports = async function browserLive({ browser, backendUrl, db, runDir, a
   pass("paid-order cancellation, seat release, refund persistence and payment history");
 
   await admin.visit("/admin/chat", "!!document.querySelector('.admin-chat-presence button:not(:disabled)')");
-  if (!(await admin.evaluate("document.querySelector('.admin-chat-presence button').getAttribute('aria-pressed')==='true'"))) await admin.click(".admin-chat-presence button");
-  await admin.wait("document.querySelector('.admin-chat-presence button').getAttribute('aria-pressed')==='true'", "staff online");
   const guest = await browser.tab(); await guest.visit("/home", "!!document.querySelector('.support-button')"); await guest.click(".support-button");
-  await guest.wait("!!document.querySelector('.chat-staff-status button:not(:disabled)')", "staff available to guest");
-  await guest.fill(".chatbot-input-area input", "Can ho tro dat ve"); await guest.click(".send-button"); await guest.wait("!document.querySelector('.chatbot-input-area input').disabled", "visitor message saved");
-  await guest.clickText("Chat với nhân viên");
-  await admin.wait("!!document.querySelector('.admin-chat-item')", "WebSocket queue update"); await admin.click(".admin-chat-item"); await admin.wait("!!document.querySelector('.admin-chat-toolbar button:not(:disabled)')", "accept conversation"); await admin.clickText("Tiếp nhận"); await admin.wait("!document.querySelector('.admin-chat-compose input').disabled", "staff owns conversation");
+  await guest.wait("!!document.querySelector('.chatbot-input-area input')&&!document.querySelector('.chatbot-input-area input').disabled", "guest chat ready");
+  assert.equal(await guest.evaluate("document.querySelectorAll('.chat-staff-status button').length"), 0);
+  await guest.fill(".chatbot-input-area input", "xin chào"); await guest.click(".send-button");
+  await guest.wait("document.querySelector('.chatbot-body').innerText.includes('chưa được cấu hình')&&!document.querySelector('.chatbot-input-area input').disabled", "unconfigured Groq is reported before acceptance");
+  const firstChatId = await guest.evaluate("JSON.parse(localStorage.getItem('flight-support-session')).id");
+  await admin.wait("!!document.querySelector('.admin-chat-item')", "automatic WebSocket queue update"); await admin.click(".admin-chat-item"); await admin.wait("!!document.querySelector('.admin-chat-accept:not(:disabled)')", "one-click acceptance"); await admin.clickText("Tiếp nhận"); await admin.wait("!document.querySelector('.admin-chat-compose input').disabled", "staff owns conversation");
+  await guest.wait("document.querySelector('.chat-staff-status').innerText.includes('Nhân viên đang hỗ trợ')", "visitor sees handoff");
+  const botCount = (await db.query("SELECT count(*)::int AS n FROM chat_messages WHERE conversation_id=$1 AND sender='bot'", [firstChatId])).rows[0].n;
+  await guest.fill(".chatbot-input-area input", "xin chào nhân viên"); await guest.click('.send-button');
+  await admin.wait("document.querySelector('.admin-chat-messages').innerText.includes('xin chào nhân viên')", "human receives next message");
   await admin.fill(".admin-chat-compose input", "Full test staff reply"); await admin.evaluate("document.querySelector('.admin-chat-compose').requestSubmit()");
   await guest.wait("document.querySelector('.chatbot-body').innerText.includes('Full test staff reply')", "real-time staff reply");
-  await admin.clickText("Kết thúc hỗ trợ"); await guest.wait("document.querySelector('.chatbot-body').innerText.includes('kết thúc hỗ trợ')", "support ended");
-  assert.ok((await db.query("SELECT count(*)::int AS n FROM chat_messages WHERE text='Full test staff reply' AND sender='admin'")).rows[0].n > 0);
+  assert.equal((await db.query("SELECT count(*)::int AS n FROM chat_messages WHERE conversation_id=$1 AND sender='bot'", [firstChatId])).rows[0].n, botCount);
+  await admin.command("Emulation.setDeviceMetricsOverride", { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+  await admin.screenshot(path.join(runDir, "admin-chat-desktop.png"));
+  await admin.command("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  assert.ok(await admin.evaluate("document.documentElement.scrollWidth<=innerWidth+1"), "Admin chat mobile overflow");
+  await admin.screenshot(path.join(runDir, "admin-chat-mobile.png"));
+  await admin.command("Emulation.clearDeviceMetricsOverride");
+  await guest.click('.reset-button');
+  await guest.wait(`JSON.parse(localStorage.getItem('flight-support-session'))?.id!==${JSON.stringify(firstChatId)}&&!document.querySelector('.chatbot-input-area input').disabled`, "visitor reset while staff active");
+  assert.equal((await db.query('SELECT FROM chat_conversations WHERE id=$1', [firstChatId])).rowCount, 0);
+  assert.equal((await db.query('SELECT FROM chat_messages WHERE conversation_id=$1', [firstChatId])).rowCount, 0);
+  assert.equal((await db.query('SELECT FROM chat_reads WHERE conversation_id=$1', [firstChatId])).rowCount, 0);
+  assert.ok(!(await guest.evaluate("document.querySelector('.chatbot-body').innerText")).includes('Full test staff reply'));
+  const secondChatId = await guest.evaluate("JSON.parse(localStorage.getItem('flight-support-session')).id");
+  await guest.fill('.chatbot-input-area input', 'xin chào'); await guest.click('.send-button');
+  await admin.clickText('Chờ', '.admin-chat-tabs button');
+  await admin.wait("!!document.querySelector('.admin-chat-item')", "new chat automatically queued"); await admin.click('.admin-chat-item'); await admin.clickText('Tiếp nhận');
+  await guest.wait("document.querySelector('.chat-staff-status').innerText.includes('Nhân viên đang hỗ trợ')", "new chat accepted");
+  await admin.click('.admin-chat-delete');
+  await guest.wait(`JSON.parse(localStorage.getItem('flight-support-session'))?.id!==${JSON.stringify(secondChatId)}&&!document.querySelector('.chatbot-input-area input').disabled`, "admin delete clears visitor session");
+  for (const [table, column] of [['chat_conversations', 'id'], ['chat_messages', 'conversation_id'], ['chat_reads', 'conversation_id']]) assert.equal((await db.query(`SELECT FROM ${table} WHERE ${column}=$1`, [secondChatId])).rowCount, 0);
+  await admin.wait("!document.querySelector('.admin-chat-compose')", "admin cleared deleted chat");
+  const thirdChatId = await guest.evaluate("JSON.parse(localStorage.getItem('flight-support-session')).id");
+  // Hold only the AI HTTP call so reset is exercised while the request is pending.
+  // Messages, reset, WebSocket and database operations still use the real server.
+  await guest.evaluate(`(() => {
+    const open = XMLHttpRequest.prototype.open, send = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function(...args) { this.testDelayChat = new URL(args[1], location.href).pathname === '/api/chat'; return open.apply(this, args); };
+    XMLHttpRequest.prototype.send = function(...args) { if (this.testDelayChat) setTimeout(() => { if (this.readyState === 1) send.apply(this, args); }, 1200); else send.apply(this, args); };
+  })()`);
+  await guest.fill('.chatbot-input-area input', 'xin chào'); await guest.click('.send-button');
+  await guest.wait("!!document.querySelector('.typing-row')", "AI request pending");
+  await guest.click('.reset-button');
+  await guest.wait(`JSON.parse(localStorage.getItem('flight-support-session'))?.id!==${JSON.stringify(thirdChatId)}&&!document.querySelector('.chatbot-input-area input').disabled`, "reset during bot response");
+  await guest.evaluate("new Promise(resolve=>setTimeout(resolve,900))");
+  const freshChatId = await guest.evaluate("JSON.parse(localStorage.getItem('flight-support-session')).id");
+  assert.equal((await db.query('SELECT count(*)::int AS n FROM chat_messages WHERE conversation_id=$1', [freshChatId])).rows[0].n, 1);
+  assert.equal((await db.query('SELECT FROM chat_messages WHERE conversation_id=$1', [thirdChatId])).rowCount, 0);
   await guest.screenshot(path.join(runDir, "live-chat.png"));
-  pass("real browser WebSocket queue, staff claim/message/end and PostgreSQL chat history");
+  pass("automatic queue, one-click human takeover, real-time messages, permanent visitor reset/admin deletion and responsive admin inbox");
 
   for (const [width, height] of [[1024, 500], [390, 640], [844, 390]]) {
     await guest.command("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: width < 600 });

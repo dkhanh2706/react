@@ -1,10 +1,15 @@
+import ChatFlightCard from "./ChatFlightCard.jsx";
+
 export default function ChatMessages({
   messages,
   botBusy,
   step,
+  flightData,
+  sending,
   isTyping,
   humanActive,
   goToFlightSearch,
+  handleSend,
   handleQuickOption,
   messagesEndRef
 }) {
@@ -47,11 +52,7 @@ export default function ChatMessages({
 
             {/* SEARCH BUTTON */}
 
-            {step === "done" && !isTyping && !humanActive && <div className="flight-search-action">
-                <button type="button" onClick={goToFlightSearch}>
-                  🔎 Tìm chuyến bay ngay
-                </button>
-              </div>}
+            {step === "done" && !isTyping && !humanActive && <ChatFlightCard flightData={flightData} disabled={sending} onSearch={goToFlightSearch} onApply={handleSend} />}
 
             {/* QUICK OPTION */}
 

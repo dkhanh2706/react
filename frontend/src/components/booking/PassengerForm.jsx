@@ -3,6 +3,8 @@ export default function PassengerForm({
   passenger,
   handlePassengerChange
 }) {
+  const missing = [["full_name", "họ tên"], ["gender", "giới tính"], ["date_of_birth", "ngày sinh"], ["phone", "số điện thoại"], ["email", "email"], ["document_number", "số giấy tờ"]]
+    .filter(([key]) => !String(passenger[key] || "").trim()).map(([, label]) => label);
   return <section className="passenger-card">
                 <div className="passenger-section-heading">
                   <div>
@@ -14,6 +16,11 @@ export default function PassengerForm({
                       <p>Thông tin phải trùng khớp với giấy tờ tùy thân.</p>
                     </div>
                   </div>
+                </div>
+
+                <div className="passenger-profile-notice" role="status">
+                  <p>Thông tin có sẵn từ tài khoản được điền tự động. Bạn kiểm tra lại theo giấy tờ, hoặc sửa nếu đặt vé cho người khác.</p>
+                  {missing.length > 0 && <p>Cần bổ sung: <strong>{missing.join(", ")}</strong>.</p>}
                 </div>
 
                 <div className="passenger-form-grid">
@@ -37,6 +44,7 @@ export default function PassengerForm({
                     </label>
 
                     <select name="gender" value={passenger.gender} onChange={handlePassengerChange}>
+                      <option value="">Chọn giới tính</option>
                       <option value="MALE">Nam</option>
 
                       <option value="FEMALE">Nữ</option>

@@ -143,12 +143,22 @@ function attachChatRealtime(server, { allowedOrigins, path = '/api/chat/live' })
     for (const ws of wss.clients) if (ws.authenticated && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'changed' }));
   };
   events.on('changed', broadcast);
+  const deleted = id => {
+    for (const ws of wss.clients) {
+      if (ws.authenticated && ws.visitor?.id === id && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'deleted', id }));
+        ws.close(4002, 'Conversation deleted');
+      }
+    }
+  };
+  events.on('deleted', deleted);
   let stopped = false;
   const close = () => {
     if (stopped) return;
     stopped = true;
     clearInterval(timer);
     events.off('changed', broadcast);
+    events.off('deleted', deleted);
     server.off('upgrade', onUpgrade);
     for (const ws of wss.clients) ws.terminate();
     wss.close();

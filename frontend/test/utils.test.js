@@ -1,9 +1,39 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { formatNumber, formatMoney, formatDate, formatTime, formatDateTime, vietnamToday } from "../src/utils/format.js";
-import { getAuth, getStoredUser, isAdminUser, clearAuthStorage, isTokenExpired } from "../src/utils/auth.js";
+import { getAuth, getStoredUser, isAdminUser, clearAuthStorage, isTokenExpired, getLoginReturnTarget } from "../src/utils/auth.js";
 import { getGenderName, getMealName } from "../src/utils/labels.js";
-import { getInitialPassenger } from "../src/utils/passenger.js";
+import { getInitialPassenger, passengerFromProfile } from "../src/utils/passenger.js";
+import { validateRegistration } from "../src/utils/registration.js";
+import { normalizeAirport, normalizeDate } from "../src/utils/chatFlightInput.js";
+import { validateChatFlight } from "../src/utils/chatFlightSearch.js";
+import { clearChatSearch, readChatSearch, saveChatSearch } from "../src/utils/chatSearchState.js";
+
+test("chat airport input accepts known cities and codes without treating conversation as a destination", () => {
+  for (const [input, code] of [["đà nẵng", "DAD"], [" TP.HCM ", "SGN"], ["HAN", "HAN"], ["singapore", "SIN"]]) {
+    assert.equal(normalizeAirport(input), code);
+  }
+  for (const input of ["tôi không biết đi đâu", "tôi khoong biết đi đâu", "biển", "abcxyz", "XYZ", "constructor", "toString", null, 123]) {
+    assert.equal(normalizeAirport(input), "");
+  }
+});
+
+test("passenger profiles map account gender and calendar birth dates without inventing missing data", () => {
+  for (const [gender, expected] of [["Nữ", "FEMALE"], ["Nam", "MALE"], ["Khác", "OTHER"], ["FEMALE", "FEMALE"], [undefined, ""], ["invalid", ""]]) {
+    const passenger = passengerFromProfile({ gender, birth_date: "2000-02-29", full_name: "Nguyen Test", phone: "0900000000" });
+    assert.equal(passenger.gender, expected);
+    assert.equal(passenger.date_of_birth, "2000-02-29");
+    assert.equal(passenger.document_number, "");
+  }
+  assert.equal(passengerFromProfile(null).date_of_birth, "");
+});
+
+test("registration checks required profile, real calendar dates and matching password confirmation", () => {
+  const form = { full_name: "Nguyễn Thị Test", email: "test@example.test", phone: "0900000000", birth_date: "2000-02-29", gender: "Nữ", password: "Password123!", confirm_password: "Password123!" };
+  assert.deepEqual(validateRegistration(form), {});
+  for (const [name, value] of [["birth_date", "2001-02-29"], ["birth_date", "2999-01-01"], ["confirm_password", "different"], ["gender", ""], ["email", "test@gmail.con"]]) assert.ok(validateRegistration({ ...form, [name]: value })[name]);
+  assert.equal(Object.keys(validateRegistration(Object.fromEntries(Object.keys(form).map(key => [key, ""])))).length, 7);
+});
 
 test("money formatting handles PostgreSQL numeric strings, zero, missing and invalid values", () => {
   assert.equal(formatMoney("1500000"), "1.500.000đ");
@@ -86,4 +116,32 @@ test("service labels reuse the actual configured meal options", () => {
   assert.equal(getGenderName("female"), "Nữ");
   assert.equal(getGenderName("MALE"), "Nam");
   assert.equal(getGenderName("OTHER"), "Khác");
+});
+
+test("flight link validation rejects invalid dates and duplicate airports", () => {
+  const today = "2026-11-02", draft = { from: "DAD", to: "SGN", date: "2026-11-03" };
+  assert.equal(validateChatFlight(draft, today), "");
+  for (const value of ["31/02/2030", "2030-99-99", "2026-02-29"]) assert.equal(normalizeDate(value), "");
+  assert.equal(normalizeDate("29/02/2028"), "2028-02-29");
+  assert.match(validateChatFlight({ ...draft, date: "2026-11-01" }, today), /ngày đã qua/);
+  assert.match(validateChatFlight({ ...draft, to: "DAD" }, today), /không được trùng/);
+});
+
+test("login return target preserves the selected flight and rejects external redirects", () => {
+  const target = { pathname: "/passenger-info", state: { flight: { id: 123 } } };
+  assert.deepEqual(getLoginReturnTarget(target), { ...target, search: "" });
+  for (const pathname of ["https://evil.example", "//evil.example", "/\\\\evil.example", "/login", "/register"]) assert.equal(getLoginReturnTarget({ pathname }), null);
+});
+
+test("chat restores the chosen route after reload without mixing sessions or keeping expired dates", () => {
+  const values = new Map();
+  const storage = { getItem: key => values.get(key) || null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) };
+  const flightData = { from: 'SGN', to: 'HAN', date: '2080-11-03' };
+  saveChatSearch('session-1', flightData, 'done', storage);
+  assert.deepEqual(readChatSearch(storage, { id: 'session-1' }, '2026-11-02'), { flightData, step: 'done' });
+  assert.equal(readChatSearch(storage, { id: 'session-2' }, '2026-11-02').flightData.from, '');
+  const expired = readChatSearch(storage, { id: 'session-1' }, '2080-11-04');
+  assert.deepEqual(expired, { flightData: { ...flightData, date: '' }, step: 'date' });
+  clearChatSearch(storage);
+  assert.equal(readChatSearch(storage, { id: 'session-1' }, '2026-11-02').step, 'idle');
 });

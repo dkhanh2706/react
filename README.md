@@ -99,8 +99,8 @@ Ví dụ: `formatMoney(1500000)` trả `1.500.000đ`; dùng `formatNumber` nếu
 - Xem trang chủ, điểm đến, các tuyến phổ biến, nội dung giới thiệu hãng và đánh giá khách hàng.
 - Tìm chuyến theo sân bay đi, sân bay đến và ngày bay; xem giờ bay, giá, số ghế còn trống và phân trang kết quả. Điểm đến được lọc theo tuyến hợp lệ.
 - Xem danh sách và chi tiết blog; tìm bài, lọc chuyên mục và sắp xếp bài viết. Nội dung lấy từ `frontend/src/data/blogData.js`, chưa có CMS/API quản trị bài viết.
-- Đăng ký, đăng nhập, quên mật khẩu và đặt lại mật khẩu bằng mã gửi qua email.
-- Mở chatbot, tìm chuyến theo luồng hỏi điểm đi/đến/ngày, hỏi AI hoặc yêu cầu gặp nhân viên. Phiên chat khách có mã riêng, không bắt buộc đăng nhập tài khoản đặt vé.
+- Đăng ký đầy đủ họ tên, email, điện thoại, ngày sinh, giới tính, mật khẩu và xác nhận mật khẩu; lỗi hiển thị dưới từng trường. Đăng nhập, quên mật khẩu và đặt lại mật khẩu bằng mã gửi qua email.
+- Chat Groq hiểu câu tìm chuyến và thay đổi chặng/ngày theo ngữ cảnh; khi đủ thông tin, khách bấm đường dẫn xem kết quả rồi chọn chuyến. Thông tin tài khoản được điền ở form hành khách, chỉ cần kiểm tra và bổ sung mục thiếu. Phiên chat không bắt buộc đăng nhập; xem [luồng AI, đường dẫn tìm chuyến và hồ sơ](docs/groq-flight-assistant.md).
 
 ### Khách đã đăng nhập
 
@@ -122,7 +122,7 @@ Trang chủ hiển thị tối đa **4 đánh giá mới nhất**. Backend xóa 
 
 | Màn hình | Chức năng |
 | --- | --- |
-| Dashboard | Tổng chuyến, tài khoản, doanh thu MoMo và tỷ lệ lấp đầy từ database. Doanh thu chỉ gồm MOMO SUCCESS của đơn CONFIRMED, không có đối soát OPEN; loại thanh toán MOCK. |
+| Dashboard | Lọc theo thời gian, 6 thẻ số liệu, 3 biểu đồ và bảng hiệu suất từng chuyến. Tách MoMo/MOCK theo ngày thanh toán; chuyến, ghế và doanh số dự kiến theo ngày khởi hành. Doanh số dự kiến từ đơn xác nhận hợp lệ + đơn chờ còn hạn, gồm MOCK và ghi rõ giả định. Xem [công thức và kiểm thử](docs/dashboard-profile-update.md). |
 | Người dùng | Tìm kiếm, lọc theo quyền/trạng thái, xem thông tin, khóa/mở khóa; chỉ xóa tài khoản chưa có lịch sử liên quan. Bảo vệ tài khoản admin, không có luồng cấp thêm quyền ADMIN/STAFF. |
 | Chuyến bay | Tìm kiếm, lọc ngày/trạng thái, phân trang, thêm/sửa/hủy chuyến; kiểm tra tuyến, thời gian và trùng lịch máy bay. Chỉ xóa chuyến chưa có lịch sử và không phải chuyến demo. |
 | Đơn đặt vé | Tìm/lọc/phân trang, xem hành khách, ghế, dịch vụ, giá, thanh toán, đối soát. Hủy kèm lý do để giải phóng ghế và giữ lịch sử. Chỉ xóa vĩnh viễn đơn chưa có giao dịch/vé và không ở trạng thái CONFIRMED/PAYMENT_REVIEW, sau khi nhập đúng mã đơn. |
@@ -335,24 +335,26 @@ Base URL local: `http://localhost:5000/api`. API cần đăng nhập dùng heade
 | Đánh giá | `GET /reviews`, `GET /reviews/mine`, `POST /reviews/:bookingId`, `DELETE /reviews/:reviewId` | Danh sách công khai; thao tác cá nhân yêu cầu chủ đơn/bài |
 | Quản trị người dùng | `GET /users`, `GET /users/:id`, `PUT /users/:id/role`, `PUT /users/:id/toggle-lock`, `DELETE /users/:id` | ADMIN; API quyền chỉ chấp nhận CUSTOMER, có bảo vệ admin |
 | Quản trị chuyến | `GET/POST /flights`, `PUT/DELETE /flights/:id`, `PATCH /flights/:id/cancel`, `GET /flights/overview`, `GET /flights/demo/config` | ADMIN |
+| Thống kê dashboard | `GET /flights/statistics?from=YYYY-MM-DD&to=YYYY-MM-DD&group=day` (`group=month` để nhóm theo tháng; tối đa 366 ngày) | ADMIN |
 | Quản trị đơn | `GET /bookings/admin`, `PATCH /bookings/:bookingId/cancel`, `DELETE /bookings/:bookingId` | ADMIN |
 | Giao dịch/hoàn tiền | `GET /payments`, `POST /payments/reviews/:reviewId/refund` | ADMIN |
 | Chat AI | `POST /chat` | Công khai, cần cấu hình Groq |
-| Phiên chat khách | `POST /chat/session`, `/chat/sync`, `/chat/messages`, `/chat/bot`, `/chat/request`, `/chat/cancel` | Tạo phiên công khai; các thao tác còn lại xác minh mã/bí mật phiên chat |
-| Chat quản trị | `POST /chat/admin/state`, `/chat/admin/:id`, `/chat/admin/logout` | ADMIN |
+| Phiên chat khách | `POST /chat/session`, `/chat/sync`, `/chat/messages`, `/chat/bot`, `/chat/reset` | Tạo phiên công khai; các thao tác còn lại xác minh mã/bí mật phiên chat. Reset xóa vĩnh viễn cuộc cũ và tạo cuộc mới. |
+| Chat quản trị | `POST /chat/admin/state`, `/chat/admin/:id` (xem, `accept`, `send`, `end`, `delete`), `/chat/admin/logout` | ADMIN; `delete` xóa cứng cuộc được chọn cùng tin nhắn/dấu đã đọc |
 | Sự kiện chat | WebSocket `/chat/live` (URL đầy đủ `/api/chat/live`) | Xác thực phiên chat hoặc JWT admin trong thông điệp đầu tiên |
 
 Hai endpoint cũ `POST /flights/demo/preview` và `/flights/demo/generate` trả **410** vì đã bỏ tạo lịch hàng loạt. Lệnh `npm run demo:preview` trong backend chỉ đọc cấu hình tuyến, cần database, không tạo chuyến.
 
 ## Chat trực tiếp và thời gian chờ kết nối lại
 
-- Admin vào **Chat hỗ trợ**, bật nút Wi-Fi **Sẵn sàng hỗ trợ** rồi **Tiếp nhận** từng cuộc. Khách có thể yêu cầu gặp nhân viên hoặc hủy yêu cầu. Bot vẫn trả lời trong lúc chờ tiếp nhận.
+- Khi khách gửi tin đầu tiên, hội thoại tự xuất hiện trong hộp thư **Chat hỗ trợ** của admin, kể cả khi nhân viên chưa trực. Khách không cần bấm chuyển nhân viên; bot tiếp tục trả lời đến khi admin bấm **Tiếp nhận**. Không cần bật Wi-Fi trước khi tiếp nhận.
 - Sau khi tiếp nhận, chỉ admin phụ trách được gửi tin; bot tạm dừng riêng cuộc đó. Phản hồi bot đang xử lý cũng bị chặn bằng phiên bản hội thoại.
-- Tắt Wi-Fi chỉ ngừng nhận khách mới, các cuộc đã tiếp nhận vẫn tiếp tục đến khi **Kết thúc hỗ trợ**. Lịch sử được giữ sau khi tải lại trang trên cùng trình duyệt.
+- Nút Wi-Fi thể hiện lựa chọn đang trực/tạm ngừng trực; hội thoại vẫn tự vào hộp thư và admin vẫn chủ động tiếp nhận được. Các cuộc đã nhận tiếp tục đến khi **Kết thúc hỗ trợ**. Tin mới sau kết thúc đưa cuộc chat về hàng chờ.
+- **Làm mới cuộc trò chuyện** ở phía khách xóa cứng cuộc cũ rồi tạo mã/bí mật phiên mới. **Xóa** ở phía admin xóa ngay cuộc đang chọn, kể cả đang hỗ trợ; không xóa các cuộc khác. Tin nhắn và dấu đã đọc bị xóa theo, không tạo thùng rác hay bản lưu lịch sử xóa. Các phía đang kết nối bỏ phiên cũ; khách được mở cuộc mới. Xem [chi tiết thay đổi chat](docs/chat-handoff-deletion.md).
 - **Mốc chờ đã chốt: 60 giây kể từ khi backend phát hiện admin mất kết nối.** Giá trị duy nhất để đổi nằm ở `ADMIN_RECONNECT_GRACE_MS` trong [liveChat.service.js](backend/services/liveChat.service.js), có ghi chú ngay cạnh. Không tạo file cấu hình riêng chỉ cho mốc này.
 - Kết nối WebSocket được giữ chung cho phiên đăng nhập, xuyên suốt các mục admin và cả khi admin xem trang khách hàng. Nút Wi-Fi và số tin chưa đọc dùng chung trạng thái, không tạo lại khi đổi mục.
 - Backend theo dõi từng tab bằng WebSocket: còn một tab admin kết nối thì vẫn online. Ping/pong mỗi 5 giây do server chủ động gửi, không phụ thuộc bộ đếm JavaScript của tab nền. Đóng tab cuối sẽ bắt đầu chờ kết nối lại; mất mạng được phát hiện qua ping/pong và lease 15 giây. Trong thời gian chờ, khách vẫn gửi tin được và bot tạm dừng. Admin quay lại trong 60 giây sẽ tiếp tục cuộc cũ.
-- Đăng xuất khi có mạng sẽ tắt nhận khách, chuyển các cuộc đang hỗ trợ về bot ngay và đóng kết nối của admin trên các tab. Nếu đăng xuất khi mất mạng, backend xử lý như mất kết nối và giữ mốc chờ 60 giây. Đăng nhập lại sau khi đăng xuất cần tự bật Wi-Fi; mỗi lần đăng nhập có mã phiên JWT riêng.
+- Đăng xuất khi có mạng sẽ tắt trạng thái trực, chuyển các cuộc đang hỗ trợ về bot ngay và đóng kết nối của admin trên các tab. Nếu đăng xuất khi mất mạng, backend xử lý như mất kết nối và giữ mốc chờ 60 giây. Mỗi lần đăng nhập có mã phiên JWT riêng; admin có thể bấm **Tiếp nhận** mà không cần bật trạng thái trực.
 - Quá thời gian chờ, backend tự kết thúc quyền phụ trách, thông báo chuyển về bot và xử lý tin khách chưa được trả lời. Worker kiểm tra mỗi 3 giây; thời gian sinh câu trả lời AI phụ thuộc Groq. Admin quay lại muộn phải **Tiếp nhận** lại. Không cần mở trang khách để worker hoạt động.
 - Để cài trên database hiện có, người quản trị áp dụng **chỉ migration 007** nếu 001–006 đã có, rồi khởi động lại backend. Chat trực tiếp không cần Groq; câu trả lời AI cần `GROQ_API_KEY`. Khi AI lỗi, hệ thống báo rõ thay vì bỏ khách chờ mãi.
 - Kiểm thử riêng: `npm run test:chat` trong backend với `TEST_DATABASE_URL` trỏ tới database local **mới, rỗng**, tên `airline_booking_test[_hậu_tố]`. Dùng database khác với lượt `npm test` vì mỗi bộ tự dựng schema riêng.
@@ -388,7 +390,7 @@ Bản này dùng **một tiến trình backend**, lưu hội thoại trong Postg
 6. Với MOCK, dùng mã xử lý nội bộ thử nghiệm, không chuyển tiền thật. Với MOMO, chỉ xác nhận sau khi hoàn khoản tương ứng bên ngoài hệ thống. Hệ thống không tự chuyển tiền hoàn.
 7. Dùng hai tài khoản ở hai trình duyệt chọn cùng ghế: chỉ một người giữ được.
 
-MOCK không tính doanh thu MoMo; dashboard có thể bằng 0 khi demo. Đơn có giao dịch PENDING/FAILED/SUCCESS/REFUNDED đều được giữ lịch sử để xử lý callback muộn. Xem chi tiết ở [bản hoàn thiện](docs/report-readiness.md).
+MOCK không tính doanh thu MoMo; dashboard hiển thị số tiền MOCK riêng. Đơn có giao dịch PENDING/FAILED/SUCCESS/REFUNDED đều được giữ lịch sử để xử lý callback muộn. Xem chi tiết ở [bản hoàn thiện](docs/report-readiness.md) và [dashboard/hồ sơ](docs/dashboard-profile-update.md).
 
 ## Kiểm thử
 

@@ -10,6 +10,7 @@ function Chatbot() {
     input,
     setInput,
     step,
+    flightData,
     isTyping,
     messages,
     live,
@@ -19,7 +20,6 @@ function Chatbot() {
     messagesEndRef,
     handleQuickOption,
     handleSend,
-    requestStaff,
     handleKeyDown,
     goToFlightSearch,
     resetChat
@@ -40,20 +40,17 @@ function Chatbot() {
       {open && <div className="chatbot-box">
           {/* HEADER */}
 
-          <ChatHeader humanActive={humanActive} resetChat={resetChat} setOpen={setOpen} />
+          <ChatHeader humanActive={humanActive} resetChat={resetChat} connecting={live.connecting} setOpen={setOpen} />
 
-          {live.session && <div className="chat-staff-status" role="status">
+          {live.session && live.session.status !== "waiting" && <div className="chat-staff-status" role="status">
             {humanActive ? live.session.disconnected_at ? `Nhân viên mất kết nối. Bot sẽ hỗ trợ sau tối đa ${live.session.reconnectGraceMs / 1000} giây.` : "Nhân viên đang hỗ trợ bạn" : <>
-                <span>{live.session.status === "waiting" ? "Đang chờ tiếp nhận · Bot vẫn hỗ trợ" : live.session.available ? "Nhân viên sẵn sàng hỗ trợ" : "Nhân viên ngoại tuyến · Bot vẫn hỗ trợ"}</span>
-                <button type="button" onClick={requestStaff} disabled={!live.session.available && live.session.status !== "waiting"}>
-                  {live.session.status === "waiting" ? "Hủy yêu cầu" : "Chat với nhân viên"}
-                </button>
+                <span>Bot đang hỗ trợ · Nhân viên có thể tiếp nhận hội thoại</span>
               </>}
           </div>}
           {live.error && <div className="chat-connection-error" role="alert">{live.error}</div>}
           {/* BODY */}
 
-          <ChatMessages messages={messages} botBusy={botBusy} step={step} isTyping={isTyping} humanActive={humanActive} goToFlightSearch={goToFlightSearch} handleQuickOption={handleQuickOption} messagesEndRef={messagesEndRef} />
+          <ChatMessages messages={messages} botBusy={botBusy} step={step} flightData={flightData} sending={sending} isTyping={isTyping} humanActive={humanActive} goToFlightSearch={goToFlightSearch} handleSend={handleSend} handleQuickOption={handleQuickOption} messagesEndRef={messagesEndRef} />
 
           {/* INPUT */}
 

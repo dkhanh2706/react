@@ -44,11 +44,11 @@ async function main() {
   for (const name of [integrationDb, chatDb, demoDb]) await db.query(`CREATE DATABASE "${name}"`);
   await db.end();
   if (process.argv.includes("--api-only")) {
-    await run(process.execPath, ["--test", "test/avatar.test.js", "test/demoFlights.test.js", "test/security.test.js", "test/integration.test.js"], path.join(root, "backend"), { TEST_DATABASE_URL: `postgresql://postgres@127.0.0.1:${pgPort}/${integrationDb}` }, "backend");
+    await run(process.execPath, ["--test", "test/avatar.test.js", "test/demoFlights.test.js", "test/security.test.js", "test/chatAssistant.test.js", "test/integration.test.js"], path.join(root, "backend"), { TEST_DATABASE_URL: `postgresql://postgres@127.0.0.1:${pgPort}/${integrationDb}` }, "backend");
     return;
   }
   if (!process.argv.includes("--live-only")) {
-    await run(process.execPath, ["--test", "test/avatar.test.js", "test/demoFlights.test.js", "test/security.test.js", "test/integration.test.js"], path.join(root, "backend"), { TEST_DATABASE_URL: `postgresql://postgres@127.0.0.1:${pgPort}/${integrationDb}` }, "backend");
+    await run(process.execPath, ["--test", "test/avatar.test.js", "test/demoFlights.test.js", "test/security.test.js", "test/chatAssistant.test.js", "test/integration.test.js"], path.join(root, "backend"), { TEST_DATABASE_URL: `postgresql://postgres@127.0.0.1:${pgPort}/${integrationDb}` }, "backend");
     await run(process.execPath, ["--test", "test/liveChat.test.js"], path.join(root, "backend"), { TEST_DATABASE_URL: `postgresql://postgres@127.0.0.1:${pgPort}/${chatDb}` }, "chat");
     await run(process.execPath, ["--test", "test/utils.test.js"], path.join(root, "frontend"), {}, "frontend-unit");
     await run(process.execPath, ["node_modules/eslint/bin/eslint.js", "."], path.join(root, "frontend"), {}, "lint");

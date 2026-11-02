@@ -4,6 +4,7 @@ const passwords = require("../services/password.service");
 const db = require("../config/database");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const { validDate, vietnamToday } = require("../lib/validation");
 
 // =====================================================
 // HÀM VALIDATE DÙNG CHUNG
@@ -125,7 +126,7 @@ function validatePhone(phoneValue) {
 
 exports.register = async (req, res) => {
   try {
-    let { full_name, email, password, phone } = req.body;
+    let { full_name, email, password, phone, birth_date, gender, confirm_password } = req.body;
     full_name = String(full_name || "").trim();
     email = String(email || "")
       .trim()
@@ -133,37 +134,16 @@ exports.register = async (req, res) => {
     password = String(password || "");
     phone = String(phone || "").trim();
 
-    const fullNameError = validateFullName(full_name);
-
-    if (fullNameError) {
-      return res.status(400).json({
-        message: fullNameError,
-      });
-    }
-
-    const emailError = validateEmail(email);
-
-    if (emailError) {
-      return res.status(400).json({
-        message: emailError,
-      });
-    }
-
-    const passwordError = validatePassword(password);
-
-    if (passwordError) {
-      return res.status(400).json({
-        message: passwordError,
-      });
-    }
-
-    const phoneError = validatePhone(phone);
-
-    if (phoneError) {
-      return res.status(400).json({
-        message: phoneError,
-      });
-    }
+    birth_date = String(birth_date || "");
+    gender = String(gender || "");
+    const errors = Object.fromEntries(Object.entries({
+      full_name: validateFullName(full_name), email: validateEmail(email),
+      password: validatePassword(password), phone: validatePhone(phone),
+      birth_date: !validDate(birth_date) || birth_date > vietnamToday() ? "Chọn ngày sinh hợp lệ, không lớn hơn hôm nay" : "",
+      gender: ["Nam", "Nữ", "Khác"].includes(gender) ? "" : "Vui lòng chọn giới tính",
+      confirm_password: !confirm_password || confirm_password !== password ? "Xác nhận mật khẩu phải trùng với mật khẩu" : "",
+    }).filter(([, error]) => error));
+    if (Object.keys(errors).length) return res.status(400).json({ message: "Vui lòng kiểm tra thông tin đăng ký", errors });
 
     // =====================================================
     // KIỂM TRA EMAIL ĐÃ TỒN TẠI
@@ -181,7 +161,7 @@ exports.register = async (req, res) => {
 
     if (checkUser.rows.length > 0) {
       return res.status(400).json({
-        message: "Email đã tồn tại",
+        message: "Email đã tồn tại", errors: { email: "Email đã tồn tại" },
       });
     }
 
@@ -198,7 +178,9 @@ exports.register = async (req, res) => {
           full_name,
           email,
           password_hash,
-          phone
+          phone,
+          birth_date,
+          gender
         )
 
         VALUES
@@ -206,7 +188,9 @@ exports.register = async (req, res) => {
           $1,
           $2,
           $3,
-          $4
+          $4,
+          $5,
+          $6
         )
 
         RETURNING
@@ -214,9 +198,11 @@ exports.register = async (req, res) => {
           full_name,
           email,
           phone,
+          TO_CHAR(birth_date, 'YYYY-MM-DD') AS birth_date,
+          gender,
           role
       `,
-      [full_name, email, passwordHash, phone],
+      [full_name, email, passwordHash, phone, birth_date, gender],
     );
 
     return res.status(201).json({
@@ -232,7 +218,7 @@ exports.register = async (req, res) => {
 
     if (error.code === "23505") {
       return res.status(400).json({
-        message: "Email đã tồn tại",
+        message: "Email đã tồn tại", errors: { email: "Email đã tồn tại" },
       });
     }
 

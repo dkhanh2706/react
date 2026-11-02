@@ -137,6 +137,43 @@ after(async () => {
 });
 const check = (name, fn) => test(name, { skip: !enabled }, fn);
 
+check("registration requires a complete profile and matching passwords, stores only the password hash", async () => {
+  // A separate test HTTP listener keeps validation cases out of the shared auth
+  // rate-limit budget used by the other end-to-end account flows.
+  const express = require("express"), auth = require("../controllers/auth.controller");
+  const app = express(); app.use(express.json());
+  app.post("/api/auth/register", auth.register); app.post("/api/auth/login", auth.login);
+  const listener = await new Promise(resolve => { const server = app.listen(0, "127.0.0.1", () => resolve(server)); });
+  const authRequest = async (path, body) => {
+    const response = await fetch(`http://127.0.0.1:${listener.address().port}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    return { status: response.status, data: await response.json() };
+  };
+  try {
+  const missing = await authRequest("/api/auth/register", {});
+  assert.equal(missing.status, 400);
+  assert.deepEqual(Object.keys(missing.data.errors).sort(), ["full_name", "email", "password", "phone", "birth_date", "gender", "confirm_password"].sort());
+  const body = { full_name: "Nguyen Thi Dang Ky", email: "registration@example.test", phone: "0900000007", birth_date: "2001-02-03", gender: "Nữ", password: "RegisterPassword123!", confirm_password: "RegisterPassword123!", role: "ADMIN" };
+  for (const overrides of [{ birth_date: "2001-02-30" }, { birth_date: "2999-01-01" }, { gender: "invalid" }, { confirm_password: "different" }, { phone: "123" }]) {
+    const invalid = await authRequest("/api/auth/register", { ...body, ...overrides });
+    assert.equal(invalid.status, 400);
+    assert.ok(invalid.data.errors[Object.keys(overrides)[0]]);
+  }
+  const created = await authRequest("/api/auth/register", body);
+  assert.equal(created.status, 201);
+  assert.equal(created.data.user.birth_date, body.birth_date);
+  assert.equal(created.data.user.gender, "Nữ");
+  assert.equal(created.data.user.role, "CUSTOMER");
+  assert.equal(created.data.user.password_hash, undefined);
+  const stored = (await pool.query("SELECT password_hash FROM users WHERE id=$1", [created.data.user.id])).rows[0];
+  assert.ok(await bcrypt.compare(body.password, stored.password_hash));
+  const duplicate = await authRequest("/api/auth/register", body);
+  assert.equal(duplicate.data.errors.email, "Email đã tồn tại");
+  const login = await authRequest("/api/auth/login", { email: body.email, password: body.password });
+  assert.equal(login.data.user.birth_date, body.birth_date);
+  assert.equal(login.data.user.gender, "Nữ");
+  } finally { await new Promise(resolve => listener.close(resolve)); }
+});
+
 check("avatar upload stays with its owner across fresh login, profile and admin listing", async () => {
   const form = new FormData();
   const sharp = require("sharp");
@@ -723,4 +760,100 @@ test("profile update rejects invalid input and never accepts forged account role
   assert.equal(updated.data.user.is_primary_admin, false);
   assert.equal((await request("/api/users/profile", { token, method: "PUT", body: { full_name: "123-invalid", phone: "0900000012" } })).status, 400);
   assert.equal((await pool.query("SELECT full_name FROM users WHERE id=$1", [account.id])).rows[0].full_name, "Profile Updated");
+});
+
+check("dashboard separates payment dates and departure dates and handles expiry, cancellation, refunds and duplicate attempts", async () => {
+  const token = require("jsonwebtoken").sign({ id: 2, token_version: (await pool.query("SELECT token_version FROM users WHERE id=2")).rows[0].token_version }, process.env.JWT_SECRET, { expiresIn: "1h" });
+  const plane = (await pool.query("INSERT INTO airplanes(airline_id,model,seat_capacity) VALUES(1,'Statistics plane',8) RETURNING id")).rows[0].id;
+  const smallPlane = (await pool.query("INSERT INTO airplanes(airline_id,model,seat_capacity) VALUES(1,'Statistics small plane',2) RETURNING id")).rows[0].id;
+  const statsSeats = (await pool.query("INSERT INTO seats(airplane_id,seat_number,class) SELECT $1,n::text,'ECONOMY' FROM generate_series(1,8) n RETURNING id", [plane])).rows;
+  await pool.query("INSERT INTO seats(airplane_id,seat_number,class) SELECT $1,n::text,'ECONOMY' FROM generate_series(1,2) n", [smallPlane]);
+  const flights = (await pool.query(`INSERT INTO flights(flight_number,airline_id,airplane_id,departure_airport_id,arrival_airport_id,departure_time,arrival_time,status,price)
+    VALUES('STAT001',1,$1,1,2,'2088-06-01 06:30','2088-06-01 08:30','AVAILABLE',1000000),
+      ('STAT002',1,$2,1,2,'2088-06-02 06:30','2088-06-02 08:30','DELAYED',1000000),
+      ('STAT003',1,$1,1,2,'2088-06-03 06:30','2088-06-03 08:30','CANCELLED',1000000) RETURNING id`, [plane, smallPlane])).rows;
+  const id = flights[0].id;
+  const statsUrl = "/api/flights/statistics?from=2088-06-01&to=2088-06-03";
+  const stats = async () => {
+    const response = await request(statsUrl, { token: adminToken });
+    assert.equal(response.status, 200, JSON.stringify(response.data));
+    return response.data;
+  };
+  const make = async index => {
+    assert.equal((await request("/api/bookings/hold-seat", { token, method: "POST", body: { flight_id: id, seat_id: statsSeats[index].id } })).status, 200);
+    const created = await request("/api/bookings", { token, method: "POST", body: { flight_id: id, seat_id: statsSeats[index].id, passenger } });
+    assert.equal(created.status, 200);
+    return created.data.booking.id;
+  };
+  assert.equal((await request(statsUrl)).status, 401);
+  assert.equal((await request(statsUrl, { token })).status, 403);
+  for (const query of ["from=2088-02-30&to=2088-03-01", "from=2088-06-03&to=2088-06-01", "from=2088-01-01&to=2090-01-01", "group=hour"]) assert.equal((await request(`/api/flights/statistics?${query}`, { token: adminToken })).status, 400);
+  let data = await stats();
+  assert.equal(data.summary.flight_count, 3);
+  assert.equal(data.summary.cancelled_flights, 1);
+  assert.equal(data.summary.offered_seats, 10); // 8 + 2; cancelled flight excluded.
+  assert.equal(data.revenue_series.length, 3);
+  assert.equal(data.flight_series.reduce((sum, p) => sum + p.total, 0), 3);
+  const mockId = await make(0);
+  assert.equal((await request(`/api/bookings/${mockId}/pay`, { token, method: "POST" })).status, 200);
+  const momoId = await make(1);
+  const created = await request("/api/payments/momo/create", { token, method: "POST", body: { bookingId: momoId } });
+  assert.equal(created.status, 200);
+  const body = ipnBody(created.data, momoId);
+  assert.equal((await request("/api/payments/momo/ipn", { method: "POST", body })).status, 200);
+  assert.equal((await request("/api/payments/momo/ipn", { method: "POST", body })).status, 200);
+  const expiredId = await make(3);
+  await pool.query("UPDATE booking_details SET hold_expires_at=LOCALTIMESTAMP-interval '1 minute' WHERE booking_id=$1", [expiredId]);
+  const pendingId = await make(2);
+  // Bare TMP holds occupy inventory but have no completed order value.
+  assert.equal((await request("/api/bookings/hold-seat", { token: adminToken, method: "POST", body: { flight_id: id, seat_id: statsSeats[4].id } })).status, 200);
+  data = await stats();
+  assert.equal(data.summary.booked_seats, 2);
+  assert.equal(data.summary.held_seats, 2);
+  assert.equal(data.summary.empty_seats, 6);
+  assert.equal(data.summary.occupancy_rate, 20); // Weighted 2 / (8 + 2), not mean flight percentages.
+  assert.equal(data.summary.confirmed_value, 2000000);
+  assert.equal(data.summary.pending_value, 1000000);
+  assert.equal(data.summary.projected_sales, 3000000);
+  assert.equal(data.summary.momo_revenue, 0); // Paid now, flies in 2088.
+  assert.equal(data.summary.mock_revenue, 0);
+  assert.equal((await pool.query("SELECT seat_status FROM booking_details WHERE booking_id=$1", [expiredId])).rows[0].seat_status, 'EXPIRED'); // The following hold expired it.
+  // Querying alone also excludes an expired hold without updating persisted state.
+  await pool.query("UPDATE booking_details SET hold_expires_at=LOCALTIMESTAMP-interval '1 minute' WHERE booking_id=$1", [pendingId]);
+  assert.equal((await stats()).summary.pending_value, 0);
+  assert.equal((await pool.query("SELECT seat_status FROM booking_details WHERE booking_id=$1", [pendingId])).rows[0].seat_status, 'HOLD');
+  const today = require("../lib/validation").vietnamToday();
+  const paidToday = () => request(`/api/flights/statistics?from=${today}&to=${today}`, { token: adminToken });
+  let cash = (await paidToday()).data;
+  assert.ok(cash.summary.momo_revenue >= 1000000);
+  assert.ok(cash.summary.mock_revenue >= 1000000);
+  const momoBefore = cash.summary.momo_revenue;
+  // A captured duplicate is awaiting review and must not inflate totals.
+  const duplicate = (await pool.query("INSERT INTO payments(booking_id,method,amount,status,paid_at) VALUES($1,'MOMO',1000000,'SUCCESS',LOCALTIMESTAMP) RETURNING id", [momoId])).rows[0];
+  await pool.query("INSERT INTO payment_review_cases(payment_id,booking_id,reason) VALUES($1,$2,'Duplicate captured payment')", [duplicate.id, momoId]);
+  assert.equal((await paidToday()).data.summary.momo_revenue, momoBefore);
+  // Date boundaries use half-open ranges: a payment on the end date at 23:59 is included.
+  await pool.query("UPDATE payments SET paid_at='2088-06-03 23:59:59' WHERE booking_id=$1", [mockId]);
+  assert.equal((await stats()).summary.mock_revenue, 1000000);
+  const monthly = await request(statsUrl + "&group=month", { token: adminToken });
+  assert.equal(monthly.data.flight_series.length, 1);
+  assert.equal(monthly.data.flight_series[0].total, 3);
+  assert.equal(monthly.data.summary.mock_revenue, 1000000);
+  const outside = await request("/api/flights/statistics?from=2088-07-01&to=2088-07-01", { token: adminToken });
+  assert.equal(outside.data.summary.occupancy_rate, null);
+  assert.equal(outside.data.summary.projected_sales, 0);
+  assert.equal((await request(`/api/bookings/${momoId}/cancel`, { token: adminToken, method: "PATCH", body: { reason: "Statistics cancellation check" } })).status, 200);
+  data = await stats();
+  assert.equal(data.summary.confirmed_value, 1000000);
+  assert.equal(data.summary.booked_seats, 1);
+  assert.equal((await paidToday()).data.summary.momo_revenue, momoBefore - 1000000);
+  const cases = (await pool.query("SELECT id FROM payment_review_cases WHERE booking_id=$1", [momoId])).rows;
+  for (const review of cases) assert.equal((await request(`/api/payments/reviews/${review.id}/refund`, { token: adminToken, method: "POST", body: { note: "Statistics refund recorded", refund_reference: `STAT-REFUND-${review.id}` } })).status, 200);
+  assert.equal((await paidToday()).data.summary.momo_revenue, momoBefore - 1000000);
+  assert.equal((await request(`/api/flights/${id}/cancel`, { token: adminToken, method: "PATCH", body: { reason: "Statistics flight cancellation" } })).status, 200);
+  data = await stats();
+  assert.equal(data.summary.offered_seats, 2);
+  assert.equal(data.summary.booked_seats, 0);
+  assert.equal(data.summary.projected_sales, 0);
+  assert.equal(data.summary.mock_revenue, 0);
 });

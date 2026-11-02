@@ -19,12 +19,20 @@ const handle = work => async (req, res, next) => {
   }
 };
 
-exports.create = handle(async client => {
+async function createConversation(client) {
   const id = crypto.randomUUID();
   const secret = crypto.randomBytes(32).toString('hex');
   const { rows } = await client.query('INSERT INTO chat_conversations(id,secret_hash) VALUES($1,$2) RETURNING *', [id, live.hash(secret)]);
   await live.message(client, id, 'bot', 'Xin chào 👋 Mình là trợ lý đặt vé máy bay. Mình có thể giúp gì cho bạn?');
   return { ...await live.snapshot(client, rows[0]), secret };
+}
+
+exports.create = handle(createConversation);
+
+exports.reset = handle(async (client, req) => {
+  const c = await live.visitor(client, req.body);
+  await live.removeConversation(client, c.id);
+  return createConversation(client);
 });
 
 exports.sync = handle(async (client, req) => live.snapshot(client, await live.visitor(client, req.body)));
@@ -34,6 +42,9 @@ exports.send = handle(async (client, req) => {
   const { text, requestId } = req.body;
   if (typeof text !== 'string' || !text.trim() || text.length > 4000 || !live.uuid(requestId)) throw live.fail(400, 'Tin nhắn cần có nội dung, tối đa 4000 ký tự.');
   await live.message(client, c.id, 'user', text.trim(), c.status === 'active', requestId);
+  if (c.status !== 'active' && c.status !== 'waiting') {
+    await client.query("UPDATE chat_conversations SET status='waiting',admin_id=NULL,disconnected_at=NULL WHERE id=$1", [c.id]);
+  }
   return live.snapshot(client, c);
 });
 
@@ -49,20 +60,15 @@ exports.bot = handle(async (client, req) => {
 exports.request = handle(async (client, req) => {
   const c = await live.visitor(client, req.body);
   if (c.status === 'active' || c.status === 'waiting') return live.snapshot(client, c);
-  if (!await live.available(client)) throw live.fail(409, 'Nhân viên hiện ngoại tuyến. Bot vẫn tiếp tục hỗ trợ bạn.');
   c.status = 'waiting';
   await client.query("UPDATE chat_conversations SET status='waiting',updated_at=now() WHERE id=$1", [c.id]);
-  await live.message(client, c.id, 'system', 'Đang chờ nhân viên tiếp nhận. Trong lúc chờ, bot vẫn hỗ trợ bạn.');
+  await live.message(client, c.id, 'system', 'Hội thoại đã được gửi tới nhân viên. Trong lúc chờ, bot vẫn hỗ trợ bạn.');
   return live.snapshot(client, c);
 });
 
 exports.cancel = handle(async (client, req) => {
   const c = await live.visitor(client, req.body);
-  if (c.status === 'waiting') {
-    c.status = 'bot';
-    await client.query("UPDATE chat_conversations SET status='bot' WHERE id=$1", [c.id]);
-    await live.message(client, c.id, 'system', 'Đã hủy yêu cầu gặp nhân viên.');
-  }
+  // Kept for old clients: automatic handoff cannot be cancelled by hiding the queue.
   return live.snapshot(client, c);
 });
 
@@ -83,7 +89,9 @@ exports.adminState = handle(async (client, req) => {
     (SELECT text FROM chat_messages WHERE conversation_id=c.id ORDER BY id DESC LIMIT 1) AS last_message,
     (SELECT count(*)::int FROM chat_messages WHERE conversation_id=c.id AND sender='user' AND id > COALESCE(
       (SELECT last_message_id FROM chat_reads WHERE conversation_id=c.id AND admin_id=$1),0)) AS unread
-    FROM chat_conversations c WHERE c.status IN ('waiting','active','ended') ORDER BY c.updated_at DESC LIMIT 200`, [adminId]);
+    FROM chat_conversations c WHERE c.status IN ('waiting','active','ended')
+      OR EXISTS(SELECT FROM chat_messages m WHERE m.conversation_id=c.id AND m.sender='user')
+    ORDER BY c.updated_at DESC`, [adminId]);
   return { available: rows[0]?.available || false, adminId, conversations: conversations.rows };
 });
 
@@ -105,9 +113,15 @@ exports.adminConversation = handle(async (client, req) => {
   const c = (await client.query('SELECT * FROM chat_conversations WHERE id=$1 FOR UPDATE', [req.params.id])).rows[0];
   if (!c) throw live.fail(404, 'Không tìm thấy cuộc chat.');
   const { action, text, requestId } = req.body;
+  if (action === 'delete') {
+    await live.removeConversation(client, c.id);
+    return { deleted: true, id: c.id };
+  }
   if (action === 'accept') {
-    const p = (await client.query('SELECT * FROM chat_presence WHERE admin_id=$1', [req.user.id])).rows[0];
-    if (!p?.available || Date.now() - +new Date(p.last_seen) >= live.PRESENCE_LEASE_MS) throw live.fail(409, 'Hãy bật sẵn sàng hỗ trợ trước khi tiếp nhận.');
+    // Accept is the only action needed to start support; availability is just a
+    // presence preference and does not prevent explicitly accepting a chat.
+    await client.query(`INSERT INTO chat_presence(admin_id,last_seen) VALUES($1,now())
+      ON CONFLICT(admin_id) DO UPDATE SET last_seen=now()`, [req.user.id]);
     if (c.status === 'active') throw live.fail(409, 'Cuộc chat đã được tiếp nhận.');
     c.status = 'active'; c.admin_id = req.user.id; c.disconnected_at = null; c.version++;
     await client.query("UPDATE chat_conversations SET status='active',admin_id=$2,disconnected_at=NULL,version=$3 WHERE id=$1", [c.id, c.admin_id, c.version]);

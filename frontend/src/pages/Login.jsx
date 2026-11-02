@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { getLoginReturnTarget } from "../utils/auth.js";
 import toast from "react-hot-toast";
 import {
   Mail,
@@ -16,6 +17,8 @@ import AuthLayout from "../layouts/AuthLayout";
 
 function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTarget = getLoginReturnTarget(location.state?.from);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -55,7 +58,7 @@ function Login() {
         if (isAdmin) {
           navigate("/admin", { replace: true });
         } else {
-          navigate("/home", { replace: true });
+          navigate(returnTarget ? returnTarget.pathname + returnTarget.search : "/home", { replace: true, state: returnTarget?.state });
         }
       }, 500);
     } catch (error) {
@@ -177,7 +180,7 @@ function Login() {
       {/* Register CTA Button */}
       <button
         type="button"
-        onClick={() => navigate("/register")}
+        onClick={() => navigate("/register", { state: { from: returnTarget } })}
         className="w-full py-3.5 px-4 rounded-xl border border-slate-200 hover:border-sky-300 bg-white hover:bg-sky-50/50 text-slate-700 hover:text-sky-700 text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-sm active:scale-[0.985] cursor-pointer group"
       >
         <UserPlus className="w-4 h-4 text-slate-500 group-hover:text-sky-600 transition-colors" />

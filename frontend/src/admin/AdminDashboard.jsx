@@ -1,343 +1,97 @@
-import { formatNumber } from "../utils/format.js";
-import { getStoredUser } from "../utils/auth.js";
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  Plane,
-  Users,
-  CreditCard,
-  PlusCircle,
-  ArrowUpRight,
-  ShieldCheck,
-  Activity,
-  Sparkles,
-} from "lucide-react";
-
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { Plane, CreditCard, Armchair, Ticket, TrendingUp, FlaskConical, RefreshCw, CalendarDays } from "lucide-react";
+import { formatDate, formatDateTime, formatMoney, formatNumber, vietnamToday } from "../utils/format.js";
 import api from "../api/axios";
 import AdminLayout from "../layouts/AdminLayout";
+import { PeriodChart, SeatChart } from "../components/admin/DashboardCharts.jsx";
 import "../styles/admin/AdminDashboard.css";
 
-function AdminDashboard() {
-  const navigate = useNavigate();
-
-  const [flightCount, setFlightCount] = useState(0);
-  const [userCount, setUserCount] = useState(0);
-  const [recentFlights, setRecentFlights] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [overview, setOverview] = useState(null);
-  const [loadError, setLoadError] = useState("");
-
-  const user = getStoredUser();
-  const adminName = user?.full_name || user?.name || "Administrator";
-
-  useEffect(() => {
-    const fetchOverviewData = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const config = { headers: { Authorization: `Bearer ${token}` } };
-
-        // Fetch flights and users in parallel
-        const [flightsRes, usersRes, overviewRes] = await Promise.allSettled([
-          api.get("/flights", config),
-          api.get("/users", config),
-          api.get("/flights/overview", config),
-        ]);
-
-        if (overviewRes.status === "fulfilled") setOverview(overviewRes.value.data);
-        if ([flightsRes, usersRes, overviewRes].some(r => r.status === "rejected")) setLoadError("Một số số liệu chưa tải được. Vui lòng thử lại.");
-        if (flightsRes.status === "fulfilled") {
-          const list = flightsRes.value.data?.data || flightsRes.value.data || [];
-          setFlightCount(Array.isArray(list) ? list.length : 0);
-          setRecentFlights(Array.isArray(list) ? list.slice(0, 5) : []);
-        }
-
-        if (usersRes.status === "fulfilled") {
-          const uList = usersRes.value.data || [];
-          setUserCount(Array.isArray(uList) ? uList.length : 0);
-        }
-      } catch (err) {
-        console.error("Dashboard overview error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchOverviewData();
-  }, []);
-
-  return (
-    <AdminLayout pageTitle="Tổng quan Dashboard">
-      <div className="adm-dashboard-page">
-        {loadError && <p role="alert">{loadError}</p>}
-        {/* ================= HERO BANNER ================= */}
-        <section className="adm-hero-banner">
-          <div className="adm-hero-info">
-            <div className="adm-hero-badge">
-              <Sparkles size={14} />
-              <span>Aviation Command System</span>
-            </div>
-            <h1>
-              Chào mừng trở lại, <span>{adminName}</span>
-            </h1>
-            <p>
-              Hệ thống radar quản lý hàng không đang vận hành ổn định. Dưới đây là thông số và hoạt động mới nhất trên hệ thống.
-            </p>
-
-            <div className="adm-hero-quick-actions">
-              <button
-                type="button"
-                className="btn-adm-primary"
-                onClick={() => navigate("/admin/flights")}
-              >
-                <PlusCircle size={18} />
-                <span>Thêm chuyến bay mới</span>
-              </button>
-
-              <button
-                type="button"
-                className="btn-adm-secondary"
-                onClick={() => navigate("/admin/users")}
-              >
-                <Users size={18} />
-                <span>Quản lý thành viên</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="adm-hero-graphic">
-            <div className="radar-circle">
-              <div className="radar-sweep" />
-              <div className="radar-dot dot-1" />
-              <div className="radar-dot dot-2" />
-              <div className="radar-plane-center">✈</div>
-            </div>
-            <span className="radar-status-caption">RADAR TRẠNG THÁI KHÔNG LƯU</span>
-          </div>
-        </section>
-
-        {/* ================= KPI STATS CARDS ================= */}
-        <section className="adm-kpi-grid">
-          {/* FLIGHTS */}
-          <div className="kpi-card" onClick={() => navigate("/admin/flights")}>
-            <div className="kpi-card-top">
-              <div className="kpi-icon-box blue">
-                <Plane size={24} />
-              </div>
-              <span className="kpi-trend positive">
-                <ArrowUpRight size={14} /> Hoạt động
-              </span>
-            </div>
-            <div className="kpi-data">
-              <span className="kpi-label">Tổng chuyến bay</span>
-              <strong className="kpi-number">{loading ? "..." : flightCount}</strong>
-              <small className="kpi-desc">Chuyến bay trên lịch trình</small>
-            </div>
-          </div>
-
-          {/* USERS */}
-          <div className="kpi-card" onClick={() => navigate("/admin/users")}>
-            <div className="kpi-card-top">
-              <div className="kpi-icon-box purple">
-                <Users size={24} />
-              </div>
-              <span className="kpi-trend positive">
-                <ArrowUpRight size={14} /> Tài khoản
-              </span>
-            </div>
-            <div className="kpi-data">
-              <span className="kpi-label">Tài khoản thành viên</span>
-              <strong className="kpi-number">{loading ? "..." : userCount}</strong>
-              <small className="kpi-desc">Khách hàng & Quản trị viên</small>
-            </div>
-          </div>
-
-          {/* REVENUE ESTIMATE */}
-          <div className="kpi-card">
-            <div className="kpi-card-top">
-              <div className="kpi-icon-box green">
-                <CreditCard size={24} />
-              </div>
-              <span className="kpi-trend positive">
-                <ArrowUpRight size={14} /> Tích cực
-              </span>
-            </div>
-            <div className="kpi-data">
-              <span className="kpi-label">Doanh thu vé MoMo</span>
-              <strong className="kpi-number">
-                {loading ? "..." : overview ? `${formatNumber(overview.revenue)}đ` : "—"}
-              </strong>
-              <small className="kpi-desc">Không gồm giả lập và khoản chờ hoàn tiền</small>
-            </div>
-          </div>
-
-          {/* CAPACITY RATE */}
-          <div className="kpi-card">
-            <div className="kpi-card-top">
-              <div className="kpi-icon-box orange">
-                <Activity size={24} />
-              </div>
-              <span className="kpi-trend neutral">Ổn định</span>
-            </div>
-            <div className="kpi-data">
-              <span className="kpi-label">Hiệu suất tải ghế</span>
-              <strong className="kpi-number">{loading ? "..." : overview ? `${(Number(overview.offered_seats) ? Number(overview.booked_seats) / Number(overview.offered_seats) * 100 : 0).toFixed(1)}%` : "—"}</strong>
-              <small className="kpi-desc">Ghế đã đặt / ghế của chuyến sắp bay</small>
-            </div>
-          </div>
-        </section>
-
-        {/* ================= FLIGHT MONITOR & ACTIONS ================= */}
-        <div className="adm-two-columns">
-          {/* CỘT TRÁI: DANH SÁCH CHUYẾN BAY GẦN ĐÂY */}
-          <div className="adm-panel-card">
-            <div className="adm-panel-header">
-              <div>
-                <h2>Giám sát chuyến bay hoạt động</h2>
-                <p>Danh sách các chuyến bay hiện hành trong cơ sở dữ liệu</p>
-              </div>
-              <button
-                type="button"
-                className="btn-view-all"
-                onClick={() => navigate("/admin/flights")}
-              >
-                Xem tất cả ({flightCount}) →
-              </button>
-            </div>
-
-            {loading ? (
-              <div className="adm-table-loading">Đang tải dữ liệu radar...</div>
-            ) : recentFlights.length === 0 ? (
-              <div className="adm-table-empty">
-                <p>Chưa có chuyến bay nào trong hệ thống.</p>
-                <button
-                  type="button"
-                  className="btn-adm-primary"
-                  onClick={() => navigate("/admin/flights")}
-                >
-                  Tạo chuyến bay đầu tiên
-                </button>
-              </div>
-            ) : (
-              <div className="adm-table-container">
-                <table className="adm-data-table">
-                  <thead>
-                    <tr>
-                      <th>Mã chuyến</th>
-                      <th>Hãng bay</th>
-                      <th>Tuyến bay</th>
-                      <th>Giờ bay</th>
-                      <th>Giá vé</th>
-                      <th>Trạng thái</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentFlights.map((item) => (
-                      <tr key={item.id}>
-                        <td>
-                          <span className="adm-flight-badge">
-                            {item.flight_number || `FL-${item.id}`}
-                          </span>
-                        </td>
-                        <td>
-                          <strong>{item.airline || `Hãng #${item.airline_id}`}</strong>
-                        </td>
-                        <td>
-                          <div className="adm-route-tag">
-                            <span>{item.departure_code || item.from || "---"}</span>
-                            <span className="arrow">➔</span>
-                            <span>{item.arrival_code || item.to || "---"}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <span className="adm-time-text">
-                            {item.departure_time ? item.departure_time.substring(11, 16) || item.departure_time : "--:--"}
-                          </span>
-                        </td>
-                        <td>
-                          <strong className="adm-price-highlight">
-                            {formatNumber(item.price || 0)}đ
-                          </strong>
-                        </td>
-                        <td>
-                          <span className={`adm-status-badge ${String(item.status || "AVAILABLE").toLowerCase()}`}>
-                            {item.status || "AVAILABLE"}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* CỘT PHẢI: BẢO MẬT & TÁC VỤ NHANH */}
-          <div className="adm-side-panels">
-            {/* TÁC VỤ NHANH */}
-            <div className="adm-panel-card">
-              <div className="adm-panel-header">
-                <h2>Lối tắt tác vụ</h2>
-              </div>
-              <div className="adm-quick-shortcuts">
-                <button
-                  type="button"
-                  className="shortcut-item"
-                  onClick={() => navigate("/admin/flights")}
-                >
-                  <div className="shortcut-icon blue">✈</div>
-                  <div>
-                    <strong>Thêm / Sửa chuyến bay</strong>
-                    <small>Cập nhật lịch bay, giá vé và sơ đồ ghế</small>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  className="shortcut-item"
-                  onClick={() => navigate("/admin/users")}
-                >
-                  <div className="shortcut-icon purple">👥</div>
-                  <div>
-                    <strong>Phân quyền người dùng</strong>
-                    <small>Khóa/mở khóa và bảo vệ lịch sử tài khoản</small>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  className="shortcut-item"
-                  onClick={() => navigate("/home")}
-                >
-                  <div className="shortcut-icon green">🌐</div>
-                  <div>
-                    <strong>Xem trang bán vé</strong>
-                    <small>Kiểm tra trải nghiệm người dùng thực tế</small>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* BẢO MẬT HỆ THỐNG */}
-            <div className="adm-panel-card security-card">
-              <div className="security-icon-box">
-                <ShieldCheck size={28} />
-              </div>
-              <div>
-                <h3>Quản lý truy cập</h3>
-                <p>
-                  Toàn bộ kết nối API được bảo vệ với JWT Authentication & Role-Based Access Control.
-                </p>
-              </div>
-              <div className="security-status-indicator">
-                <span className="dot" />
-                <span>Kiểm tra quyền và trạng thái tài khoản</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </AdminLayout>
-  );
+const statuses = { AVAILABLE: "Mở bán", DELAYED: "Hoãn", CANCELLED: "Đã hủy", SCHEDULED: "Đã lên lịch" };
+function presetRange(preset) {
+  const to = vietnamToday();
+  let from = to;
+  if (preset === "week") { const date = new Date(`${to}T00:00:00Z`); date.setUTCDate(date.getUTCDate() - 6); from = date.toISOString().slice(0, 10); }
+  if (preset === "month") from = `${to.slice(0, 7)}-01`;
+  return { from, to, group: "day" };
 }
 
-export default AdminDashboard;
+function Metric({ title, value, note, icon: Icon, accent = "purple" }) {
+  return <article className={`dash-metric dash-accent-${accent}`}><div className="dash-metric-label"><span>{title}</span><Icon size={19} /></div><strong>{value}</strong><p>{note}</p></article>;
+}
+
+export default function AdminDashboard() {
+  const [range, setRange] = useState(() => presetRange("month"));
+  const [draft, setDraft] = useState(range);
+  const [revision, setRevision] = useState(0);
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [filterError, setFilterError] = useState("");
+  const [flightQuery, setFlightQuery] = useState("");
+  const [status, setStatus] = useState("");
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    api.get("/flights/statistics", { params: range, signal: controller.signal }).then(({ data }) => {
+      if (controller.signal.aborted) return;
+      setResult(data); setLoadError(""); setLoading(false);
+    }).catch(error => {
+      if (controller.signal.aborted) return;
+      setResult(null); setLoadError(error.response?.data?.message || "Không tải được thống kê. Vui lòng thử lại."); setLoading(false);
+    });
+    return () => controller.abort();
+  }, [range, revision]);
+
+  const applyRange = next => {
+    const days = (Date.parse(`${next.to}T00:00:00Z`) - Date.parse(`${next.from}T00:00:00Z`)) / 86400000 + 1;
+    if (!next.from || !next.to || !Number.isFinite(days) || days < 1 || days > 366) { setFilterError("Chọn ngày bắt đầu không sau ngày kết thúc, tối đa 366 ngày."); return; }
+    setFilterError(""); setLoading(true); setLoadError(""); setPage(1);
+    setRange({ ...next });
+  };
+  const filteredFlights = useMemo(() => (result?.flights || []).filter(f => (!status || f.status === status) && `${f.flight_number} ${f.departure_code} ${f.arrival_code} ${f.airline}`.toLowerCase().includes(flightQuery.trim().toLowerCase())), [result, status, flightQuery]);
+  const totalPages = Math.max(1, Math.ceil(filteredFlights.length / 10));
+  const visibleFlights = filteredFlights.slice((page - 1) * 10, page * 10);
+  const summary = result?.summary;
+
+  return <AdminLayout pageTitle="Tổng quan Dashboard"><div className="dash-page">
+    <header className="dash-heading"><div><span className="dash-eyebrow">THỐNG KÊ KINH DOANH</span><h1>Tổng quan hoạt động</h1><p>Theo dõi chuyến bay, doanh số và tỷ lệ lấp đầy ghế.</p></div><button type="button" className="dash-button" disabled={loading} onClick={() => { setLoading(true); setLoadError(""); setRevision(value => value + 1); }}><RefreshCw size={16} className={loading ? "dash-spin" : ""} />Làm mới</button></header>
+    <section className="dash-panel dash-filters" aria-label="Bộ lọc thống kê">
+      <div className="dash-presets">{[["today", "Hôm nay"], ["week", "7 ngày"], ["month", "Tháng này"]].map(([key, label]) => <button key={key} type="button" className="dash-button" disabled={loading} onClick={() => { const next = presetRange(key); setDraft(next); applyRange(next); }}>{label}</button>)}</div>
+      <form onSubmit={event => { event.preventDefault(); applyRange(draft); }}>
+        <label>Từ ngày<input type="date" name="from" required value={draft.from} onChange={event => setDraft(current => ({ ...current, from: event.target.value }))} /></label>
+        <label>Đến ngày<input type="date" name="to" required value={draft.to} onChange={event => setDraft(current => ({ ...current, to: event.target.value }))} /></label>
+        <label>Biểu đồ theo<select value={draft.group} onChange={event => setDraft(current => ({ ...current, group: event.target.value }))}><option value="day">Ngày</option><option value="month">Tháng</option></select></label>
+        <button type="submit" className="dash-button dash-button-primary" disabled={loading}><CalendarDays size={16} />Áp dụng</button>
+      </form>
+      {filterError && <p role="alert" className="dash-error">{filterError}</p>}
+    </section>
+    {loading ? <div className="dash-panel dash-loading" role="status">Đang tải số liệu thống kê...</div> : loadError ? <div className="dash-panel dash-error" role="alert">{loadError}<button className="dash-button" onClick={() => { setLoading(true); setRevision(value => value + 1); }}>Thử lại</button></div> : summary && <>
+      <div className="dash-period"><span>{formatDate(range.from)} – {formatDate(range.to)}</span><small>Cập nhật: {formatDateTime(result.updated_at)}</small></div>
+      <section className="dash-metrics" aria-label="Số liệu tổng quan">
+        <Metric title="Tổng chuyến bay" icon={Plane} value={formatNumber(summary.flight_count)} note={`Theo ngày khởi hành · ${summary.available_flights} mở bán · ${summary.delayed_flights} hoãn · ${summary.cancelled_flights} hủy`} />
+        <Metric title="Doanh thu MoMo" icon={CreditCard} value={formatMoney(summary.momo_revenue)} note="Theo ngày thanh toán · Không gồm MOCK, khoản chờ hoàn và đã hoàn tiền" accent="green" />
+        <Metric title="Doanh số dự kiến" icon={TrendingUp} value={formatMoney(summary.projected_sales)} note="Theo ngày khởi hành · Gồm đơn xác nhận hợp lệ (cả MOCK) và đơn chờ còn hạn" />
+        <Metric title="Tỷ lệ lấp đầy ghế" icon={Armchair} value={summary.occupancy_rate === null ? "—" : `${summary.occupancy_rate.toFixed(1)}%`} note={summary.offered_seats ? `${formatNumber(summary.booked_seats)}/${formatNumber(summary.offered_seats)} ghế đã bán · Theo ngày khởi hành` : "Chưa có ghế cung ứng trong kỳ"} accent="orange" />
+        <Metric title="Ghế đã bán" icon={Ticket} value={formatNumber(summary.booked_seats)} note="Theo ngày khởi hành · Đơn xác nhận · Không gồm chuyến hủy" />
+        <Metric title="Thanh toán MOCK" icon={FlaskConical} value={formatMoney(summary.mock_revenue)} note="Theo ngày thanh toán · Số tiền giả lập, hiển thị riêng với MoMo" accent="teal" />
+      </section>
+      <section className="dash-projection dash-panel" aria-label="Công thức doanh số dự kiến"><div><h2>Doanh số dự kiến từ đơn hiện có</h2><p><strong>{formatMoney(summary.confirmed_value)}</strong> đơn xác nhận hợp lệ + <strong>{formatMoney(summary.pending_value)}</strong> đơn chờ thanh toán còn hạn = <strong>{formatMoney(summary.projected_sales)}</strong></p><p>Giả định các đơn chờ đều thanh toán thành công. Gồm giá vé và dịch vụ đã lưu trong đơn; không phải dự báo doanh số cuối tháng.</p></div></section>
+      <div className="dash-charts-grid">
+        <PeriodChart title="Doanh thu theo thời gian" description="Theo ngày thanh toán thành công; hai cột riêng cho MoMo và MOCK." points={result.revenue_series} series={["momo", "mock"]} money group={range.group} />
+        <PeriodChart title="Số chuyến theo thời gian" description="Theo ngày khởi hành và trạng thái hiện tại của chuyến." points={result.flight_series} series={["available", "delayed", "cancelled", "other"]} group={range.group} />
+      </div>
+      <SeatChart summary={summary} />
+      <section className="dash-panel dash-flight-panel" aria-label="Hiệu suất từng chuyến">
+        <div className="dash-panel-heading"><div><h2>Hiệu suất từng chuyến</h2><p>Theo ngày khởi hành trong kỳ · {formatNumber(filteredFlights.length)} chuyến phù hợp</p></div><Link to="/admin/flights">Quản lý chuyến bay →</Link></div>
+        <div className="dash-table-filters"><label>Tìm chuyến<input type="search" value={flightQuery} placeholder="Mã chuyến, tuyến, hãng bay" onChange={event => { setFlightQuery(event.target.value); setPage(1); }} /></label><label>Trạng thái<select value={status} onChange={event => { setStatus(event.target.value); setPage(1); }}><option value="">Tất cả</option>{[...new Set(result.flights.map(f => f.status))].map(value => <option key={value} value={value}>{statuses[value] || value}</option>)}</select></label></div>
+        <div className="dash-table-scroll"><table><thead><tr><th>Chuyến / Tuyến</th><th>Khởi hành</th><th>Trạng thái</th><th>Tổng ghế</th><th>Đã bán</th><th>Đang giữ</th><th>Còn trống</th><th>Lấp đầy</th><th>Doanh số dự kiến</th></tr></thead><tbody>
+          {visibleFlights.length ? visibleFlights.map(f => <tr key={f.id}><td><strong>{f.flight_number}</strong><small>{f.departure_code} → {f.arrival_code} · {f.airline}</small></td><td>{formatDate(f.departure_date)}<small>{f.departure_clock}</small></td><td><span className={`dash-status dash-status-${String(f.status).toLowerCase()}`}>{statuses[f.status] || f.status || "Chưa rõ"}</span></td><td>{f.total_seats}</td><td>{f.booked_seats}</td><td>{f.held_seats}</td><td>{f.empty_seats ?? "—"}</td><td>{f.occupancy_rate === null ? "—" : <div className="dash-rate"><span>{f.occupancy_rate.toFixed(1)}%</span><progress value={f.booked_seats} max={f.total_seats} aria-label={`Tỷ lệ lấp đầy ${f.flight_number}`} /></div>}</td><td>{f.status === "CANCELLED" ? "—" : formatMoney(f.confirmed_value + f.pending_value)}</td></tr>) : <tr><td colSpan={9} className="dash-empty">Không có chuyến bay phù hợp với bộ lọc.</td></tr>}
+        </tbody></table></div>
+        <div className="dash-pagination"><span>Trang {page}/{totalPages}</span><div><button type="button" className="dash-button" disabled={page <= 1} onClick={() => setPage(value => value - 1)}>Trước</button><button type="button" className="dash-button" disabled={page >= totalPages} onClick={() => setPage(value => value + 1)}>Sau</button></div></div>
+        <p className="dash-footnote">Chuyến hủy không tính vào ghế cung ứng, tỷ lệ lấp đầy hoặc doanh số dự kiến. Số chuyến chỉ gồm các chuyến đã được tạo trong hệ thống; lịch demo phát sinh khi tìm kiếm.</p>
+      </section>
+    </>}
+  </div></AdminLayout>;
+}

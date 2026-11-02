@@ -75,7 +75,11 @@ async function main() {
           await command("Fetch.fulfillRequest", { requestId, responseCode: request.method === "OPTIONS" ? 204 : 200, responseHeaders: [{ name: "Content-Type", value: "application/json" }, { name: "Access-Control-Allow-Origin", value: origin }, { name: "Access-Control-Allow-Headers", value: "Authorization, Content-Type" }, { name: "Access-Control-Allow-Methods", value: "GET, POST, PUT, PATCH, DELETE, OPTIONS" }], body: Buffer.from(request.method === "OPTIONS" ? "" : JSON.stringify(fixture.api(request.url, request.method, request.postData))).toString("base64") });
         } else if (request.url.startsWith(origin)) await command("Fetch.continueRequest", { requestId });
         else await command("Fetch.failRequest", { requestId, errorReason: "BlockedByClient" });
-      } catch (error) { errors.push(error.message); }
+      } catch (error) {
+        // Chrome discards interception IDs when the app aborts a request on navigation.
+        // Runtime.exceptionThrown above still records every application exception.
+        if (error.message !== "Invalid InterceptionId.") errors.push(error.message);
+      }
     }
   });
   const { targetId } = await command("Target.createTarget", { url: "about:blank" }, null);
@@ -97,7 +101,9 @@ async function main() {
   }
 
   await visit("/register", "!!document.querySelector('input[name=full_name]')", "register");
-  for (const [name, value] of Object.entries({ full_name: "Nguyen Van Test", email: "new@example.test", password: "Password123!", phone: "0900000000" })) await fill(`input[name=${name}]`, value);
+  await clickText("Đăng ký tài khoản"); await waitFor("document.querySelectorAll('[aria-invalid=true]').length===7", "inline registration errors");
+  for (const [name, value] of Object.entries({ full_name: "Nguyen Van Test", email: "new@example.test", password: "Password123!", confirm_password: "Password123!", phone: "0900000000", birth_date: "2000-01-01" })) await fill(`input[name=${name}]`, value);
+  await fill('select[name=gender]', 'Nam');
   await clickText("Đăng ký tài khoản"); await waitFor("location.pathname==='/login'", "register redirect");
   await fill('input[type=email]', fixture.customer.email); await fill('input[type=password]', 'Password123!'); await evaluate("document.querySelector('form').requestSubmit()");
   await waitFor("location.pathname==='/home' && !!localStorage.getItem('token')", "login");
@@ -141,9 +147,134 @@ async function main() {
   await visit("/destinations", "!!document.querySelector('.destinations-page')||!!document.querySelector('main')", "destinations");
   await visit("/home", "!!document.querySelector('.support-button')", "home"); await click('.support-button'); await waitFor("!!document.querySelector('.quick-options')&&!document.querySelector('.chatbot-input-area input').disabled", "chat ready");
   await evaluate("[...document.querySelectorAll('.quick-options button')].find(button=>button.textContent.includes('Tìm chuyến bay')).click()"); await waitFor("document.body.innerText.includes('Bạn muốn bay từ đâu')", "guided chatbot");
+  async function sendChat(text, replyFragment, viaEnter = false) {
+    await waitFor("!document.querySelector('.chatbot-input-area input').disabled", "chat composer ready");
+    const count = await evaluate("document.querySelectorAll('.bot-row').length");
+    await evaluate("document.querySelector('.chatbot-input-area input').focus()");
+    await fill('.chatbot-input-area input', text);
+    if (viaEnter) {
+      await command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+      await command('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+    } else {
+      await evaluate("document.querySelector('.chatbot-input-area .send-button').focus()");
+      await click('.chatbot-input-area .send-button');
+    }
+    await waitFor(`!document.querySelector('.chatbot-input-area input').disabled&&document.querySelectorAll('.bot-row').length>${count}&&[...document.querySelectorAll('.bot-row')].at(-1).innerText.includes(${JSON.stringify(replyFragment)})`, "chat reply: " + replyFragment);
+    await waitFor("document.activeElement===document.querySelector('.chatbot-input-area input')", 'chat input focused after reply');
+  }
+  await sendChat('abcxyz', 'Bạn muốn bay từ đâu');
+  await sendChat('đà nẵng', 'Bạn muốn đến đâu', true);
+  await sendChat('tôi không biết đi đâu', 'Bạn thích biển');
+  assert.ok((await evaluate("[...document.querySelectorAll('.bot-row')].at(-1).innerText")).includes('giữ điểm đi Đà Nẵng'));
+  await sendChat('tôi khoong biết đi đâu', 'Bạn thích biển');
+  await sendChat('biển', 'Bạn muốn chọn điểm đến nào');
+  const destinationAdvice = await evaluate("[...document.querySelectorAll('.bot-row')].at(-1).innerText");
+  assert.ok(destinationAdvice.includes('Nha Trang'));
+  assert.ok(!destinationAdvice.includes('Bạn dự định bay ngày nào'));
+  assert.equal(await evaluate("document.querySelectorAll('.flight-search-action').length"), 0);
+  await sendChat('abcxyz', 'Bạn muốn đến đâu');
+  await sendChat('DAD', 'không được trùng');
+  await sendChat('Hà Nội', 'Bạn dự định bay ngày nào');
+  await sendChat('03/11/2080', 'Mình đã điền sẵn');
+  const chatSummary = await evaluate("document.querySelector('.chat-flight-card').innerText");
+  assert.ok(chatSummary.includes('DAD') && chatSummary.includes('HAN') && chatSummary.includes('03/11/2080'));
+  assert.equal(await evaluate("document.querySelectorAll('.flight-search-action').length"), 1);
+  console.log('PASS uncertain destination, preference advice, invalid airports and preserved departure');
+  assert.equal(await evaluate("[...document.querySelectorAll('.chat-staff-status button')].length"), 0);
+  const oldChat = await evaluate("JSON.parse(localStorage.getItem('flight-support-session')).id");
+  await click('.reset-button'); await waitFor(`JSON.parse(localStorage.getItem('flight-support-session')).id!==${JSON.stringify(oldChat)}&&!document.querySelector('.chatbot-input-area input').disabled`, "chat reset creates a new session");
+  assert.ok(!(await evaluate("document.querySelector('.chatbot-body').innerText")).includes('Bạn muốn bay từ đâu'));
+  await sendChat('Tôi muốn bay tới Hà Nội', 'Bạn muốn bay từ đâu');
+  await sendChat('tân sơn nhất', 'Bạn dự định bay ngày nào');
+  assert.equal(fixture.assistantPayloads.at(-1).awaitingField, 'from');
+  await command('Page.reload');
+  await waitFor("!!document.querySelector('.support-button')", 'reload keeps chat search');
+  await click('.support-button');
+  await waitFor("!!document.querySelector('.chatbot-input-area input')&&!document.querySelector('.chatbot-input-area input').disabled", 'chat restored after reload');
+  await sendChat('mai', 'Mình đã điền sẵn');
+  assert.deepEqual(fixture.assistantPayloads.at(-1).flightDraft, { from: 'SGN', to: 'HAN', date: '' });
+  assert.equal(fixture.assistantPayloads.at(-1).awaitingField, 'date');
+  assert.ok((await evaluate("document.querySelector('.chat-flight-card').innerText")).includes('SGN'));
+  await sendChat('tân sơn nhất', 'Mình đã điền sẵn');
+  assert.ok(!/mã sân bay|IATA/i.test(await evaluate("[...document.querySelectorAll('.bot-row')].at(-1).innerText")));
+  const shortAnswerChat = await evaluate("JSON.parse(localStorage.getItem('flight-support-session')).id");
+  await click('.reset-button');
+  await waitFor(`JSON.parse(localStorage.getItem('flight-support-session')).id!==${JSON.stringify(shortAnswerChat)}&&!document.querySelector('.chatbot-input-area input').disabled`, 'reset clears restored search');
+  assert.equal(await evaluate("document.querySelectorAll('.chat-flight-card').length"), 0);
+  console.log('PASS airport names, one-word dates, restored search context and reset isolation');
+  await sendChat('tui muốn 1 chuyến bay từ đà nẵng về tp hcm vào ngày 3/11/2080', 'Mình đã điền sẵn');
+  assert.ok((await evaluate("document.querySelector('.chat-flight-card').innerText")).includes('03/11/2080'));
+  assert.ok((await evaluate("document.querySelector('.chat-flight-card').innerText")).includes('SGN'));
+  await sendChat('đổi sang ngày 5/11', 'Mình đã điền sẵn');
+  assert.ok((await evaluate("document.querySelector('.chat-flight-card').innerText")).includes('05/11/2080'));
+  assert.ok((await evaluate("document.querySelector('.chat-flight-card').innerText")).includes('DAD'));
+  await sendChat('đổi điểm đến sang Hà Nội', 'Mình đã điền sẵn');
+  const chatPreviewDirectory = path.resolve(__dirname, '../../backend/temp', `chat-search-${Date.now()}`);
+  fs.mkdirSync(chatPreviewDirectory, { recursive: true });
+  await command('Emulation.setDeviceMetricsOverride', { width: 390, height: 640, deviceScaleFactor: 1, mobile: true });
+  await evaluate("new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))");
+  await evaluate("document.querySelector('.chat-flight-card').scrollIntoView({block:'center'})");
+  assert.ok(await evaluate("document.documentElement.scrollWidth<=innerWidth+1&&document.querySelector('.chat-flight-card').getBoundingClientRect().right<=innerWidth"), 'Chat flight card fits mobile');
+  fs.writeFileSync(path.join(chatPreviewDirectory, 'mobile-card.png'), Buffer.from((await command('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
+  await clickText('Sửa thông tin');
+  assert.ok(await evaluate("document.documentElement.scrollWidth<=innerWidth+1&&document.querySelector('.chat-flight-edit').getBoundingClientRect().right<=innerWidth"), 'Chat flight edit fits mobile');
+  fs.writeFileSync(path.join(chatPreviewDirectory, 'mobile-edit.png'), Buffer.from((await command('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
+  await command('Emulation.clearDeviceMetricsOverride');
+  assert.equal(await evaluate("document.querySelector('.chat-flight-edit select[name=from]').value"), 'DAD');
+  assert.equal(await evaluate("document.querySelector('.chat-flight-edit select[name=to]').value"), 'HAN');
+  await fill('.chat-flight-edit select[name=to]', 'DAD');
+  await clickText('Cập nhật');
+  await waitFor("document.querySelector('.chat-flight-error')?.innerText.includes('không được trùng')", "invalid edited route");
+  await fill('.chat-flight-edit select[name=to]', 'SGN');
+  await fill('.chat-flight-edit input[name=date]', '2080-11-06');
+  await clickText('Cập nhật');
+  await waitFor("!document.querySelector('.chatbot-input-area input').disabled&&!!document.querySelector('.chat-flight-card')&&!document.querySelector('.chat-flight-edit')&&document.querySelector('.chat-flight-card').innerText.includes('06/11/2080')", "updated search card");
+  assert.ok((await evaluate("document.querySelector('.chat-flight-card').innerText")).includes('SGN'));
+  await sendChat('đổi sang ngày 31/02/2080', 'Ngày bay không hợp lệ');
+  assert.equal(await evaluate("document.querySelectorAll('.chat-flight-card').length"), 0);
+  await sendChat('6/11/2080', 'Mình đã điền sẵn');
+  const searchesBeforeConfirm = fixture.calls.filter(call => call.path === '/api/flights/search').length;
+  const searchHref = await evaluate("document.querySelector('.chat-flight-primary').getAttribute('href')");
+  assert.equal(searchHref, '/flights?from=DAD&to=SGN&date=2080-11-06');
+  await click('.chat-flight-primary');
+  await waitFor("location.pathname==='/flights'&&new URLSearchParams(location.search).get('from')==='DAD'&&new URLSearchParams(location.search).get('to')==='SGN'&&new URLSearchParams(location.search).get('date')==='2080-11-06'&&document.body.innerText.includes('VN-TEST')", "one click chat search results");
+  assert.equal(fixture.calls.filter(call => call.path === '/api/flights/search').length, searchesBeforeConfirm + 1);
+  assert.ok(fixture.assistantPayloads.length >= 10);
+  assert.ok(fixture.assistantPayloads.every(body => body.mode === 'assistant' && body.flightDraft));
+  assert.ok(!JSON.stringify(fixture.assistantPayloads).includes(fixture.customer.email));
+  await evaluate("localStorage.removeItem('token');localStorage.removeItem('user')");
+  await click('.flight-select-button');
+  await waitFor("location.pathname==='/login'&&!!document.querySelector('input[type=email]')", 'login keeps selected flight');
+  await clickText('Tạo tài khoản mới');
+  await waitFor("location.pathname==='/register'&&!!document.querySelector('input[name=full_name]')", 'register keeps selected flight');
+  for (const [name, value] of Object.entries({ full_name: 'Nguyen New Customer', email: 'chat.new@example.test', phone: '0900000000', birth_date: '2000-01-01', password: 'Password123!', confirm_password: 'Password123!' })) await fill(`input[name=${name}]`, value);
+  await fill('select[name=gender]', 'Nam');
+  await clickText('Đăng ký tài khoản');
+  await waitFor("location.pathname==='/login'", 'registered customer returns to login');
+  await fill('input[type=email]', fixture.customer.email); await fill('input[type=password]', 'Password123!');
+  await evaluate("document.querySelector('form').requestSubmit()");
+  await waitFor("location.pathname==='/passenger-info'&&document.querySelector('input[name=date_of_birth]')?.value==='2000-01-01'", 'login resumes passenger form');
+  assert.equal(await evaluate("document.querySelector('input[name=full_name]').value"), fixture.customer.full_name);
+  assert.equal(await evaluate("document.querySelector('input[name=email]').value"), fixture.customer.email);
+  assert.equal(await evaluate("document.querySelector('input[name=phone]').value"), fixture.customer.phone);
+  assert.equal(await evaluate("document.querySelector('select[name=gender]').value"), 'MALE');
+  assert.equal(await evaluate("document.querySelector('input[name=document_number]').value"), '');
+  assert.ok((await evaluate("document.querySelector('.passenger-profile-notice').innerText")).includes('Cần bổ sung: số giấy tờ'));
+  console.log('PASS selected flight survives registration/login, account fields prefill and missing document stays editable');
+  console.log('PASS one sentence flight search, date/city edits, mobile card/form and confirmed API query');
+  console.log(`Chat previews: ${chatPreviewDirectory}`);
   console.log("PASS blog, destinations and guided chatbot");
 
   await visit("/admin", "document.body.innerText.includes('Tổng chuyến bay')", "dashboard");
+  assert.equal(await evaluate("document.querySelectorAll('.dash-chart').length"), 2);
+  assert.ok(await evaluate("!!document.querySelector('.dash-donut')&&document.body.innerText.includes('3.280.000')"));
+  await click('.dash-bar-button'); await waitFor("document.querySelector('.dash-bar-button[aria-pressed=true]')&&document.querySelector('.dash-chart-detail').innerText.includes('MoMo:')", "chart interaction");
+  await fill('.dash-table-filters input', 'NO-SUCH-FLIGHT'); await waitFor("document.body.innerText.includes('Không có chuyến bay phù hợp')", "flight table filter");
+  await fill('.dash-table-filters input', '');
+  await fill('.dash-filters input[name=from]', '2080-01-03'); await fill('.dash-filters input[name=to]', '2080-01-01');
+  await evaluate("document.querySelector('.dash-filters form').requestSubmit()"); await waitFor("document.querySelector('.dash-error')?.innerText.includes('ngày bắt đầu')", "invalid statistics range");
+  await fill('.dash-filters input[name=from]', '2080-01-01'); await evaluate("document.querySelector('.dash-filters form').requestSubmit()");
+  await waitFor("!!document.querySelector('.dash-donut')&&!document.querySelector('.dash-error')", "statistics range applied");
   await visit("/admin/users", "document.body.innerText.includes('Customer Two')", "users");
   await evaluate("[...document.querySelectorAll('tr')].find(row=>row.textContent.includes('Customer Two')).querySelector('button').click()");
   await clickText('Xác nhận khóa tài khoản');
@@ -158,11 +289,13 @@ async function main() {
   await waitFor("!document.querySelector('.bk-dialog')&&document.body.innerText.includes('Đã hủy')", "refund saved");
   await click('.bk-view'); await waitFor("document.body.innerText.includes('REFUND-TEST')", "persisted refund reference");
   await visit("/admin/payments", "document.body.innerText.includes('BKTEST')", "admin payments");
-  await visit("/admin/chat", "!!document.querySelector('.admin-chat-item')", "admin chat"); await click('.admin-chat-item'); await waitFor("document.body.innerText.includes('Tiếp nhận')", "chat detail"); await clickText('Tiếp nhận'); await waitFor("!document.querySelector('.admin-chat-compose input').disabled", "accept chat"); await fill('.admin-chat-compose input', 'Xin chao, toi se ho tro ban.'); await evaluate("document.querySelector('.admin-chat-compose').requestSubmit()"); await waitFor("document.querySelector('.admin-chat-messages').innerText.includes('Xin chao, toi se ho tro ban.')", "send staff reply"); await clickText('Kết thúc hỗ trợ');
+  await visit("/admin/chat", "!!document.querySelector('.admin-chat-item')", "admin chat"); await click('.admin-chat-item'); await waitFor("!!document.querySelector('.admin-chat-accept:not(:disabled)')", "chat detail"); await clickText('Tiếp nhận'); await waitFor("!document.querySelector('.admin-chat-compose input').disabled", "accept chat"); await fill('.admin-chat-compose input', 'Xin chao, toi se ho tro ban.'); await evaluate("document.querySelector('.admin-chat-compose').requestSubmit()"); await waitFor("document.querySelector('.admin-chat-messages').innerText.includes('Xin chao, toi se ho tro ban.')", "send staff reply"); await clickText('Kết thúc hỗ trợ');
   console.log("PASS order cancellation, manual refund, payment history and staff chat");
+  await waitFor("!!document.querySelector('.admin-chat-delete:not(:disabled)')", "delete action ready");
+  await click('.admin-chat-delete'); await waitFor("!document.querySelector('.admin-chat-item')&&!document.querySelector('.admin-chat-compose')", "hard delete selected chat");
 
   await command("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
-  for (const [route, ready] of [["/profile", ".account-profile-card"], ["/my-orders", ".orders-card"], ["/payment?bookingId=77", ".order-summary-card"]]) {
+  for (const [route, ready] of [["/admin", ".dash-donut"], ["/register", "#register-confirm_password"], ["/profile", ".account-profile-card"], ["/my-orders", ".orders-card"], ["/payment?bookingId=77", ".order-summary-card"]]) {
     await visit(route, `!!document.querySelector('${ready}')`, `mobile ${route}`);
     assert.ok(await evaluate("document.documentElement.scrollWidth<=window.innerWidth+1"), `Horizontal overflow: ${route}`);
   }

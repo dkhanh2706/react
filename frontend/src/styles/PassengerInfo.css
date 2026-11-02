@@ -142,6 +142,10 @@
    LAYOUT
 ========================================================= */
 
+.passenger-profile-notice { margin: 0 24px 20px; padding: 12px 14px; border: 1px solid #bfdbfe; border-radius: 12px; background: #eff6ff; color: #1e3a5f; font-size: 13px; line-height: 1.6; }
+.passenger-profile-notice p { margin: 0; }
+.passenger-profile-notice p + p { margin-top: 4px; }
+
 .passenger-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;

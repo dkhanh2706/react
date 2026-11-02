@@ -1,9 +1,8 @@
-export const normalizeAirport = value => {
-  if (!value) {
-    return "";
-  }
-  const text = value.toLowerCase().trim().replace(/\./g, "").replace(/\s+/g, " ");
-  const airports = {
+const normalizeChatText = value => String(value ?? "").normalize("NFD")
+  .replace(/\p{M}/gu, "").replace(/đ/gi, "d").toLowerCase()
+  .replace(/\./g, "").replace(/\s+/g, " ").trim();
+
+const airports = {
     // HÀ NỘI
     "hà nội": "HAN",
     "ha noi": "HAN",
@@ -17,6 +16,8 @@ export const normalizeAirport = value => {
     "tp hcm": "SGN",
     "tp hồ chí minh": "SGN",
     "tp ho chi minh": "SGN",
+    "thành phố hồ chí minh": "SGN",
+    "thanh pho ho chi minh": "SGN",
     "hồ chí minh": "SGN",
     "ho chi minh": "SGN",
     "sài gòn": "SGN",
@@ -63,28 +64,22 @@ export const normalizeAirport = value => {
     singapore: "SIN",
     changi: "SIN",
     sin: "SIN"
-  };
-  return airports[text] || value.toUpperCase();
 };
+const airportAliases = new Map(Object.entries(airports).map(([name, code]) => [normalizeChatText(name), code]));
+export const chatAirportCodes = [...new Set(airportAliases.values())];
+
+export const normalizeAirport = value => {
+  if (typeof value !== "string") return "";
+  return airportAliases.get(normalizeChatText(value)) || "";
+};
+
 export const normalizeDate = value => {
-  if (!value) {
-    return "";
-  }
+  if (typeof value !== "string") return "";
   const text = value.trim();
-
-  // YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-    return text;
-  }
-
-  // DD/MM/YYYY
-  // DD-MM-YYYY
-  const match = text.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
-  if (!match) {
-    return "";
-  }
-  const day = match[1].padStart(2, "0");
-  const month = match[2].padStart(2, "0");
-  const year = match[3];
-  return `${year}-${month}-${day}`;
+  const match = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(text) ? text
+    : match ? `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}` : "";
+  if (!normalized) return "";
+  const date = new Date(`${normalized}T00:00:00Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === normalized ? normalized : "";
 };

@@ -1,12 +1,14 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
-import { getInitialPassenger, BAGGAGE_OPTIONS, MEAL_OPTIONS } from "../utils/passenger.js";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { getInitialPassenger, passengerFromProfile, BAGGAGE_OPTIONS, MEAL_OPTIONS } from "../utils/passenger.js";
+import api from "../api/axios";
 import toast from "react-hot-toast";
 export default function usePassengerInfo() {
   const location = useLocation();
   const navigate = useNavigate();
   const flight = location.state?.flight;
   const [passenger, setPassenger] = useState(getInitialPassenger);
+  const editedFields = useRef(new Set());
   const [baggageWeight, setBaggageWeight] = useState(0);
   const [mealType, setMealType] = useState("NONE");
   const [insurance, setInsurance] = useState(false);
@@ -17,7 +19,19 @@ export default function usePassengerInfo() {
       navigate("/login", {
         replace: true
       });
+      return;
     }
+    const controller = new AbortController();
+    api.get("/users/profile", { signal: controller.signal }).then(({ data }) => {
+      if (controller.signal.aborted || !data.user) return;
+      const profile = passengerFromProfile(data.user);
+      setPassenger(current => ({ ...current, ...Object.fromEntries(
+        ["full_name", "email", "phone", "gender", "date_of_birth"].filter(key => !editedFields.current.has(key)).map(key => [key, profile[key]])
+      ) }));
+    }).catch(error => {
+      if (!controller.signal.aborted) console.error("Không tải được thông tin hồ sơ hành khách", error);
+    });
+    return () => controller.abort();
   }, [navigate]);
   const selectedBaggage = useMemo(() => {
     return BAGGAGE_OPTIONS.find(item => Number(item.weight) === Number(baggageWeight)) || BAGGAGE_OPTIONS[0];
@@ -36,6 +50,7 @@ export default function usePassengerInfo() {
       name,
       value
     } = event.target;
+    editedFields.current.add(name);
     setPassenger(prev => ({
       ...prev,
       [name]: value

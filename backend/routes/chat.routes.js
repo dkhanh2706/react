@@ -9,6 +9,7 @@ const rateLimit = require('../middleware/rateLimit');
 
 router.post('/session', rateLimit({ max: 30 }), live.create);
 router.post('/sync', live.sync);
+router.post('/reset', rateLimit({ max: 30 }), live.reset);
 router.post('/messages', rateLimit({ max: 120, windowMs: 60000 }), live.send);
 router.post('/bot', live.bot);
 router.post('/request', live.request);

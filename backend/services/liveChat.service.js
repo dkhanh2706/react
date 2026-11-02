@@ -16,9 +16,11 @@ async function transaction(work) {
   try {
     await client.query('BEGIN');
     client.chatChanged = false;
+    client.deletedChats = new Set();
     await client.query('SELECT pg_advisory_xact_lock(7240331)');
     const result = await work(client);
     await client.query('COMMIT');
+    for (const id of client.deletedChats) require('./chatEvents').emit('deleted', id);
     if (client.chatChanged) require('./chatEvents').emit('changed');
     return result;
   } catch (error) {
@@ -56,6 +58,14 @@ async function visitor(client, body) {
   return rows[0];
 }
 
+async function removeConversation(client, id) {
+  // Foreign keys cascade to messages and read receipts. There is no archive or
+  // soft-delete table; the transaction publishes only the deleted ID, no text.
+  await client.query('DELETE FROM chat_conversations WHERE id=$1', [id]);
+  client.deletedChats.add(id);
+  client.chatChanged = true;
+}
+
 function connectionState(lastSeen, disconnectedAt, now) {
   const lostAt = disconnectedAt ? +new Date(disconnectedAt) : +new Date(lastSeen || 0) + PRESENCE_LEASE_MS;
   if (now < lostAt) return 'connected';
@@ -90,7 +100,7 @@ async function answerPending(generateReply) {
     try {
       const context = await transaction(async client => {
         const c = (await client.query('SELECT * FROM chat_conversations WHERE id=$1', [id])).rows[0];
-        if (c.status === 'active') return null;
+        if (!c || c.status === 'active') return null;
         const messages = (await client.query("SELECT * FROM chat_messages WHERE conversation_id=$1 AND sender<>'system' ORDER BY id DESC LIMIT 12", [id])).rows.reverse();
         if (!messages.some(m => m.pending)) return null;
         return { c, messages, lastId: messages.at(-1).id };
@@ -98,10 +108,10 @@ async function answerPending(generateReply) {
       if (!context) return;
       let reply;
       try { reply = await generateReply(context.messages); }
-      catch { reply = 'Trợ lý AI hiện chưa thể trả lời. Bạn vui lòng thử lại hoặc yêu cầu gặp nhân viên khi có người sẵn sàng.'; }
+      catch { reply = 'Trợ lý AI hiện chưa thể trả lời. Hội thoại đã có trong hộp thư nhân viên để tiếp nhận hỗ trợ bạn.'; }
       await transaction(async client => {
         const c = (await client.query('SELECT * FROM chat_conversations WHERE id=$1', [id])).rows[0];
-        if (c.status === 'active' || c.version !== context.c.version) return;
+        if (!c || c.status === 'active' || c.version !== context.c.version) return;
         // Newer customer messages will be answered by the next worker pass.
         const pending = await client.query('UPDATE chat_messages SET pending=false WHERE conversation_id=$1 AND pending AND id <= $2 RETURNING id', [id, context.lastId]);
         if (pending.rowCount) await message(client, id, 'bot', reply);
@@ -110,4 +120,4 @@ async function answerPending(generateReply) {
   }));
 }
 
-module.exports = { ADMIN_RECONNECT_GRACE_MS, PRESENCE_LEASE_MS, connectionState, uuid, hash, fail, transaction, message, snapshot, visitor, available, sweep, answerPending };
+module.exports = { ADMIN_RECONNECT_GRACE_MS, PRESENCE_LEASE_MS, connectionState, uuid, hash, fail, transaction, message, snapshot, visitor, removeConversation, available, sweep, answerPending };

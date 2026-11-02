@@ -67,6 +67,7 @@ export default function AdminChatProvider({ children }) {
     } catch (err) { setError(err.response?.data?.message || 'Không đổi được trạng thái.'); }
     finally { setBusy(false); }
   }, [connected, busy, state.available]);
-  const value = useMemo(() => ({ state: token && state.sessionToken === token ? state : empty, connected: !!token && connected, busy, error: token ? error : '', revision, toggle }), [state, token, connected, busy, error, revision, toggle]);
+  const refresh = useCallback(async () => { await refreshRef.current?.(); }, []);
+  const value = useMemo(() => ({ state: token && state.sessionToken === token ? state : empty, connected: !!token && connected, busy, error: token ? error : '', revision, toggle, refresh }), [state, token, connected, busy, error, revision, toggle, refresh]);
   return <AdminChatContext.Provider value={value}>{children}</AdminChatContext.Provider>;
 }

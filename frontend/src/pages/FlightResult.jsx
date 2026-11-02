@@ -173,7 +173,7 @@ function FlightResult() {
     if (!token) {
       toast.error("Vui lòng đăng nhập để đặt vé");
 
-      navigate("/login");
+      navigate("/login", { state: { from: { pathname: "/passenger-info", state: { flight } } } });
 
       return;
     }

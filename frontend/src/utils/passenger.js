@@ -1,12 +1,14 @@
 import { getStoredUser } from "./auth.js";
-const getInitialPassenger = () => {
-  const user = getStoredUser();
+const passengerFromProfile = (user) => {
+  const genders = { nam: "MALE", male: "MALE", "nữ": "FEMALE", nu: "FEMALE", female: "FEMALE", "khác": "OTHER", khac: "OTHER", other: "OTHER" };
   return {
     full_name: user?.full_name || user?.name || "",
-    gender: "MALE", date_of_birth: "", document_type: "CCCD", document_number: "",
+    gender: genders[String(user?.gender || "").toLowerCase()] || "",
+    date_of_birth: String(user?.birth_date || "").slice(0, 10), document_type: "CCCD", document_number: "",
     phone: user?.phone || "", email: user?.email || "",
   };
 };
+const getInitialPassenger = () => passengerFromProfile(getStoredUser());
 const BAGGAGE_OPTIONS = [{
   weight: 0,
   label: "Không thêm hành lý ký gửi",
@@ -45,4 +47,4 @@ const MEAL_OPTIONS = [{
   label: "Mì",
   price: 70000
 }];
-export { getInitialPassenger, BAGGAGE_OPTIONS, MEAL_OPTIONS };
+export { getInitialPassenger, passengerFromProfile, BAGGAGE_OPTIONS, MEAL_OPTIONS };

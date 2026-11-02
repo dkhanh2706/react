@@ -94,7 +94,7 @@ const allowedOrigins = [
   "http://192.168.190.70:5173",
   "http://172.20.10.5:5173",
   "http://192.168.1.8:5173",
-  "http://192.168.1.16:5173",
+  "http://192.168.1.12:5173",
 ];
 
 // Nếu .env có FRONTEND_URL
@@ -118,7 +118,11 @@ const corsOptions = {
 
     console.warn("CORS BLOCKED ORIGIN:", origin);
 
-    return callback(Object.assign(new Error(`CORS không cho phép origin: ${origin}`), { code: "CORS_BLOCKED" }));
+    return callback(
+      Object.assign(new Error(`CORS không cho phép origin: ${origin}`), {
+        code: "CORS_BLOCKED",
+      }),
+    );
   },
 
   credentials: true,
@@ -153,9 +157,14 @@ app.use(
 // STATIC FILE
 // =====================================================
 
-app.use("/uploads", express.static(uploadDirectory, {
-  setHeaders(res) { res.setHeader("X-Content-Type-Options", "nosniff"); },
-}));
+app.use(
+  "/uploads",
+  express.static(uploadDirectory, {
+    setHeaders(res) {
+      res.setHeader("X-Content-Type-Options", "nosniff");
+    },
+  }),
+);
 
 // =====================================================
 // LOG REQUEST
@@ -178,12 +187,16 @@ app.get("/", async (req, res) => {
     return res.status(200).json({
       message: "Backend + Database OK",
 
-      ...(process.env.NODE_ENV !== "production" ? { database: result.rows[0] } : {}),
+      ...(process.env.NODE_ENV !== "production"
+        ? { database: result.rows[0] }
+        : {}),
     });
   } catch (error) {
     console.error("DATABASE CONNECTION ERROR:", error);
 
-    return res.status(500).json(errorPayload("Database connection error", error));
+    return res
+      .status(500)
+      .json(errorPayload("Database connection error", error));
   }
 });
 
@@ -202,7 +215,8 @@ app.get("/api/test", (req, res) => {
 // =====================================================
 
 app.get("/api/uploads-test", (req, res) => {
-  if (process.env.NODE_ENV === "production") return res.status(404).json({ message: "API route not found" });
+  if (process.env.NODE_ENV === "production")
+    return res.status(404).json({ message: "API route not found" });
   return res.json({
     message: "Uploads static đang hoạt động",
 
@@ -217,7 +231,8 @@ app.get("/api/uploads-test", (req, res) => {
 // =====================================================
 
 app.get("/api/chat/test", (req, res) => {
-  if (process.env.NODE_ENV === "production") return res.status(404).json({ message: "API route not found" });
+  if (process.env.NODE_ENV === "production")
+    return res.status(404).json({ message: "API route not found" });
   return res.status(200).json({
     message: "Chatbot route đang hoạt động",
 
@@ -278,12 +293,14 @@ app.use(errorHandler);
 const PORT = Number(process.env.PORT) || 5000;
 
 const HOST = "0.0.0.0";
-const httpServer = require('node:http').createServer(app);
-require('./services/chatRealtime.service').attachChatRealtime(httpServer, { allowedOrigins });
+const httpServer = require("node:http").createServer(app);
+require("./services/chatRealtime.service").attachChatRealtime(httpServer, {
+  allowedOrigins,
+});
 
 async function start() {
   await require("./lib/schema").assertSchemaReady(db);
-  require('./controllers/liveChat.controller').startWorker();
+  require("./controllers/liveChat.controller").startWorker();
   httpServer.listen(PORT, HOST, () => {
     console.log("======================================");
 

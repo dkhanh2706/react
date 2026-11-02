@@ -15,15 +15,22 @@ export function connectChat(credentials, { onChange, onConnection, onError, onSe
       try { data = JSON.parse(event.data); } catch { return; }
       if (data.type === 'ready') { retries = 0; onConnection?.(true); onChange(); }
       else if (data.type === 'changed') onChange();
+      else if (data.type === 'deleted' && data.id === credentials.id) {
+        stopped = true;
+        onConnection?.(false);
+        onSessionEnd?.('deleted');
+        socket.close();
+      }
     };
     socket.onerror = () => onError?.('Kết nối chat bị gián đoạn. Đang kết nối lại…');
     socket.onclose = event => {
       if (stopped) return;
       onConnection?.(false);
+      if (event.code === 4002) { stopped = true; onSessionEnd?.('deleted'); return; }
       if (event.code === 4001 || event.code === 4401) {
         stopped = true;
         onSessionEnd?.();
-        onError?.('Phiên kết nối chat đã kết thúc. Vui lòng đăng nhập lại.');
+        if (credentials.token) onError?.('Phiên kết nối chat đã kết thúc. Vui lòng đăng nhập lại.');
         return;
       }
       timer = setTimeout(open, Math.min(1000 * 2 ** retries++, 10000));

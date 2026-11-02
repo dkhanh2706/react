@@ -1,6 +1,7 @@
 export default function ChatHeader({
   humanActive,
   resetChat,
+  connecting,
   setOpen
 }) {
   return <div className="chatbot-header">
@@ -21,11 +22,11 @@ export default function ChatHeader({
             </div>
 
             <div className="chatbot-header-actions">
-              <button type="button" className="reset-button" onClick={resetChat} title="Đặt lại hướng dẫn tìm chuyến bay">
+              <button type="button" className="reset-button" disabled={connecting} onClick={resetChat} title="Làm mới cuộc trò chuyện" aria-label="Làm mới cuộc trò chuyện">
                 ↻
               </button>
 
-              <button type="button" className="chatbot-close" onClick={() => setOpen(false)}>
+              <button type="button" className="chatbot-close" aria-label="Đóng chat" onClick={() => setOpen(false)}>
                 ✕
               </button>
             </div>

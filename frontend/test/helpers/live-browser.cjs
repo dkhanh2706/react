@@ -96,6 +96,7 @@ class LiveBrowser {
       } else if (request.url.startsWith(this.origin)) await this.command("Fetch.continueRequest", { requestId }, sessionId);
       else await this.command("Fetch.failRequest", { requestId, errorReason: "BlockedByClient" }, sessionId);
     } catch (error) {
+      if (error.message === "Invalid InterceptionId.") return;
       this.errors.push(`HTTP bridge ${url.pathname}: ${error.message}`);
       this.command("Fetch.failRequest", { requestId, errorReason: "Failed" }, sessionId).catch(() => {});
     }

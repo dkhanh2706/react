@@ -16,6 +16,9 @@ const { verifyToken, isAdmin } = require("../middleware/auth.middleware");
 router.get("/search", flightController.searchFlight);
 router.get("/catalog", flightController.catalog);
 router.get("/overview", verifyToken, isAdmin, flightController.overview);
+router.get("/statistics", verifyToken, isAdmin, require("../lib/http").endpoint(async (req, res) => {
+  res.json(await require("../services/dashboard.service").getStatistics(req.query));
+}));
 router.get("/demo/config", verifyToken, isAdmin, demoFlights.config);
 router.post("/demo/preview", verifyToken, isAdmin, demoFlights.preview);
 router.post("/demo/generate", verifyToken, isAdmin, demoFlights.generate);

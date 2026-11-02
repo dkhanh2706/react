@@ -15,6 +15,12 @@ export function getAuth() {
   catch { return { token: null, user: null }; }
 }
 
+export function getLoginReturnTarget(from) {
+  if (!from || typeof from.pathname !== "string" || !/^\/(?!\/)[a-z0-9/-]*$/i.test(from.pathname)
+    || ["/login", "/register"].includes(from.pathname)) return null;
+  return { pathname: from.pathname, search: typeof from.search === "string" && from.search.startsWith("?") ? from.search : "", state: from.state };
+}
+
 export function isAdminUser(user) {
   return user?.role === "ADMIN";
 }

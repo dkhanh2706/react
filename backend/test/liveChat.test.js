@@ -72,7 +72,7 @@ test('grace period changes state exactly at 60 seconds after detection', () => {
   assert.equal(live.connectionState(lostAt, lostAt, lostAt + 60000), 'expired');
 });
 
-test('visitor isolation, admin authorization and offline queue behavior', async () => {
+test('visitor isolation, automatic queue while offline and one-click admin acceptance', async () => {
   const c = await request('/session');
   assert.equal(c.httpStatus, 200);
   assert.equal(c.secret_hash, undefined);
@@ -80,11 +80,17 @@ test('visitor isolation, admin authorization and offline queue behavior', async 
   assert.equal((await request('/admin/state')).status, 401);
   const customer = require('jsonwebtoken').sign({ id: 3, token_version: 0 }, process.env.JWT_SECRET);
   assert.equal((await presence(true, customer)).status, 403);
-  assert.equal((await request('/request', visitor(c))).status, 409);
-  assert.equal((await admin(c, 'accept')).status, 409);
-  await presence(true);
-  assert.equal((await request('/request', visitor(c))).status, 'waiting');
-  assert.equal((await request('/cancel', visitor(c))).status, 'bot');
+  await presence(false);
+  const sent = await send(c, 'Tự xuất hiện trong hộp thư');
+  assert.equal(sent.status, 'waiting');
+  assert.ok((await presence()).conversations.some(item => item.id === c.id));
+  const bot = await request('/bot', { ...visitor(c), version: sent.version, text: 'Bot vẫn hỗ trợ trước khi tiếp nhận' });
+  assert.equal(bot.messages.at(-1).sender, 'bot');
+  assert.equal((await request('/cancel', visitor(c))).status, 'waiting');
+  assert.equal((await admin(c, 'accept')).status, 'active');
+  assert.equal((await presence()).available, false);
+  await admin(c, 'end');
+  assert.equal((await send(c, 'Khách hỏi tiếp sau kết thúc')).status, 'waiting');
 });
 
 test('only one admin claims a conversation; old bot completions stay suppressed', async () => {
@@ -244,6 +250,55 @@ async function waitUntil(check, timeout = 3000) {
   assert.fail('Timed out waiting for chat state');
 }
 const closeSocket = ws => new Promise(resolve => { ws.once('close', resolve); ws.close(); });
+
+test('deleting a selected active chat cascades messages and read receipts without touching another chat', async () => {
+  const first = await request('/session'), other = await request('/session');
+  await send(first, 'Nội dung cần xóa vĩnh viễn');
+  await send(other, 'Nội dung phải được giữ');
+  await admin(first, 'accept');
+  const ws = await socket(visitor(first));
+  const closed = new Promise(resolve => ws.once('close', resolve));
+  const customer = require('jsonwebtoken').sign({ id: 3, token_version: 0 }, process.env.JWT_SECRET);
+  assert.equal((await admin(first, 'delete', {}, customer)).httpStatus, 403);
+  assert.equal((await request('/reset', { id: first.id, secret: 'wrong' })).httpStatus, 403);
+  assert.ok((await db.query('SELECT FROM chat_reads WHERE conversation_id=$1', [first.id])).rowCount);
+  const removed = await admin(first, 'delete', {}, otherToken);
+  assert.equal(removed.deleted, true);
+  assert.equal(await closed, 4002);
+  for (const table of ['chat_conversations', 'chat_messages', 'chat_reads']) {
+    const column = table === 'chat_conversations' ? 'id' : 'conversation_id';
+    assert.equal((await db.query(`SELECT FROM ${table} WHERE ${column}=$1`, [first.id])).rowCount, 0);
+  }
+  assert.equal((await request('/sync', visitor(first))).httpStatus, 403);
+  assert.ok(!(await presence()).conversations.some(c => c.id === first.id));
+  assert.ok((await request('/sync', visitor(other))).messages.some(m => m.text === 'Nội dung phải được giữ'));
+  assert.equal((await admin(first, 'delete')).httpStatus, 404);
+});
+
+test('visitor reset permanently removes the old chat and rotates credentials; stale worker output cannot recreate it', async () => {
+  const c = await activeChat();
+  await send(c, 'Tin chờ bot xử lý phải bị xóa');
+  await admin(c, 'end');
+  let release, started;
+  const began = new Promise(resolve => { started = resolve; });
+  const completion = live.answerPending(async () => { started(); return new Promise(resolve => { release = resolve; }); });
+  await began;
+  const fresh = await request('/reset', visitor(c));
+  assert.equal(fresh.httpStatus, 200);
+  assert.notEqual(fresh.id, c.id);
+  assert.notEqual(fresh.secret, c.secret);
+  assert.equal(fresh.status, 'bot');
+  assert.equal(fresh.messages.length, 1);
+  release('Phản hồi cũ phải bị loại bỏ');
+  await completion;
+  assert.equal((await db.query('SELECT FROM chat_conversations WHERE id=$1', [c.id])).rowCount, 0);
+  assert.equal((await db.query('SELECT FROM chat_messages WHERE conversation_id=$1', [c.id])).rowCount, 0);
+  assert.equal((await db.query('SELECT FROM chat_reads WHERE conversation_id=$1', [c.id])).rowCount, 0);
+  assert.equal((await request('/bot', { ...visitor(c), version: 0, text: 'Phản hồi trễ' })).httpStatus, 403);
+  assert.equal((await request('/sync', visitor(fresh))).messages.length, 1);
+  const next = await send(fresh, 'Cuộc mới được tự đưa vào hàng chờ');
+  assert.equal(next.status, 'waiting');
+});
 
 test('WebSocket checks origin, admin JWT and visitor secret; persisted messages trigger live updates', async () => {
   await assert.rejects(socket({ token: adminToken }, 'https://untrusted.example'), /403/);
