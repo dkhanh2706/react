@@ -190,7 +190,7 @@ DEMO_PAYMENTS_ENABLED=true
 Trong `frontend/.env`:
 
 ```dotenv
-VITE_API_URL=http://localhost:5000/api
+VITE_API_URL=/api
 ```
 
 | Biến                                                                       | Cấu hình                                                                                                           |
@@ -198,9 +198,9 @@ VITE_API_URL=http://localhost:5000/api
 | `DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD`                              | Kết nối PostgreSQL của backend.                                                                                    |
 | `JWT_SECRET`                                                               | Chuỗi bí mật ngẫu nhiên để ký token và băm mã khôi phục.                                                           |
 | `FRONTEND_URL`                                                             | Origin frontend, mặc định local `http://localhost:5173`.                                                           |
-| `VITE_API_URL`                                                             | Frontend: `http://localhost:5000/api`, phải có `/api`. Khởi động lại Vite sau khi đổi.                             |
+| `VITE_API_URL`                                                             | Frontend: `/api` để dùng proxy Vite, không cần IP LAN. Khởi động lại Vite sau khi đổi.                             |
 | `NODE_ENV`                                                                 | `development` khi chạy đồ án.                                                                                      |
-| `PORT`                                                                     | Cổng backend, mặc định `5000`. Nếu đổi, cập nhật URL API ở frontend. |
+| `PORT`                                                                     | Cổng backend, mặc định `5000`. Nếu đổi, cập nhật cổng target proxy trong `frontend/vite.config.js`. |
 | `DEMO_FLIGHTS_ENABLED`, `DEMO_PAYMENTS_ENABLED`                            | `true` để tạo chuyến theo lượt tìm và thanh toán giả lập. Production luôn chặn demo.                               |
 | `MAIL_USER`, `MAIL_PASS`, `MAIL_FROM_NAME`                                 | Dịch vụ email hiện dùng Gmail; nhập địa chỉ Gmail, mật khẩu ứng dụng và tên người gửi. Dùng cho mã mật khẩu và biên nhận. |
 | `MOMO_PARTNER_CODE`, `MOMO_ACCESS_KEY`, `MOMO_SECRET_KEY`, `MOMO_ENDPOINT` | Điền theo môi trường MoMo được cấp.                                                                                |
@@ -210,7 +210,11 @@ VITE_API_URL=http://localhost:5000/api
 
 Không cần Gmail/MoMo/Groq để chạy tìm chuyến và thanh toán giả lập. Chat trực tiếp với admin không cần Groq; trả lời AI cần `GROQ_API_KEY`. Thiếu Gmail thì không gửi được mã mật khẩu/biên nhận, nhưng không ngăn xác nhận thanh toán demo. MoMo cần đủ cấu hình trong `.env.example` và IPN mà phía MoMo truy cập được; `localhost` trên máy bạn không phải địa chỉ callback công khai.
 
-Nếu chạy LAN, đổi API URL sang IP máy backend và cập nhật `FRONTEND_URL` đúng origin frontend (gồm giao thức/cổng, không thêm đường dẫn). Khởi động lại backend/Vite sau khi sửa biến tương ứng. Giữ thư mục `backend/uploads/avatars` khi sao lưu/chuyển máy.
+Khi frontend và backend chạy trên cùng máy, giữ `VITE_API_URL=/api`, `FRONTEND_URL=http://localhost:5173` và không đặt `VITE_CHAT_WS_URL`. Vite chuyển tiếp `/api` (gồm WebSocket chat) và `/uploads` tới `127.0.0.1:5000`; backend tự nhận các IP IPv4 của máy vào danh sách origin được phép khi khởi động trong môi trường development. Mặc định frontend và backend chỉ lắng nghe trên loopback, thiết bị khác trong mạng không truy cập được. Chỉ mở frontend ra LAN khi chủ động chạy `npm run dev:lan`; backend vẫn chỉ lắng nghe local và nhận request qua proxy Vite.
+
+Proxy API chuyển IP kết nối thực tới backend, ghi đè header IP do phía khách gửi. Backend development chỉ tin proxy từ loopback để giới hạn thao tác theo từng IP LAN; production giữ `trust proxy` tắt. Khi thay proxy triển khai, cần cấu hình lại nguồn proxy được tin cậy theo môi trường thực tế.
+
+Khi deploy bản build, hosting cần proxy `/api`, `/uploads` và WebSocket tới backend, hoặc đặt `VITE_API_URL`/`VITE_CHAT_WS_URL` theo URL công khai. Backend production lắng nghe trên `0.0.0.0`; cấu hình `FRONTEND_URL` theo origin frontend. Giữ thư mục `backend/uploads/avatars` khi sao lưu/chuyển máy.
 
 ## Database đang sử dụng
 
@@ -273,6 +277,18 @@ npm run dev
 ```
 
 Mở http://localhost:5173; API mặc định http://localhost:5000. Có thể dùng `npm run dev` trong backend để tự khởi động lại khi sửa mã.
+
+Để làm việc nhóm ở trường, giữ terminal backend chạy như trên. Trong terminal frontend, dừng Vite bằng **Ctrl+C**, rồi chạy:
+
+```powershell
+npm run dev:lan
+```
+
+Lệnh tương đương nếu bản checkout chưa có script `dev:lan`: `npm run dev -- --host 0.0.0.0`.
+
+Các thành viên cùng Wi-Fi mở địa chỉ **Network** mà Vite in ra, ví dụ `http://192.168.1.12:5173`. Cổng `5173` cần được phép truy cập qua tường lửa và Wi-Fi phải cho các thiết bị kết nối với nhau. Chế độ LAN cho phép các thiết bị trong mạng truy cập, không tự giới hạn đúng ba thành viên nhóm. Khi dùng một mình, dừng tiến trình LAN bằng **Ctrl+C**, chạy lại `npm run dev`; mở `http://localhost:5173` trên máy bạn.
+
+Sau khi đổi mạng, khởi động lại backend và Vite để nhận IP mới; không cần sửa `.env`. Ở chế độ LAN, gửi lại địa chỉ Network mới cho nhóm.
 
 Kiểm tra nhanh sau khi cả hai tiến trình đã chạy:
 
@@ -459,7 +475,7 @@ Remove-Item Env:TEST_DATABASE_URL
 | Backend báo lỗi kết nối/đăng nhập database | Kiểm tra dịch vụ PostgreSQL, cổng, database và nhóm `DB_*`; sửa `.env` rồi khởi động lại backend. |
 | `Database migration required` hoặc thiếu bảng chat/đánh giá | Đối chiếu schema với migration 001–007. Máy mới dùng setup trên database rỗng; database đang dùng chỉ áp dụng migration còn thiếu. |
 | Setup báo database không rỗng hoặc tên không hợp lệ | Script chỉ nhận database local mới/rỗng với tên `airline_booking_demo[_suffix]`, hậu tố chỉ có chữ thường/số. Không dùng database đang vận hành. |
-| Giao diện gọi API sang cổng 5173 hoặc trả 404 | Đặt `VITE_API_URL=http://localhost:5000/api` rồi khởi động lại Vite; cấu hình Vite hiện không có proxy `/api`. |
+| API báo lỗi proxy hoặc không kết nối được | Giữ `VITE_API_URL=/api`, chạy backend ở cổng `5000` và khởi động lại Vite. Nếu backend dùng cổng khác, cập nhật target trong `frontend/vite.config.js`. |
 | Lỗi CORS hoặc WebSocket không kết nối | Kiểm tra `FRONTEND_URL` khớp origin đang mở; kiểm tra URL API/WS, HTTPS/WSS và HTTP Upgrade nếu có proxy. |
 | Tìm chuyến không có kết quả | Chọn ngày mai, tuyến hợp lệ; kiểm tra cờ demo, đủ máy bay/ghế và migration 003. Chuyến quá giờ, hủy, hoãn hoặc hết ghế không được mở bán. |
 | Không có nút thanh toán demo | Kiểm tra `DEMO_PAYMENTS_ENABLED=true`, `NODE_ENV` khác `production`, rồi khởi động lại backend. Đơn đang có MoMo PENDING không được xen thanh toán demo. |

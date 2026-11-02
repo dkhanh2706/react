@@ -459,6 +459,10 @@ function Header() {
 
       {mobileMenuOpen && (
         <div className="mobile-drawer">
+          {!token && <>
+            <button type="button" className="mobile-link" onClick={() => navigateMobile("/login")}>Đăng nhập</button>
+            <button type="button" className="mobile-link" onClick={() => navigateMobile("/register")}>Đăng ký tài khoản</button>
+          </>}
           {user?.role === "ADMIN" && <span className="mobile-link" onClick={() => navigateMobile("/admin")}>Về trang quản trị</span>}
           <span className={location.pathname === "/my-orders" ? "mobile-link active" : "mobile-link"} onClick={() => requireLoginMobile("/my-orders")}>Đơn đặt vé của tôi</span>
           {/* HOME */}

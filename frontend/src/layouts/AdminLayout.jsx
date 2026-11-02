@@ -123,6 +123,8 @@ function AdminLayout({ children, pageTitle = "Dashboard" }) {
                   key={item.id}
                   type="button"
                   className={`adm-nav-item ${item.active ? "active" : ""}`}
+                  aria-label={item.title}
+                  title={item.title}
                   onClick={() => {
                     if (item.onClick) {
                       item.onClick();
@@ -191,7 +193,8 @@ function AdminLayout({ children, pageTitle = "Dashboard" }) {
           <div className="adm-topbar-right">
             <div className="adm-system-health">
               <span className="adm-pulse-dot" />
-              <span>Hệ thống trực tuyến (Live)</span>
+              <span className="adm-health-desktop">Hệ thống trực tuyến (Live)</span>
+              <span className="adm-health-mobile">Trực tuyến</span>
             </div>
 
             <div className="adm-clock">{currentTime || "--:--:--"}</div>

@@ -1,4 +1,5 @@
 import { formatDateTime as formatDate, formatNumber as formatPrice } from "../utils/format.js";
+import ResponsiveAdminTable from "../components/admin/ResponsiveAdminTable";
 import { useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
 
@@ -306,7 +307,7 @@ function PaymentManagement() {
               </p>
             </div>
           ) : (
-            <div className="adm-table-responsive">
+            <ResponsiveAdminTable label="Danh sách thanh toán">
               <table className="adm-modern-table">
                 <thead>
                   <tr>
@@ -480,7 +481,7 @@ function PaymentManagement() {
                   })}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveAdminTable>
           )}
         </div>
 

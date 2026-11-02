@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
+const { networkInterfaces } = require("node:os");
 const { errorPayload, errorHandler } = require("./lib/errors");
 
 require("dotenv").config();
@@ -68,6 +69,7 @@ const chatRoutes = loadRouter("./routes/chat.routes", "chatRoutes");
 // =====================================================
 
 const app = express();
+require("./lib/localProxy")(app);
 
 // =====================================================
 // UPLOAD DIRECTORY
@@ -89,13 +91,20 @@ fs.mkdirSync(avatarDirectory, {
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-
-  "http://192.168.1.7:5173",
-  "http://192.168.190.70:5173",
-  "http://172.20.10.5:5173",
-  "http://192.168.1.8:5173",
-  "http://192.168.1.12:5173",
 ];
+
+// Discover this machine's LAN addresses at startup for local development.
+const lanAddresses = [
+  ...new Set(
+    Object.values(networkInterfaces())
+      .flat()
+      .filter((address) => address && address.family === "IPv4" && !address.internal)
+      .map((address) => address.address),
+  ),
+];
+if (process.env.NODE_ENV !== "production") {
+  allowedOrigins.push(...lanAddresses.map((address) => `http://${address}:5173`));
+}
 
 // Nếu .env có FRONTEND_URL
 if (
@@ -292,7 +301,8 @@ app.use(errorHandler);
 
 const PORT = Number(process.env.PORT) || 5000;
 
-const HOST = "0.0.0.0";
+// Vite proxies LAN requests locally; development does not expose the API port.
+const HOST = process.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1";
 const httpServer = require("node:http").createServer(app);
 require("./services/chatRealtime.service").attachChatRealtime(httpServer, {
   allowedOrigins,
@@ -308,7 +318,11 @@ async function start() {
 
     console.log(`Local: http://localhost:${PORT}`);
 
-    console.log(`LAN: http://192.168.1.138:${PORT}`);
+    if (HOST === "0.0.0.0") {
+      for (const address of lanAddresses) {
+        console.log(`LAN: http://${address}:${PORT}`);
+      }
+    }
 
     console.log(
       `Frontend: ${process.env.FRONTEND_URL || "http://localhost:5173"}`,

@@ -104,6 +104,14 @@ export default function usePassengerInfo() {
         toast.error("Số CCCD/CMND phải gồm 9 hoặc 12 chữ số");
         return false;
       }
+    } else if (passenger.document_type === "PASSPORT") {
+      if (!/^[A-Z0-9]{6,20}$/i.test(documentNumber)) {
+        toast.error("Số hộ chiếu phải gồm 6–20 chữ cái hoặc chữ số");
+        return false;
+      }
+    } else {
+      toast.error("Loại giấy tờ không hợp lệ");
+      return false;
     }
 
     // PHONE
@@ -138,7 +146,7 @@ export default function usePassengerInfo() {
       gender: passenger.gender,
       date_of_birth: passenger.date_of_birth,
       document_type: passenger.document_type,
-      document_number: passenger.document_number.trim(),
+      document_number: passenger.document_number.trim().toUpperCase(),
       phone: passenger.phone.trim(),
       email: passenger.email.trim()
     };

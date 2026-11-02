@@ -1,4 +1,5 @@
 import { formatDate } from "../utils/format.js";
+import ResponsiveAdminTable from "../components/admin/ResponsiveAdminTable";
 import { useEffect, useState, useMemo } from "react";
 import toast from "react-hot-toast";
 import {
@@ -252,7 +253,7 @@ function UserManagement() {
               <p>Thử tìm kiếm với từ khóa hoặc bộ lọc quyền khác.</p>
             </div>
           ) : (
-            <div className="adm-table-responsive">
+            <ResponsiveAdminTable label="Danh sách người dùng">
               <table className="adm-modern-table">
                 <thead>
                   <tr>
@@ -367,7 +368,7 @@ function UserManagement() {
                   })}
                 </tbody>
               </table>
-            </div>
+            </ResponsiveAdminTable>
           )}
         </div>
 

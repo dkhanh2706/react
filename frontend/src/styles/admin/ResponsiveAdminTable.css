@@ -1,0 +1,18 @@
+@media (max-width: 640px) {
+  .admin-responsive-table { overflow: visible; }
+  .admin-responsive-table > table { display: block; width: 100%; min-width: 0 !important; }
+  .admin-responsive-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .admin-responsive-table tbody { display: grid; gap: 14px; padding: 12px; background: #f5f7fb; }
+  .admin-responsive-table tbody > tr { display: grid; min-width: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; }
+  .admin-responsive-table tbody > tr > td { display: block; min-width: 0; max-width: 100%; padding: 12px 14px; text-align: left; overflow-wrap: anywhere; }
+  .admin-responsive-table td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 7px; font-size: 11px; font-weight: 700; letter-spacing: .03em; color: #64748b; }
+  .admin-responsive-table td:first-child { background: #faf8ff; }
+  .admin-responsive-table td:last-child { border-bottom: 0; }
+  .admin-responsive-table td :is(strong, span, div) { max-width: 100%; }
+  .admin-responsive-table .user-profile-cell { min-width: 0; }
+  .admin-responsive-table .user-profile-cell > div:last-child { min-width: 0; }
+  .admin-responsive-table .user-email-text { white-space: normal; overflow-wrap: anywhere; }
+  .admin-responsive-table :is(.action-buttons-group, .action-buttons-inline) { display: flex; flex-wrap: wrap; justify-content: flex-start; }
+  .admin-responsive-table .btn-action { min-width: 40px; min-height: 40px; }
+  .admin-responsive-table .bk-order-code { width: auto; white-space: normal; }
+}

@@ -100,6 +100,66 @@ async function main() {
     assert.ok(!(await evaluate("document.body.innerText")).match(/Invalid Date|NaN/), `Invalid formatting on ${route}`);
   }
 
+  if (process.argv.includes('--responsive-audit')) {
+    await require('./responsive-audit.cjs')({ visit, evaluate, command, click, fill, fixture, errors });
+    return;
+  }
+
+  await visit("/home?guest=1", "document.querySelectorAll('.app-footer button[aria-haspopup=dialog]').length===8", "footer help links");
+  const helpLabels = ['Hướng dẫn đặt vé online', 'Chính sách hoàn hủy vé', 'Quy định hành lý', 'Điều khoản & Bảo mật', 'Câu hỏi thường gặp (FAQ)', 'Điều khoản dịch vụ', 'Chính sách riêng tư', 'Hợp tác đối tác'];
+  async function openFooterHelp(index) {
+    await command('Page.bringToFront');
+    await evaluate(`document.querySelectorAll('.app-footer button[aria-haspopup=dialog]')[${index}].focus()`);
+    assert.equal(await evaluate("document.activeElement.textContent"), helpLabels[index], 'footer link receives keyboard focus');
+    await command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' });
+    await command('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+    await waitFor("!!document.querySelector('.footer-help-dialog:modal')", 'help opens as a modal');
+    await waitFor("document.querySelector('.footer-help-dialog').getAnimations().every(animation=>animation.playState==='finished')", 'help entrance animation');
+  }
+  for (let index = 0; index < helpLabels.length; index++) {
+    await openFooterHelp(index);
+    assert.equal(await evaluate("document.querySelector('.footer-help-heading h2').textContent"), helpLabels[index]);
+    assert.equal(await evaluate("document.body.style.overflow"), 'hidden');
+    assert.ok(await evaluate("document.querySelector('.footer-help-dialog').contains(document.activeElement)"));
+    assert.equal(await evaluate("document.querySelector('.footer-help-contact a').getAttribute('href')"), 'tel:0963176945');
+    if (index === 0) {
+      assert.equal(await evaluate("document.querySelectorAll('.footer-help-steps > li').length"), 7);
+      await command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, modifiers: 8 });
+      await command('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9, modifiers: 8 });
+      assert.ok(await evaluate("document.activeElement.matches('.footer-help-done')"), `Shift+Tab stays inside the modal: ${await evaluate("document.activeElement.outerHTML.slice(0,250)")}`);
+    }
+    if (index === 4) {
+      await click('.footer-help-questions details:nth-child(2) summary');
+      assert.ok(await evaluate("document.querySelector('.footer-help-questions details:nth-child(2)').open"));
+    }
+    if (index % 4 === 0) {
+      await command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+      await command('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+    } else if (index % 4 === 1) {
+      await command('Input.dispatchMouseEvent', { type: 'mousePressed', x: 2, y: 2, button: 'left', clickCount: 1 });
+      await command('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 2, y: 2, button: 'left', clickCount: 1 });
+    } else {
+      await click(index % 4 === 2 ? '.footer-help-close' : '.footer-help-done');
+    }
+    await waitFor("!document.querySelector('.footer-help-dialog')", 'help closes');
+    assert.equal(await evaluate("document.body.style.overflow"), '');
+    assert.equal(await evaluate("document.activeElement.textContent"), helpLabels[index], 'focus returns to the link that opened the modal');
+  }
+  for (const [width, height] of [[390, 640], [844, 390]]) {
+    await command('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 600 });
+    await openFooterHelp(0);
+    const bounds = await evaluate("(()=>{const d=document.querySelector('.footer-help-dialog');const b=d.getBoundingClientRect();const content=d.querySelector('.footer-help-body');content.scrollTop=100;return {top:b.top,bottom:b.bottom,left:b.left,right:b.right,width:innerWidth,height:innerHeight,scroll:content.scrollTop,overflow:content.scrollWidth>content.clientWidth+1};})()");
+    assert.ok(bounds.top >= 0 && bounds.left >= 0 && bounds.bottom <= bounds.height + 1 && bounds.right <= bounds.width + 1, JSON.stringify(bounds));
+    assert.ok(bounds.scroll > 0 && !bounds.overflow, 'long help content scrolls within the mobile dialog');
+    await click('.footer-help-done'); await waitFor("!document.querySelector('.footer-help-dialog')", 'mobile help closes');
+  }
+  await command('Emulation.clearDeviceMetricsOverride');
+  console.log('PASS all 8 footer help dialogs, keyboard focus, all dismiss actions, FAQ and mobile scrolling');
+  if (process.argv.includes('--footer-help-only')) {
+    assert.deepEqual(errors, []);
+    return;
+  }
+
   await visit("/register", "!!document.querySelector('input[name=full_name]')", "register");
   await clickText("Đăng ký tài khoản"); await waitFor("document.querySelectorAll('[aria-invalid=true]').length===7", "inline registration errors");
   for (const [name, value] of Object.entries({ full_name: "Nguyen Van Test", email: "new@example.test", password: "Password123!", confirm_password: "Password123!", phone: "0900000000", birth_date: "2000-01-01" })) await fill(`input[name=${name}]`, value);

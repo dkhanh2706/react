@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import FooterHelpDialog from "../components/common/FooterHelpDialog";
+import { footerHelpTopics, informationLinks, supportLinks } from "../data/footerHelp";
 import "../styles/Footer.css";
 
 function Footer() {
   const navigate = useNavigate();
+  const [helpTopic, setHelpTopic] = useState(null);
 
   return (
     <footer className="app-footer">
@@ -30,16 +34,16 @@ function Footer() {
             </p>
 
             <div className="footer-social-links">
-              <a href="#facebook" className="footer-social-btn" title="Facebook" aria-label="Facebook">
+              <a href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer" className="footer-social-btn" title="Facebook" aria-label="Facebook">
                 f
               </a>
-              <a href="#twitter" className="footer-social-btn" title="Twitter" aria-label="Twitter">
+              <a href="https://x.com/" target="_blank" rel="noopener noreferrer" className="footer-social-btn" title="X" aria-label="X">
                 𝕏
               </a>
-              <a href="#instagram" className="footer-social-btn" title="Instagram" aria-label="Instagram">
+              <a href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer" className="footer-social-btn" title="Instagram" aria-label="Instagram">
                 ig
               </a>
-              <a href="#youtube" className="footer-social-btn" title="YouTube" aria-label="YouTube">
+              <a href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer" className="footer-social-btn" title="YouTube" aria-label="YouTube">
                 ▶
               </a>
             </div>
@@ -68,52 +72,34 @@ function Footer() {
           <div>
             <h4 className="footer-col-title">Hỗ trợ khách hàng</h4>
             <ul className="footer-links-list">
-              <li>
-                <span>Hướng dẫn đặt vé online</span>
-              </li>
-              <li>
-                <span>Chính sách hoàn hủy vé</span>
-              </li>
-              <li>
-                <span>Quy định hành lý</span>
-              </li>
-              <li>
-                <span>Điều khoản & Bảo mật</span>
-              </li>
-              <li>
-                <span>Câu hỏi thường gặp (FAQ)</span>
-              </li>
+              {supportLinks.map((link) => <li key={link.id}>
+                <button type="button" aria-haspopup="dialog" onClick={() => setHelpTopic(link.id)}>{link.label}</button>
+              </li>)}
             </ul>
           </div>
 
-          {/* LIÊN HỆ & THANH TOÁN */}
+          {/* LIÊN HỆ */}
           <div>
             <h4 className="footer-col-title">Liên hệ 24/7</h4>
 
             <div className="footer-contact-item">
               <span className="contact-icon">📞</span>
               <div>
-                <strong>Hotline:</strong> 1900 6868
+                <strong>Hotline:</strong> 0963176945
               </div>
             </div>
 
             <div className="footer-contact-item">
               <span className="contact-icon">✉</span>
               <div>
-                <strong>Email:</strong> support@airlinebooking.vn
+                <strong>Email:</strong> duykhanh1911205@gmail.com
               </div>
             </div>
 
             <div className="footer-contact-item">
               <span className="contact-icon">📍</span>
-              <div>Hà Nội & TP. Hồ Chí Minh, Việt Nam</div>
+              <div><strong>Địa chỉ:</strong> Hồ Chí Minh</div>
             </div>
-
-            <div className="footer-payment-title">Phương thức thanh toán</div>
-            <div className="footer-payment-badges">
-              <span className="payment-badge">MoMo</span>
-            </div>
-            <p>Website đồ án mô phỏng đặt vé. Thanh toán giả lập chỉ dành cho môi trường demo; không phát hành vé của hãng hàng không.</p>
           </div>
         </div>
 
@@ -124,14 +110,14 @@ function Footer() {
           <p>© {new Date().getFullYear()} DAMH Shop. Toàn bộ quyền được bảo lưu.</p>
 
           <div className="footer-bottom-links">
-            <span>Điều khoản dịch vụ</span>
-            <span>·</span>
-            <span>Chính sách riêng tư</span>
-            <span>·</span>
-            <span>Hợp tác đối tác</span>
+            {informationLinks.map((link, index) => <div className="footer-bottom-link-item" key={link.id}>
+              {index > 0 && <span aria-hidden="true">·</span>}
+              <button type="button" aria-haspopup="dialog" onClick={() => setHelpTopic(link.id)}>{link.label}</button>
+            </div>)}
           </div>
         </div>
       </div>
+      {helpTopic && <FooterHelpDialog topic={footerHelpTopics[helpTopic]} onDismiss={() => setHelpTopic(null)} />}
     </footer>
   );
 }

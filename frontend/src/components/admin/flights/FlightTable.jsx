@@ -1,9 +1,11 @@
 import { formatNumber } from "../../../utils/format.js";
 import { Edit2, Trash2, ArrowRight } from "lucide-react";
+import ResponsiveAdminTable from "../ResponsiveAdminTable";
 
 export default function FlightTable({ visibleFlights, openEditModal, setDeleteTarget, setCancelReason, filteredFlights, visiblePage, setTablePage, tablePages }) {
   return (
-<div className="adm-table-responsive">
+<div>
+<ResponsiveAdminTable label="Danh sách chuyến bay">
               <table className="adm-modern-table">
                 <thead>
                   <tr>
@@ -120,6 +122,7 @@ export default function FlightTable({ visibleFlights, openEditModal, setDeleteTa
                   ))}
                 </tbody>
               </table>
+</ResponsiveAdminTable>
               {filteredFlights.length > 25 && <div className="demo-flight-pagination">
                 <button type="button" className="btn-refresh" disabled={visiblePage <= 1} onClick={() => setTablePage(visiblePage - 1)}>Trang trước</button>
                 <span>Trang {visiblePage}/{tablePages} · {formatNumber(filteredFlights.length)} chuyến</span>

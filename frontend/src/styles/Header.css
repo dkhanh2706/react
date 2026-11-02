@@ -476,7 +476,14 @@
 }
 
 @media (max-width: 480px) {
-  .auth-buttons > .btn-outline {
+  .header { padding-inline: 12px; gap: 10px; }
+  .header .logo { font-size: 16px; gap: 7px; }
+  .header .logo-mark { width: 32px; height: 32px; }
+  .header-action { gap: 8px; }
+  .auth-buttons > .btn-outline { display: block; padding: 8px 10px; min-height: 40px; font-size: 13px; white-space: nowrap; }
+  .auth-buttons > .btn-solid {
     display: none;
   }
 }
+
+button.mobile-link { border: 0; background: none; font: inherit; text-align: left; }

@@ -213,6 +213,15 @@
   padding: 2px 12px;
 }
 
+@media (max-width: 640px) {
+  .adm-table-toolbar { padding: 16px; align-items: stretch; flex-direction: column; }
+  .adm-table-toolbar .adm-search-input-box { width: 100%; max-width: none; min-width: 0; flex: auto; }
+  .adm-table-toolbar .adm-filter-group { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; max-width: 100%; padding: 8px; }
+  .adm-table-toolbar .adm-filter-group .filter-icon { display: none; }
+  .adm-table-toolbar .adm-filter-group :is(select, input) { display: block; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; flex: 1 1 100%; min-height: 42px; font-size: 16px; }
+  .adm-table-toolbar .adm-search-input-box input { min-width: 0; font-size: 16px; }
+}
+
 .filter-icon {
   color: #64748b;
 }

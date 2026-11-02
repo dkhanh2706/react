@@ -181,7 +181,7 @@ module.exports = async function browserLive({ browser, backendUrl, db, runDir, a
   await guest.wait("document.querySelector('.chatbot-body').innerText.includes('chưa được cấu hình')&&!document.querySelector('.chatbot-input-area input').disabled", "unconfigured Groq is reported before acceptance");
   const firstChatId = await guest.evaluate("JSON.parse(localStorage.getItem('flight-support-session')).id");
   await admin.wait("!!document.querySelector('.admin-chat-item')", "automatic WebSocket queue update"); await admin.click(".admin-chat-item"); await admin.wait("!!document.querySelector('.admin-chat-accept:not(:disabled)')", "one-click acceptance"); await admin.clickText("Tiếp nhận"); await admin.wait("!document.querySelector('.admin-chat-compose input').disabled", "staff owns conversation");
-  await guest.wait("document.querySelector('.chat-staff-status').innerText.includes('Nhân viên đang hỗ trợ')", "visitor sees handoff");
+  await guest.wait("document.querySelector('.chat-staff-status')?.innerText.includes('Nhân viên đang hỗ trợ')", "visitor sees handoff");
   const botCount = (await db.query("SELECT count(*)::int AS n FROM chat_messages WHERE conversation_id=$1 AND sender='bot'", [firstChatId])).rows[0].n;
   await guest.fill(".chatbot-input-area input", "xin chào nhân viên"); await guest.click('.send-button');
   await admin.wait("document.querySelector('.admin-chat-messages').innerText.includes('xin chào nhân viên')", "human receives next message");
@@ -204,7 +204,7 @@ module.exports = async function browserLive({ browser, backendUrl, db, runDir, a
   await guest.fill('.chatbot-input-area input', 'xin chào'); await guest.click('.send-button');
   await admin.clickText('Chờ', '.admin-chat-tabs button');
   await admin.wait("!!document.querySelector('.admin-chat-item')", "new chat automatically queued"); await admin.click('.admin-chat-item'); await admin.clickText('Tiếp nhận');
-  await guest.wait("document.querySelector('.chat-staff-status').innerText.includes('Nhân viên đang hỗ trợ')", "new chat accepted");
+  await guest.wait("document.querySelector('.chat-staff-status')?.innerText.includes('Nhân viên đang hỗ trợ')", "new chat accepted");
   await admin.click('.admin-chat-delete');
   await guest.wait(`JSON.parse(localStorage.getItem('flight-support-session'))?.id!==${JSON.stringify(secondChatId)}&&!document.querySelector('.chatbot-input-area input').disabled`, "admin delete clears visitor session");
   for (const [table, column] of [['chat_conversations', 'id'], ['chat_messages', 'conversation_id'], ['chat_reads', 'conversation_id']]) assert.equal((await db.query(`SELECT FROM ${table} WHERE ${column}=$1`, [secondChatId])).rowCount, 0);

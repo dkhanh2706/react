@@ -348,6 +348,9 @@
   gap: 16px;
 }
 
+.adm-health-mobile { display: none; }
+
+
 .adm-system-health {
   display: flex;
   align-items: center;
@@ -428,4 +431,13 @@
   .admin-chat-presence button span, .admin-chat-presence > small { display: none; }
   .admin-chat-presence { padding: 8px 16px 14px; }
   .admin-chat-presence button { padding: 12px 0; }
+}
+
+@media (max-width: 600px) {
+  .adm-topbar { height: auto; min-height: 72px; padding: 12px; flex-wrap: wrap; gap: 8px; }
+  .adm-breadcrumb-area { min-width: 0; font-size: 12px; overflow-wrap: anywhere; }
+  .adm-bc-root, .adm-bc-sep, .adm-clock, .adm-health-desktop { display: none; }
+  .adm-health-mobile { display: inline; }
+  .adm-topbar-right { flex-shrink: 0; gap: 0; }
+  .adm-system-health { white-space: nowrap; padding: 5px 9px; font-size: 11px; }
 }

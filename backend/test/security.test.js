@@ -185,3 +185,42 @@ test("malformed JSON and oversized chat payloads return safe 400/413 responses",
   assert.ok(!(await invalid.text()).includes("secret"));
   assert.equal((await post("/chat", { message: "x".repeat(129 * 1024) })).status, 413);
 });
+
+test("local proxy preserves per-device limits and overwrites forged forwarding headers", async () => {
+  const { EventEmitter } = require('node:events');
+  const config = (await import('../../frontend/vite.config.js')).default;
+  const configureLocalProxy = require('../lib/localProxy');
+  const app = express();
+  const previousEnvironment = process.env.NODE_ENV;
+  try {
+    process.env.NODE_ENV = 'development';
+    configureLocalProxy(app);
+    assert.equal(app.get('trust proxy fn')('127.0.0.1', 0), true);
+    assert.equal(app.get('trust proxy fn')('192.168.42.10', 0), false);
+    process.env.NODE_ENV = 'production';
+    const productionApp = express();
+    configureLocalProxy(productionApp);
+    assert.equal(productionApp.get('trust proxy'), false);
+  } finally {
+    if (previousEnvironment === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousEnvironment;
+  }
+  app.get('/probe', require('../middleware/rateLimit')({ max: 20 }), (req, res) => res.json({ ip: req.ip }));
+  const listener = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => listener.once('listening', resolve));
+  const proxy = new EventEmitter();
+  config.server.proxy['/api'].configure(proxy);
+  const request = async (address, forged = '203.0.113.99') => {
+    const headers = { 'X-Forwarded-For': forged };
+    proxy.emit('proxyReq', { setHeader: (name, value) => { headers[name] = value; } }, { socket: { remoteAddress: address } });
+    return fetch(`http://127.0.0.1:${listener.address().port}/probe`, { headers });
+  };
+  try {
+    for (let attempt = 0; attempt < 20; attempt++) assert.equal((await request('192.168.42.10')).status, 200);
+    assert.equal((await request('192.168.42.10', '198.51.100.123')).status, 429, 'spoofing cannot reset a device limit');
+    const secondDevice = await request('192.168.42.11');
+    assert.equal(secondDevice.status, 200, 'another device keeps its own limit');
+    assert.equal((await secondDevice.json()).ip, '192.168.42.11');
+    assert.equal((await request('192.168.42.10')).status, 429);
+  } finally { await new Promise(resolve => listener.close(resolve)); }
+});

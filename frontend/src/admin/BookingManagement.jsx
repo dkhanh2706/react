@@ -1,4 +1,5 @@
 import { formatDate, formatDateTime, formatMoney as money } from "../utils/format.js";
+import ResponsiveAdminTable from "../components/admin/ResponsiveAdminTable";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Eye, Filter, Mail, Plane, RefreshCw, Search, Ticket, Trash2, X } from "lucide-react";
 import toast from "react-hot-toast";
@@ -132,7 +133,7 @@ export default function BookingManagement() {
       </div>
       {error && <div className="bk-alert" role="alert">{error}</div>}
       {loading ? <div className="adm-table-empty-state"><div className="loading-spinner-circle" /><p>Đang tải danh sách đặt vé…</p></div> : <>
-        <div className="adm-table-responsive"><table className="adm-modern-table bk-table"><thead><tr><th>Mã đơn / Ngày đặt</th><th>Khách hàng / Email</th><th>Chuyến bay / Ghế</th><th>Tổng tiền</th><th>Trạng thái / Lý do hủy</th><th className="text-right">Hành động</th></tr></thead>
+        <ResponsiveAdminTable label="Danh sách đơn đặt vé"><table className="adm-modern-table bk-table"><thead><tr><th>Mã đơn / Ngày đặt</th><th>Khách hàng / Email</th><th>Chuyến bay / Ghế</th><th>Tổng tiền</th><th>Trạng thái / Lý do hủy</th><th className="text-right">Hành động</th></tr></thead>
           <tbody>{visible.map(b => <tr key={b.id}>
             <td><span className="bk-order-code" title={b.booking_code}>{b.booking_code}</span><small className="date-text">{formatDateTime(b.created_at, { fallback: "Chưa có thông tin" })}</small></td>
             <td><div className="user-profile-cell"><div className="user-table-avatar">{b.customer_name?.trim().charAt(0).toUpperCase() || "K"}</div><div className="bk-customer"><strong className="user-name-text">{b.customer_name}</strong><span className="user-email-text" title={b.customer_email}><Mail size={12} />{b.customer_email}</span></div></div></td>
@@ -140,7 +141,7 @@ export default function BookingManagement() {
             <td><strong className="price-tag-modern">{money(b.total_price)}</strong></td>
             <td><Status value={b.status} />{(b.cancellation_reason || b.cancelled_at || b.status === "CANCELLED") && <span className="bk-reason" title={cancellationReason(b)}>{cancellationReason(b)}</span>}</td>
             <td className="text-right"><div className="action-buttons-inline"><button className="btn-action edit bk-view" onClick={() => setSelectedId(b.id)} title="Xem chi tiết đơn"><Eye size={15} /><span className="btn-action-text">Xem</span></button><OrderActions booking={b} onDelete={beginDelete} onCancel={beginCancel} /></div></td>
-          </tr>)}</tbody></table></div>
+          </tr>)}</tbody></table></ResponsiveAdminTable>
         {!visible.length && !error && <div className="adm-table-empty-state"><Ticket size={36} /><h3>Không tìm thấy đơn đặt vé</h3><p>Thử tìm kiếm với từ khóa hoặc bộ lọc trạng thái khác.</p></div>}
         <footer className="bk-pagination"><span>{filtered.length ? `${(currentPage - 1) * 10 + 1}–${Math.min(currentPage * 10, filtered.length)}` : "0"} / {filtered.length} đơn</span><div><button className="bk-icon-button" aria-label="Trang trước" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}><ChevronLeft size={18} /></button><span>Trang {currentPage} / {pages}</span><button className="bk-icon-button" aria-label="Trang sau" disabled={currentPage === pages} onClick={() => setPage(currentPage + 1)}><ChevronRight size={18} /></button></div></footer>
       </>}
