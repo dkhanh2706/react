@@ -151,7 +151,7 @@ function Payment() {
     try {
       setMockPaying(true);
       const response = await api.post(`/bookings/${bookingId}/pay`);
-      toast.success(response.data?.message || "Giả lập thanh toán thành công!");
+      toast.success(response.data?.message || "Thanh toán thành công. Vé đã được xác nhận.");
       sessionStorage.setItem("last_booking_id", String(bookingId));
       navigate(`/payment-result?bookingId=${bookingId}`, {
         replace: true

@@ -1,6 +1,7 @@
 import { formatDate } from "../utils/format.js";
 import ResponsiveAdminTable from "../components/admin/ResponsiveAdminTable";
 import { useEffect, useState, useMemo } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   Users,
@@ -24,11 +25,17 @@ import AccountAvatar from "../components/common/AccountAvatar";
 import "../styles/admin/UserManagement.css";
 
 function UserManagement() {
+  const [params, setParams] = useSearchParams();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Search & Filter
-  const [searchQuery, setSearchQuery] = useState("");
+  const searchQuery = params.get("q") || "";
+  const setSearchQuery = value => setParams(current => {
+    const next = new URLSearchParams(current);
+    if (value) next.set("q", value); else next.delete("q");
+    return next;
+  }, { replace: true });
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
 
@@ -332,6 +339,7 @@ function UserManagement() {
 
                         {/* HÀNH ĐỘNG */}
                         <td className="text-right">
+                          <Link className="bk-customer-orders" to={`/admin/bookings?q=${encodeURIComponent(u.email)}`}>Xem đơn →</Link>
                           {isAdmin ? (
                             <span className="admin-locked-hint" title="Tài khoản Admin không được chỉnh sửa">
                               Cố định

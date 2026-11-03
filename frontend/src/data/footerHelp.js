@@ -40,7 +40,7 @@ export const footerHelpTopics = {
       },
       {
         title: "Hoàn tất thanh toán",
-        text: "Tại trang thanh toán, chọn phương thức đang được cung cấp. Với MoMo, hoàn tất giao dịch trên trang được chuyển tới rồi quay lại kiểm tra kết quả. Nếu có nút Thanh toán giả lập (Demo), nút này xác nhận giao dịch thử nghiệm và không trừ tiền thật. Không thanh toán lại khi giao dịch trước vẫn đang chờ xác nhận.",
+        text: "Tại trang thanh toán, chọn phương thức đang được cung cấp. Với MoMo, hoàn tất giao dịch trên trang được chuyển tới rồi quay lại kiểm tra kết quả. Nút Thanh toán Demo ghi nhận đơn đã thanh toán, đặt ghế và cấp vé ngay trong hệ thống, không trừ tiền qua ví hoặc ngân hàng. Không thanh toán lại khi giao dịch trước vẫn đang chờ xác nhận.",
       },
       {
         title: "Xem đơn và vé đã xác nhận",

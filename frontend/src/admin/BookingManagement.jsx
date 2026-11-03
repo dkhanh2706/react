@@ -1,6 +1,7 @@
 import { formatDate, formatDateTime, formatMoney as money } from "../utils/format.js";
 import ResponsiveAdminTable from "../components/admin/ResponsiveAdminTable";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { AlertTriangle, ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Eye, Filter, Mail, Plane, RefreshCw, Search, Ticket, Trash2, X } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../api/axios";
@@ -10,7 +11,7 @@ import "../styles/admin/FlightManagement.css";
 import "../styles/admin/UserManagement.css";
 import "../styles/admin/BookingManagement.css";
 
-const names = { PENDING: "Chờ thanh toán", CONFIRMED: "Đã xác nhận", EXPIRED: "Hết hạn", CANCELLED: "Đã hủy", PAYMENT_REVIEW: "Cần đối soát" };
+const names = { PENDING: "Chờ thanh toán", CONFIRMED: "Đã thanh toán", EXPIRED: "Hết hạn", CANCELLED: "Đã hủy", PAYMENT_REVIEW: "Cần đối soát" };
 const paymentNames = { PENDING: "Chờ thanh toán", SUCCESS: "Thành công", FAILED: "Thất bại", REFUNDED: "Đã hoàn tiền" };
 const classes = { ECONOMY: "Phổ thông", BUSINESS: "Thương gia", FIRST: "Hạng nhất" };
 const seatNames = { HOLD: "Đang giữ ghế", BOOKED: "Đã đặt", EXPIRED: "Hết hạn", CANCELLED: "Đã hủy" };
@@ -63,13 +64,24 @@ function Field({ label, children }) {
 }
 
 export default function BookingManagement() {
+  const [params, setParams] = useSearchParams();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
-  const [query, setQuery] = useState("");
+  const query = params.get("q") || "";
+  const setQuery = value => setParams(current => {
+    const next = new URLSearchParams(current);
+    if (value) next.set("q", value); else next.delete("q");
+    return next;
+  }, { replace: true });
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
-  const [selectedId, setSelectedId] = useState(null);
+  const selectedId = params.get("bookingId");
+  const setSelectedId = id => setParams(current => {
+    const next = new URLSearchParams(current);
+    if (id) next.set("bookingId", String(id)); else next.delete("bookingId");
+    return next;
+  });
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [confirmation, setConfirmation] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -93,7 +105,7 @@ export default function BookingManagement() {
   const pages = Math.max(1, Math.ceil(filtered.length / 10));
   const currentPage = Math.min(page, pages);
   const visible = filtered.slice((currentPage - 1) * 10, currentPage * 10);
-  const selected = bookings.find(b => b.id === selectedId);
+  const selected = bookings.find(b => String(b.id) === selectedId);
   const beginDelete = booking => { setSelectedId(null); setDeleteTarget(booking); setConfirmation(""); };
   const beginCancel = booking => { setSelectedId(null); setCancelTarget(booking); setCancelReason(""); };
   const reload = () => { setLoading(true); setRefresh(n => n + 1); };
@@ -120,6 +132,7 @@ export default function BookingManagement() {
     finally { setDeleting(false); }
   };
   return <AdminLayout pageTitle="Quản lý đặt vé"><div className="adm-users-page bk-page">
+    {selectedId && !loading && !error && !selected && <p role="status">Không tìm thấy đơn này. <button type="button" onClick={() => setSelectedId(null)}>Về danh sách đơn</button></p>}
     <header className="adm-page-header-row"><div><span className="adm-page-tag">BOOKING MANAGEMENT</span><h1>Quản lý đơn đặt vé</h1><p>Tra cứu khách hàng, chuyến bay, trạng thái và lịch sử thanh toán.</p></div>
       <button className="btn-refresh" disabled={loading} onClick={() => { setLoading(true); setRefresh(n => n + 1); }}><RefreshCw size={16} className={loading ? "spin" : ""} />Làm mới danh sách</button></header>
     <div className="adm-user-stats-row">
@@ -148,6 +161,10 @@ export default function BookingManagement() {
     </section>
     {selected && <Dialog title="Chi tiết đơn đặt vé" onClose={() => setSelectedId(null)} footer={<><OrderActions booking={selected} onDelete={beginDelete} onCancel={beginCancel} /><button className="btn-cancel" onClick={() => setSelectedId(null)}>Đóng chi tiết</button></>}>
       <div className="bk-detail-summary"><div><span className="bk-label">Mã đơn</span><strong className="bk-detail-code">{selected.booking_code}</strong><span className="bk-muted">Tạo lúc {formatDateTime(selected.created_at, { fallback: "Chưa có thông tin" })}</span></div><div className="bk-summary-right"><Status value={selected.status} /><span className="bk-label">Tổng tiền đơn</span><strong className="bk-total">{money(selected.total_price)}</strong></div></div>
+      <nav className="bk-related-links" aria-label="Tra cứu liên quan">
+        <Link to={`/admin/payments?bookingId=${selected.id}`}>Giao dịch của đơn →</Link>
+        <Link to={`/admin/users?q=${encodeURIComponent(selected.customer_email || "")}`}>Tài khoản khách hàng →</Link>
+      </nav>
       {(selected.cancellation_reason || selected.cancelled_at || selected.status === "CANCELLED") && <section className="bk-cancellation"><h3>Lý do hủy đơn</h3><p>{cancellationReason(selected)}</p><small>Thời gian hủy: {formatDateTime(selected.cancelled_at, { fallback: "Chưa có thông tin" })}</small></section>}
       <div className="bk-detail-grid"><section className="bk-panel"><h3>Khách hàng đặt vé</h3><dl><Field label="Họ và tên">{selected.customer_name}</Field><Field label="Email tài khoản">{selected.customer_email}</Field></dl></section>
         <section className="bk-panel"><h3>Vé lúc đặt</h3><div className="bk-route"><strong>{selected.departure_place || "—"}</strong><ArrowRight size={20} /><strong>{selected.arrival_place || "—"}</strong></div><dl className="bk-fields-grid"><Field label="Chuyến bay">{selected.flight_number_snapshot}</Field><Field label="Hãng bay">{selected.airline_name}</Field><Field label="Ngày bay">{formatDate(selected.flight_date, { fallback: "Chưa có ngày bay" })}</Field><Field label="Giờ đi / đến">{selected.departure_time_text && selected.arrival_time_text ? `${selected.departure_time_text} – ${selected.arrival_time_text}` : "Chưa lưu lịch bay"}</Field></dl></section></div>

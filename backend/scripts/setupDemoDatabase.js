@@ -41,7 +41,7 @@ async function main() {
     const begin = migration.indexOf("BEGIN;");
     await client.query(migration.slice(0, begin));
     await client.query(migration.slice(begin));
-    for (const file of ["002_demo_flight_schedule.sql", "003_on_demand_demo_data.sql", "004_remove_replaced_tables.sql", "005_admin_booking_delete_permissions.sql", "006_customer_reviews.sql", "007_live_chat.sql"]) {
+    for (const file of ["002_demo_flight_schedule.sql", "003_on_demand_demo_data.sql", "004_remove_replaced_tables.sql", "005_admin_booking_delete_permissions.sql", "006_customer_reviews.sql", "007_live_chat.sql", "008_chat_customer_identity.sql"]) {
       await client.query(read(`migrations/${file}`));
     }
     await client.query("GRANT USAGE ON SCHEMA public TO codex_user");

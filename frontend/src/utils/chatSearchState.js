@@ -1,6 +1,7 @@
 import { normalizeAirport, normalizeDate } from './chatFlightInput.js';
 import { validateChatFlight } from './chatFlightSearch.js';
 import { vietnamToday } from './format.js';
+import { getAuthOwner } from './auth.js';
 
 const storageKey = 'flight-support-search';
 const empty = () => ({ flightData: { from: '', to: '', date: '' }, step: 'idle' });
@@ -8,6 +9,7 @@ const empty = () => ({ flightData: { from: '', to: '', date: '' }, step: 'idle' 
 export function readChatSearch(storage, credentials, today = vietnamToday()) {
   try {
     const owner = credentials || JSON.parse(globalThis.localStorage.getItem('flight-support-session'));
+    if (!credentials && (owner?.owner || 'guest') !== getAuthOwner()) return empty();
     const saved = JSON.parse((storage || globalThis.sessionStorage).getItem(storageKey));
     if (!owner?.id || saved?.id !== owner.id) return empty();
     const flightData = {

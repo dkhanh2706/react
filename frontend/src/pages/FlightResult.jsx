@@ -71,7 +71,7 @@ function FlightResult() {
   const [loading, setLoading] = useState(false);
 
   const source =
-    location.state?.source || (searchParams.get("from") ? "chatbot" : "home");
+    searchParams.get("source") || location.state?.source || (searchParams.get("from") ? "chatbot" : "home");
 
   const queryFrom = searchParams.get("from") || location.state?.searchInfo?.from;
 
@@ -80,10 +80,7 @@ function FlightResult() {
   const queryDate = searchParams.get("date") || location.state?.searchInfo?.departDate;
 
   useEffect(() => {
-    // Nếu đã được truyền kết quả từ FlightSearch
-    // thì không gọi API lần nữa
-
-    // Không có query params
+    // Search parameters in the URL let reloads and shared links fetch fresh results.
     if (!queryFrom || !queryTo || !queryDate) {
       return;
     }
@@ -173,7 +170,7 @@ function FlightResult() {
     if (!token) {
       toast.error("Vui lòng đăng nhập để đặt vé");
 
-      navigate("/login", { state: { from: { pathname: "/passenger-info", state: { flight } } } });
+      navigate("/login", { state: { from: { pathname: "/passenger-info", search: `?flightId=${flight.id}`, state: { flight } } } });
 
       return;
     }
@@ -183,7 +180,7 @@ function FlightResult() {
     // -> chọn ghế
     // -> thanh toán
 
-    navigate("/passenger-info", {
+    navigate(`/passenger-info?flightId=${flight.id}`, {
       state: {
         flight,
       },
@@ -403,9 +400,9 @@ function FlightResult() {
           )}
         </div>
         {totalPages > 0 && <nav aria-label="Phân trang chuyến bay" style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 16, padding: 24 }}>
-          <button disabled={page <= 1 || loading} onClick={() => setSearchParams({ from: queryFrom, to: queryTo, date: queryDate, page: String(page-1) })}>Trang trước</button>
+          <button disabled={page <= 1 || loading} onClick={() => setSearchParams({ from: queryFrom, to: queryTo, date: queryDate, source, page: String(page-1) })}>Trang trước</button>
           <span>Trang {page}/{totalPages} · {totalResults} chuyến</span>
-          <button disabled={page >= totalPages || loading} onClick={() => setSearchParams({ from: queryFrom, to: queryTo, date: queryDate, page: String(page+1) })}>Trang sau</button>
+          <button disabled={page >= totalPages || loading} onClick={() => setSearchParams({ from: queryFrom, to: queryTo, date: queryDate, source, page: String(page+1) })}>Trang sau</button>
         </nav>}
       </main>
 

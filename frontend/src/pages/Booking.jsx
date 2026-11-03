@@ -10,6 +10,8 @@ function Booking() {
   const {
     navigate,
     flight,
+    loading,
+    error,
     passenger,
     services,
     seats,
@@ -36,7 +38,7 @@ function Booking() {
           <div className="booking-empty-card">
             <span className="empty-plane-icon">✈</span>
 
-            <h2>Không tìm thấy thông tin chuyến bay</h2>
+            <h2>{loading ? "Đang tải chuyến bay…" : error || "Không tìm thấy thông tin chuyến bay"}</h2>
 
             <p>
               Vui lòng quay lại danh sách hoặc trang chủ để chọn chuyến bay.
@@ -63,7 +65,7 @@ function Booking() {
 
             <p>Vui lòng điền thông tin hành khách trước khi chọn ghế.</p>
 
-            <button type="button" className="btn-back-home" onClick={() => navigate("/passenger-info", {
+            <button type="button" className="btn-back-home" onClick={() => navigate(`/passenger-info?flightId=${flight.id}`, {
             state: {
               flight
             }
@@ -128,9 +130,9 @@ function Booking() {
               <p>Chọn ghế mong muốn của bạn trên sơ đồ cabin bên dưới</p>
             </div>
 
-            <button type="button" className="btn-back-step" onClick={() => navigate("/passenger-info", {
+            <button type="button" className="btn-back-step" onClick={() => navigate(`/passenger-info?flightId=${flight.id}`, {
             state: {
-              flight
+              flight, passenger, services
             }
           })}>
               ← Sửa thông tin hành khách

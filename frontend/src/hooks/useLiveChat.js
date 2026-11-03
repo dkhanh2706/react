@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import api from "../api/axios";
 import { connectChat } from "../api/chatRealtime";
+import { getAuthOwner } from "../utils/auth.js";
 
 const storageKey = "flight-support-session";
 const storedCredentials = () => {
   try {
     const value = JSON.parse(localStorage.getItem(storageKey));
-    return typeof value?.id === "string" && typeof value?.secret === "string" ? value : null;
+    return typeof value?.id === "string" && typeof value?.secret === "string" && (value.owner || "guest") === getAuthOwner() ? value : null;
   } catch { return null; }
 };
 
@@ -82,7 +83,7 @@ export default function useLiveChat(open, setMessages, clearLocalChat) {
         if (!credentials.current) {
           data = (await api.post("/chat/session")).data;
           if (!active || requestEpoch !== epoch.current) return;
-          credentials.current = { id: data.id, secret: data.secret };
+          credentials.current = { id: data.id, secret: data.secret, owner: getAuthOwner() };
           localStorage.setItem(storageKey, JSON.stringify(credentials.current));
         }
         if (active && apply(data, requestEpoch)) setError("");
@@ -153,7 +154,7 @@ export default function useLiveChat(open, setMessages, clearLocalChat) {
       const { data } = await api.post("/chat/reset", identity);
       current.current = null;
       latestTimestamp.current = 0;
-      credentials.current = { id: data.id, secret: data.secret };
+      credentials.current = { id: data.id, secret: data.secret, owner: getAuthOwner() };
       localStorage.setItem(storageKey, JSON.stringify(credentials.current));
       apply(data, requestEpoch);
       setError("");

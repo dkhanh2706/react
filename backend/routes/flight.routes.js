@@ -20,6 +20,7 @@ router.get("/statistics", verifyToken, isAdmin, require("../lib/http").endpoint(
   res.json(await require("../services/dashboard.service").getStatistics(req.query));
 }));
 router.get("/demo/config", verifyToken, isAdmin, demoFlights.config);
+router.get("/:id", flightController.getFlight);
 router.post("/demo/preview", verifyToken, isAdmin, demoFlights.preview);
 router.post("/demo/generate", verifyToken, isAdmin, demoFlights.generate);
 

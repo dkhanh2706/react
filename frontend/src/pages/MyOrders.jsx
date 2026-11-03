@@ -8,7 +8,7 @@ import Footer from "../layouts/Footer";
 import { airportName } from "../utils/airportNames";
 import "../styles/MyOrders.css";
 
-const statuses = { PENDING: "Chờ thanh toán", CONFIRMED: "Đã xác nhận", EXPIRED: "Hết hạn giữ ghế", CANCELLED: "Đã hủy", PAYMENT_REVIEW: "Cần đối soát", REFUNDED: "Đã hoàn tiền" };
+const statuses = { PENDING: "Chờ thanh toán", CONFIRMED: "Đã thanh toán", EXPIRED: "Hết hạn giữ ghế", CANCELLED: "Đã hủy", PAYMENT_REVIEW: "Cần đối soát", REFUNDED: "Đã hoàn tiền" };
 
 const statusOf = (order, now) => order.payment_status === "REFUNDED" ? "REFUNDED"
   : order.status === "PENDING" && new Date(order.hold_expires_at).getTime() <= now ? "EXPIRED" : order.status;
@@ -51,7 +51,7 @@ export default function MyOrders() {
     <div className="orders-stats" aria-label="Tổng quan đơn đặt vé">
       {[{ label: "Tất cả đơn", count: orders.length, value: "", icon: Ticket, color: "blue" },
         { label: "Chờ thanh toán", count: pendingCount, value: "PENDING", icon: Clock3, color: "amber" },
-        { label: "Đã xác nhận", count: confirmedCount, value: "CONFIRMED", icon: CheckCircle2, color: "green" }].map(({ label, count, value, icon: Icon, color }) =>
+        { label: "Đã thanh toán", count: confirmedCount, value: "CONFIRMED", icon: CheckCircle2, color: "green" }].map(({ label, count, value, icon: Icon, color }) =>
         <button type="button" key={color} className={`orders-stat ${filter === value ? "is-selected" : ""}`} aria-pressed={filter === value} onClick={() => setFilter(value)}>
           <span className={`orders-stat-icon ${color}`}><Icon size={21} /></span><span><span className="orders-stat-label">{label}</span><strong>{loading ? "—" : count}</strong></span><ChevronRight size={17} className="orders-stat-arrow" />
         </button>)}
@@ -92,7 +92,7 @@ export default function MyOrders() {
             </aside></div>
             {order.status === "PENDING" && <div className={`orders-notice ${payable ? "orders-notice-hold" : ""}`}><Clock3 size={16} /><span>{status === "EXPIRED" ? "Thời gian giữ ghế đã kết thúc. Bạn có thể tìm chuyến mới để đặt lại." : <>Giữ ghế đến <strong>{formatDateTime(order.hold_expires_at, { fallback: "—" })}</strong>. {payable ? "Thanh toán trước hạn để xác nhận hành trình." : "Chuyến bay hiện chưa đủ điều kiện tiếp tục thanh toán."}</>}</span></div>}
             {order.cancellation_reason && <div className="orders-notice"><Info size={16} /><span>Lý do hủy: {order.cancellation_reason}</span></div>}
-            <div className="orders-card-bottom"><History size={13} /><span>Đặt lúc {formatDateTime(order.created_at, { fallback: "—" })}</span>{order.payment_method === "MOCK" && <span className="orders-demo-tag">Thanh toán giả lập</span>}</div>
+            <div className="orders-card-bottom"><History size={13} /><span>Đặt lúc {formatDateTime(order.created_at, { fallback: "—" })}</span>{order.payment_method === "MOCK" && <span className="orders-demo-tag">Phương thức Demo</span>}</div>
           </article>;
         })}
         {!error && !visibleOrders.length && <div className="orders-empty"><span className="orders-empty-icon"><Ticket size={32} /></span><h3>{orders.length ? "Chưa có đơn ở trạng thái này" : "Hành trình mới đang chờ bạn"}</h3><p>{orders.length ? "Thử chọn trạng thái khác để xem lại các đơn đặt vé của bạn." : "Tìm chuyến bay yêu thích và tạo đơn đầu tiên. Mọi thông tin sẽ được lưu tại đây."}</p>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getLoginReturnTarget } from "../utils/auth.js";
+import { clearLoginReturnTarget, getLoginReturnTarget, readLoginReturnTarget } from "../utils/auth.js";
 import toast from "react-hot-toast";
 import {
   Mail,
@@ -53,13 +53,12 @@ function Login() {
 
       const isAdmin =
         user?.role === "ADMIN";
+      const target = returnTarget || readLoginReturnTarget(user);
+      clearLoginReturnTarget();
 
       setTimeout(() => {
-        if (isAdmin) {
-          navigate("/admin", { replace: true });
-        } else {
-          navigate(returnTarget ? returnTarget.pathname + returnTarget.search : "/home", { replace: true, state: returnTarget?.state });
-        }
+        const allowedTarget = target && (isAdmin || !target.pathname.startsWith("/admin")) ? target : null;
+        navigate(allowedTarget ? allowedTarget.pathname + allowedTarget.search : isAdmin ? "/admin" : "/home", { replace: true, state: allowedTarget?.state });
       }, 500);
     } catch (error) {
       console.error("LOGIN ERROR:", error);

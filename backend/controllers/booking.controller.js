@@ -76,8 +76,9 @@ exports.confirmPayment = endpoint(async (req, res) => {
     await flow.confirmBooking(client, id);
     return { booking: { ...loaded.booking, status: "CONFIRMED" }, payment };
   });
-  const emailSent = result.already ? false : Boolean(await sendPaymentEmailSafely(id));
-  res.json({ message: "Thanh toán giả lập thành công", ...result, email_sent: emailSent });
+  // Payment is committed before responding. Receipt delivery must not hold up checkout.
+  res.json({ message: "Thanh toán thành công. Đơn đã được thanh toán và vé đã được xác nhận.", ...result });
+  if (!result.already) void sendPaymentEmailSafely(id);
 });
 
 exports.getMyTickets = endpoint(async (req, res) => {

@@ -1,17 +1,21 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getInitialPassenger, passengerFromProfile, BAGGAGE_OPTIONS, MEAL_OPTIONS } from "../utils/passenger.js";
 import api from "../api/axios";
 import toast from "react-hot-toast";
+import useBookingFlight from "./useBookingFlight.js";
+import { saveBookingDraft } from "../utils/bookingDraft.js";
 export default function usePassengerInfo() {
-  const location = useLocation();
   const navigate = useNavigate();
-  const flight = location.state?.flight;
-  const [passenger, setPassenger] = useState(getInitialPassenger);
-  const editedFields = useRef(new Set());
-  const [baggageWeight, setBaggageWeight] = useState(0);
-  const [mealType, setMealType] = useState("NONE");
-  const [insurance, setInsurance] = useState(false);
+  const { flight, draft, navigation, loading, error } = useBookingFlight();
+  const [passenger, setPassenger] = useState(() => draft?.passenger || navigation.passenger || getInitialPassenger());
+  const editedFields = useRef(new Set(draft?.passenger || navigation.passenger ? Object.keys(draft?.passenger || navigation.passenger) : []));
+  const [baggageWeight, setBaggageWeight] = useState(draft?.services?.baggage_weight ?? navigation.services?.baggage_weight ?? 0);
+  const [mealType, setMealType] = useState(draft?.services?.meal_type ?? navigation.services?.meal_type ?? "NONE");
+  const [insurance, setInsurance] = useState(draft?.services?.insurance ?? navigation.services?.insurance ?? false);
+  useEffect(() => {
+    if (flight) saveBookingDraft({ flight, passenger, services: { baggage_weight: baggageWeight, meal_type: mealType, insurance } });
+  }, [flight, passenger, baggageWeight, mealType, insurance]);
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -160,7 +164,8 @@ export default function usePassengerInfo() {
       insurance_price: Number(insurancePrice),
       service_price: Number(servicePrice)
     };
-    navigate("/booking", {
+    saveBookingDraft({ flight, passenger: passengerData, services });
+    navigate(`/booking?flightId=${flight.id}`, {
       state: {
         flight,
         passenger: passengerData,
@@ -171,6 +176,8 @@ export default function usePassengerInfo() {
   return {
     navigate,
     flight,
+    loading,
+    error,
     passenger,
     baggageWeight,
     setBaggageWeight,

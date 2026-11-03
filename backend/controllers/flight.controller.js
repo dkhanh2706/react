@@ -47,6 +47,18 @@ exports.getAllFlights = endpoint(async (req, res) => {
     (f.status='AVAILABLE' AND f.departure_time>LOCALTIMESTAMP AND f.price>0 AND ${availableSeats}>0) AS is_sellable
     ${joins} ORDER BY f.departure_time DESC,f.id DESC`)).rows });
 });
+exports.getFlight = endpoint(async (req, res) => {
+  const id = positiveId(req.params.id, "Chuyến bay");
+  const { rows } = await pool.query(`SELECT ${fields}, ${availableSeats} AS available_seats,
+    to_char(f.departure_time,'YYYY-MM-DD') AS date,to_char(f.departure_time,'HH24:MI') AS departure_clock,
+    to_char(f.arrival_time,'HH24:MI') AS arrival_clock ${joins}
+    WHERE f.id=$1 AND f.status='AVAILABLE' AND f.departure_time>LOCALTIMESTAMP AND f.price>0`, [id]);
+  const f = rows[0];
+  if (!f) fail(404, "Chuyến bay không còn mở bán. Vui lòng tìm chuyến khác.");
+  res.json({ data: { ...f, from: f.departure_code, to: f.arrival_code, price: Number(f.price),
+    departure_datetime: f.departure_time, arrival_datetime: f.arrival_time,
+    departure_time: f.departure_clock, arrival_time: f.arrival_clock, type: "Bay thẳng" } });
+});
 exports.catalog = endpoint(async (req, res) => {
   const [airports, airlines, airplanes] = await Promise.all([pool.query("SELECT id,code,name,city,country FROM airports ORDER BY code"), pool.query("SELECT id,name,code FROM airlines ORDER BY name"), pool.query("SELECT id,airline_id,model,seat_capacity FROM airplanes ORDER BY id")]);
   res.json({ airports: airports.rows, airlines: airlines.rows, airplanes: airplanes.rows, routes: routePolicy.routesFor(airports.rows) });

@@ -69,7 +69,7 @@ Ví dụ trình diễn:
 
 ### Thanh toán khi MoMo chưa duyệt
 
-`backend/.env` đã bật `DEMO_PAYMENTS_ENABLED=true`. Khởi động lại backend để nhận cờ. Ở bước thanh toán cuối, chọn nút xanh **Thanh toán giả lập (Demo)** ngay trên nút MoMo. Backend kiểm tra đơn/ghế còn hợp lệ, lưu payments với method MOCK, status SUCCESS, xác nhận booking và ghế, rồi giao diện mở trang **Thanh toán giả lập thành công**. Bấm Vé của tôi để xem vé. Không cần quét mã hoặc chuyển tiền; MOCK không tính vào doanh thu thật.
+`backend/.env` đã bật `DEMO_PAYMENTS_ENABLED=true`. Khởi động lại backend để nhận cờ. Ở bước thanh toán cuối, chọn **Thanh toán Demo** ngay trên nút MoMo. Backend kiểm tra đơn/ghế còn hợp lệ, lưu giao dịch MOCK/SUCCESS, xác nhận đơn CONFIRMED và ghế BOOKED; giao diện hiện **Thanh toán thành công** và **Đã thanh toán**. Bấm Vé của tôi để xem vé. Giá trị Demo được cộng vào tổng giá trị đã thanh toán của hệ thống, đồng thời tách phương thức với MoMo. Không cần chuyển tiền qua ví/ngân hàng. Email gửi sau bước xác nhận và không trì hoãn trả kết quả thanh toán.
 
 Nút chỉ hiện khi backend cho phép demo; production luôn chặn. Bấm lặp không tạo thêm giao dịch. Nếu đơn hết hạn, chuyến ngừng bán hoặc đang có giao dịch MoMo PENDING thì không giả lập thành công: với bài báo cáo hãy dùng nút demo ngay trên một đơn mới, trước khi mở MoMo. Không thay cấu trúc database và không thanh toán hộ đơn thật trong bước cấu hình này.
 

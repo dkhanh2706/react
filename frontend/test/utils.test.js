@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { formatNumber, formatMoney, formatDate, formatTime, formatDateTime, vietnamToday } from "../src/utils/format.js";
-import { getAuth, getStoredUser, isAdminUser, clearAuthStorage, isTokenExpired, getLoginReturnTarget } from "../src/utils/auth.js";
+import { getAuth, getAuthOwner, getStoredUser, isAdminUser, clearAuthStorage, isTokenExpired, getLoginReturnTarget, saveLoginReturnTarget, readLoginReturnTarget } from "../src/utils/auth.js";
+import { clearBookingDraft, readBookingDraft, saveBookingDraft } from "../src/utils/bookingDraft.js";
+import { getFlightSearchPath } from "../src/utils/booking.js";
 import { getGenderName, getMealName } from "../src/utils/labels.js";
 import { getInitialPassenger, passengerFromProfile } from "../src/utils/passenger.js";
 import { validateRegistration } from "../src/utils/registration.js";
@@ -88,12 +90,14 @@ test("session parsing, passenger defaults and logout share the same account stat
     const user = { id: 1, full_name: "Nguyễn Văn Test", phone: "0900000000", email: "test@example.test", role: "ADMIN" };
     values.set("user", JSON.stringify(user)); values.set("token", "test-token");
     assert.deepEqual(getAuth(), { token: "test-token", user });
+    assert.equal(getAuthOwner(), "user:1");
     assert.equal(isAdminUser(user), true);
     assert.equal(isAdminUser({ role: "CUSTOMER" }), false);
     assert.equal(getInitialPassenger().full_name, user.full_name);
     assert.equal(getInitialPassenger().email, user.email);
     clearAuthStorage();
     assert.deepEqual(getAuth(), { token: null, user: null });
+    assert.equal(getAuthOwner(), "guest");
     assert.deepEqual(events, ["auth-changed"]);
   } finally {
     if (storageDescriptor) Object.defineProperty(globalThis, "localStorage", storageDescriptor); else delete globalThis.localStorage;
@@ -131,6 +135,43 @@ test("login return target preserves the selected flight and rejects external red
   const target = { pathname: "/passenger-info", state: { flight: { id: 123 } } };
   assert.deepEqual(getLoginReturnTarget(target), { ...target, search: "" });
   for (const pathname of ["https://evil.example", "//evil.example", "/\\\\evil.example", "/login", "/register"]) assert.equal(getLoginReturnTarget({ pathname }), null);
+});
+
+test("expired sessions retain checkout context only for the same account and within the return deadline", () => {
+  const values = new Map();
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "sessionStorage");
+  Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: {
+    getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key),
+  } });
+  try {
+    const target = { pathname: "/payment", search: "?bookingId=77" };
+    saveLoginReturnTarget(target, 12);
+    assert.deepEqual(readLoginReturnTarget({ id: 12 }), { ...target, state: undefined });
+    assert.equal(readLoginReturnTarget({ id: 13 }), null);
+    const saved = JSON.parse(values.get("login-return"));
+    values.set("login-return", JSON.stringify({ ...saved, savedAt: Date.now() - 31 * 60 * 1000 }));
+    assert.equal(readLoginReturnTarget({ id: 12 }), null);
+    saveLoginReturnTarget({ pathname: "//external.example" }, 12);
+    assert.equal(readLoginReturnTarget({ id: 12 }), null);
+  } finally {
+    if (descriptor) Object.defineProperty(globalThis, "sessionStorage", descriptor); else delete globalThis.sessionStorage;
+  }
+});
+
+test("booking drafts survive a return to passenger details without crossing accounts, flights or expiry", () => {
+  const values = new Map();
+  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) };
+  const draft = { flight: { id: 9 }, passenger: { document_number: "123456789012" }, services: { baggage_weight: 20, insurance: true } };
+  saveBookingDraft(draft, storage, "user:12", 1000);
+  assert.deepEqual(readBookingDraft(9, storage, "user:12", 1001)?.passenger, draft.passenger);
+  assert.equal(readBookingDraft(9, storage, "user:13", 1001), null);
+  assert.equal(readBookingDraft(10, storage, "user:12", 1001), null);
+  assert.equal(readBookingDraft(9, storage, "user:12", 1000 + 31 * 60 * 1000), null);
+  saveBookingDraft(draft, storage, "user:12", 1000);
+  clearBookingDraft(9, storage, "user:12");
+  assert.equal(readBookingDraft(9, storage, "user:12", 1001), null);
+  assert.equal(getFlightSearchPath({ from: "HAN", to: "SGN", date: "2080-01-01" }), "/flights?from=HAN&to=SGN&date=2080-01-01&source=home");
+  assert.equal(getFlightSearchPath(null), "/destinations");
 });
 
 test("chat restores the chosen route after reload without mixing sessions or keeping expired dates", () => {

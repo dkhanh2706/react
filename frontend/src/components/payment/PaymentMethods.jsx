@@ -81,7 +81,7 @@ export default function PaymentMethods({
                     <strong>Chế độ demo đồ án</strong>
 
                     <p>
-                      Nhấn “Thanh toán giả lập (Demo)” để xác nhận vé ngay, không cần mở MoMo hoặc quét mã. Không trừ tiền thật.
+                      Nhấn “Thanh toán Demo” để ghi nhận đã thanh toán và nhận vé ngay, không cần mở MoMo hoặc quét mã. Demo không trừ tiền qua ví hoặc ngân hàng.
                     </p>
                   </div>
                 </div>}

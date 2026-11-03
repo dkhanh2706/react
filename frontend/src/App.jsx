@@ -1,5 +1,5 @@
 import { getAuth, isAdminUser as checkIsAdmin } from "./utils/auth.js";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import Login from "./pages/Login";
 import ScrollToTop from "./components/common/ScrollToTop";
@@ -26,6 +26,7 @@ import MyTickets from "./pages/MyTickets";
 import MyOrders from "./pages/MyOrders";
 
 import Profile from "./pages/Profile";
+import NotFound from "./pages/NotFound";
 
 import AdminDashboard from "./admin/AdminDashboard";
 import UserManagement from "./admin/UserManagement";
@@ -75,17 +76,13 @@ function CustomerPublicRoute({ children }) {
 }
 
 function AdminRoute({ children }) {
-  const { token, user } = getAuth();
+  return <ProtectedRoute adminOnly>{children}</ProtectedRoute>;
+}
 
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (!checkIsAdmin(user)) {
-    return <Navigate to="/home" replace />;
-  }
-
-  return children;
+function JourneyRoute({ component: Component }) {
+  const location = useLocation();
+  const flightId = new URLSearchParams(location.search).get("flightId") || location.state?.flight?.id || "";
+  return <Component key={flightId} />;
 }
 
 function App() {
@@ -169,7 +166,7 @@ function App() {
           path="/passenger-info"
           element={
             <ProtectedRoute>
-              <PassengerInfo />
+              <JourneyRoute component={PassengerInfo} />
             </ProtectedRoute>
           }
         />
@@ -180,7 +177,7 @@ function App() {
           path="/booking"
           element={
             <ProtectedRoute>
-              <Booking />
+              <JourneyRoute component={Booking} />
             </ProtectedRoute>
           }
         />
@@ -274,7 +271,7 @@ function App() {
 
         {/* NOT FOUND */}
 
-        <Route path="*" element={<RootRedirect />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
 
       <ChatbotWrapper />

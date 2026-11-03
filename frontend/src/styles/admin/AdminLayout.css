@@ -441,3 +441,6 @@
   .adm-topbar-right { flex-shrink: 0; gap: 0; }
   .adm-system-health { white-space: nowrap; padding: 5px 9px; font-size: 11px; }
 }
+.bk-related-links { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; padding: 12px; border-radius: 8px; background: #eff6ff; color: #1e40af; }
+.bk-related-links a, .bk-customer-orders { color: #1d4ed8; text-decoration: underline; text-underline-offset: 3px; }
+.bk-customer-orders { display: inline-block; margin-bottom: 8px; }

@@ -76,6 +76,7 @@ function api(url, method, raw) {
   if (p.endsWith("/users")) return users;
   if (p.endsWith("/flights/catalog")) return catalog;
   if (p.endsWith("/flights/search")) return { data: [flight], total: 1, total_pages: 1 };
+  if (p === "/api/flights/1" && method === "GET") return { data: flight };
   if (p.endsWith("/flights/demo/config")) return { enabled: false };
   if (p.endsWith("/flights/overview")) return { flight_count: 1, user_count: 2, revenue: 0, offered_seats: 20, booked_seats: 1 };
   if (p.endsWith("/flights/statistics")) {
@@ -115,9 +116,14 @@ function api(url, method, raw) {
     return staff;
   }
   if (p.endsWith("/chat/reset")) { session = { ...session, id: require("node:crypto").randomUUID(), secret: require("node:crypto").randomUUID(), status: "bot", version: 0, updated_at: new Date().toISOString(), messages: [{ id: 1, sender: "bot", text: "Xin chào" }] }; return session; }
-  if (p.endsWith("/chat/session") || p.endsWith("/chat/sync")) return session;
+  if (p.endsWith("/chat/session")) {
+    session = { ...session, id: require("node:crypto").randomUUID(), secret: require("node:crypto").randomUUID(),
+      status: "bot", version: 0, updated_at: new Date().toISOString(), messages: [{ id: 1, sender: "bot", text: "Xin chào" }] };
+    return session;
+  }
+  if (p.endsWith("/chat/sync")) return session;
   if (p.endsWith("/chat/messages") || p.endsWith("/chat/bot")) { session = { ...session, status: p.endsWith("/messages") && session.status !== "active" ? "waiting" : session.status, updated_at: new Date().toISOString(), messages: [...session.messages, { id: session.messages.length + 1, sender: p.endsWith("/bot") ? "bot" : "user", text: body.text }] }; return session; }
   if (p.endsWith("/chat")) return body.mode === 'assistant' ? assistant(body) : { reply: "Mock AI reply" };
   return { data: [] };
 }
-module.exports = { customer, flight, api, calls, token, assistantPayloads };
+module.exports = { customer, flight, api, calls, token, assistantPayloads, failNext: new Map() };

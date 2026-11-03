@@ -1,4 +1,4 @@
--- Base schema for a NEW, EMPTY classroom database (before migrations 001-007).
+-- Base schema for a NEW, EMPTY classroom database (before migrations 001-008).
 -- Applied only by scripts/setupDemoDatabase.js after checking the database name/schema.
 CREATE TYPE user_role AS ENUM ('CUSTOMER','STAFF','ADMIN');
 CREATE TYPE seat_class AS ENUM ('ECONOMY','BUSINESS','FIRST');

@@ -1,4 +1,5 @@
 import usePassengerInfo from "../hooks/usePassengerInfo.js";
+import { getFlightSearchPath } from "../utils/booking.js";
 import PassengerPriceSummary from "../components/booking/PassengerPriceSummary.jsx";
 import ExtraServices from "../components/booking/ExtraServices.jsx";
 import BaggageOptions from "../components/booking/BaggageOptions.jsx";
@@ -11,6 +12,8 @@ function PassengerInfo() {
   const {
     navigate,
     flight,
+    loading,
+    error,
     passenger,
     baggageWeight,
     setBaggageWeight,
@@ -36,7 +39,7 @@ function PassengerInfo() {
           <div className="passenger-empty">
             <div className="passenger-empty-icon">✈</div>
 
-            <h2>Không tìm thấy thông tin chuyến bay</h2>
+            <h2>{loading ? "Đang tải chuyến bay…" : error || "Không tìm thấy thông tin chuyến bay"}</h2>
 
             <p>Bạn cần chọn chuyến bay trước khi nhập thông tin hành khách.</p>
 
@@ -106,7 +109,7 @@ function PassengerInfo() {
               </p>
             </div>
 
-            <button type="button" className="passenger-back-button" onClick={() => navigate(-1)}>
+            <button type="button" className="passenger-back-button" onClick={() => navigate(getFlightSearchPath(flight))}>
               ← Đổi chuyến bay
             </button>
           </div>

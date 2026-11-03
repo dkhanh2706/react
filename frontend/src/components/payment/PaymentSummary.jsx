@@ -93,9 +93,10 @@ export default function PaymentSummary({
                       Đang xác nhận thanh toán...
                     </> : <>
                       <span>🎓</span>
-                      Thanh toán giả lập (Demo)
+                      Thanh toán Demo
                     </>}
                 </button>}
+                {demoEnabled && !data.pending_momo && <p>Bấm Demo để xác nhận đã thanh toán và nhận vé ngay trong hệ thống.</p>}
 
                 {/* MOMO */}
 

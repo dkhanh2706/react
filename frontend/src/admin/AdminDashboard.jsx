@@ -71,11 +71,11 @@ export default function AdminDashboard() {
       <div className="dash-period"><span>{formatDate(range.from)} – {formatDate(range.to)}</span><small>Cập nhật: {formatDateTime(result.updated_at)}</small></div>
       <section className="dash-metrics" aria-label="Số liệu tổng quan">
         <Metric title="Tổng chuyến bay" icon={Plane} value={formatNumber(summary.flight_count)} note={`Theo ngày khởi hành · ${summary.available_flights} mở bán · ${summary.delayed_flights} hoãn · ${summary.cancelled_flights} hủy`} />
-        <Metric title="Doanh thu MoMo" icon={CreditCard} value={formatMoney(summary.momo_revenue)} note="Theo ngày thanh toán · Không gồm MOCK, khoản chờ hoàn và đã hoàn tiền" accent="green" />
+        <Metric title="Giá trị đã thanh toán" icon={CreditCard} value={formatMoney(summary.paid_value ?? (summary.momo_revenue + summary.mock_revenue))} note="Theo ngày thanh toán · Gồm MoMo và Demo · Không gồm khoản chờ hoàn hoặc đã hoàn tiền" accent="green" />
         <Metric title="Doanh số dự kiến" icon={TrendingUp} value={formatMoney(summary.projected_sales)} note="Theo ngày khởi hành · Gồm đơn xác nhận hợp lệ (cả MOCK) và đơn chờ còn hạn" />
         <Metric title="Tỷ lệ lấp đầy ghế" icon={Armchair} value={summary.occupancy_rate === null ? "—" : `${summary.occupancy_rate.toFixed(1)}%`} note={summary.offered_seats ? `${formatNumber(summary.booked_seats)}/${formatNumber(summary.offered_seats)} ghế đã bán · Theo ngày khởi hành` : "Chưa có ghế cung ứng trong kỳ"} accent="orange" />
         <Metric title="Ghế đã bán" icon={Ticket} value={formatNumber(summary.booked_seats)} note="Theo ngày khởi hành · Đơn xác nhận · Không gồm chuyến hủy" />
-        <Metric title="Thanh toán MOCK" icon={FlaskConical} value={formatMoney(summary.mock_revenue)} note="Theo ngày thanh toán · Số tiền giả lập, hiển thị riêng với MoMo" accent="teal" />
+        <Metric title="Thanh toán Demo" icon={FlaskConical} value={formatMoney(summary.mock_revenue)} note="Đã tính vào tổng giá trị đã thanh toán · Phương thức MOCK" accent="teal" />
       </section>
       <section className="dash-projection dash-panel" aria-label="Công thức doanh số dự kiến"><div><h2>Doanh số dự kiến từ đơn hiện có</h2><p><strong>{formatMoney(summary.confirmed_value)}</strong> đơn xác nhận hợp lệ + <strong>{formatMoney(summary.pending_value)}</strong> đơn chờ thanh toán còn hạn = <strong>{formatMoney(summary.projected_sales)}</strong></p><p>Giả định các đơn chờ đều thanh toán thành công. Gồm giá vé và dịch vụ đã lưu trong đơn; không phải dự báo doanh số cuối tháng.</p></div></section>
       <div className="dash-charts-grid">

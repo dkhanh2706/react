@@ -1,177 +1,92 @@
 # DAMH Shop — Website đặt vé máy bay
 
-Đồ án React + Express + PostgreSQL, mô phỏng đặt vé một chiều, một hành khách/ghế trên mỗi đơn. Hệ thống chưa kết nối kho vé của hãng hàng không và không phát hành vé hãng thật.
+DAMH Shop là đồ án website đặt vé máy bay bằng **React + Express + PostgreSQL**. Khách hàng tìm chuyến, nhập thông tin hành khách, chọn dịch vụ và ghế, thanh toán, xem đơn và vé. Quản trị viên quản lý chuyến bay, tài khoản, đặt vé, giao dịch và chat hỗ trợ.
+
+**Phạm vi:** mô phỏng vé một chiều, một hành khách và một ghế trên mỗi đơn. Dữ liệu chuyến bay mẫu do dự án tạo, chưa kết nối kho vé hãng hàng không và chưa phát hành vé hãng thật. Hoàn tiền hiện là ghi nhận nghiệp vụ thủ công, chưa tự chuyển tiền qua MoMo.
 
 ## Mục lục
 
-- [Công nghệ và cấu trúc](#công-nghệ-và-cấu-trúc)
-- [Các chức năng hiện có](#các-chức-năng-hiện-có)
-- [Yêu cầu và cài thư viện](#yêu-cầu-và-cài-thư-viện)
-- [Môi trường](#môi-trường)
-- [Tạo database demo mới từ đầu](#tạo-database-demo-mới-từ-đầu)
-- [Database đang sử dụng](#database-đang-sử-dụng)
-- [Chạy](#chạy)
-- [Các trang và API chính](#các-trang-và-api-chính)
-- [Chat trực tiếp và thời gian chờ kết nối lại](#chat-trực-tiếp-và-thời-gian-chờ-kết-nối-lại)
-- [Trình diễn và nghiệm thu](#trình-diễn-và-nghiệm-thu)
-- [Kiểm thử](#kiểm-thử)
-- [Lỗi thường gặp](#lỗi-thường-gặp)
-- [Phạm vi và tài liệu nghiệp vụ](#phạm-vi-và-tài-liệu-nghiệp-vụ)
+1. [Hiểu nhanh kiến trúc](#1-hiểu-nhanh-kiến-trúc)
+2. [Chuẩn bị môi trường](#2-chuẩn-bị-môi-trường)
+3. [Cài đặt và chạy lần đầu](#3-cài-đặt-và-chạy-lần-đầu)
+4. [Chạy với database đang có trong pgAdmin](#4-chạy-với-database-đang-có-trong-pgadmin)
+5. [Các trang và quyền truy cập](#5-các-trang-và-quyền-truy-cập)
+6. [Dự án hoạt động như thế nào](#6-dự-án-hoạt-động-như-thế-nào)
+7. [Cấu hình dịch vụ và biến môi trường](#7-cấu-hình-dịch-vụ-và-biến-môi-trường)
+8. [Cấu trúc mã nguồn và database](#8-cấu-trúc-mã-nguồn-và-database)
+9. [Chạy thử, kiểm tra và build](#9-chạy-thử-kiểm-tra-và-build)
+10. [Triển khai Vercel và Render](#10-triển-khai-vercel-và-render)
+11. [Lỗi thường gặp](#11-lỗi-thường-gặp)
+12. [Giới hạn và tài liệu chi tiết](#12-giới-hạn-và-tài-liệu-chi-tiết)
 
-## Công nghệ và cấu trúc
+## 1. Hiểu nhanh kiến trúc
 
-| Thành phần | Công nghệ sử dụng |
-| --- | --- |
-| Frontend | React 19, Vite 8, React Router 7, Axios, Tailwind CSS và CSS riêng, Lucide React, React Hot Toast |
-| Backend | Node.js, Express 5, PostgreSQL qua `pg` |
-| Tài khoản và ảnh | JWT, bcrypt, Multer, Sharp |
-| Dịch vụ tích hợp | MoMo, Nodemailer với Gmail, Groq SDK |
-| Chat trực tiếp | WebSocket qua `ws`, lưu hội thoại trong PostgreSQL |
-| Kiểm tra | Node.js Test Runner, ESLint, Vite build |
-
-```text
-fe-react/
-├── backend/
-│   ├── config/          # Kết nối DB, cấu hình lịch demo và đánh giá
-│   ├── controllers/     # Xử lý request tài khoản, chuyến, đơn, thanh toán, chat
-│   ├── lib/             # Validation, tính giá, quy tắc tuyến, kiểm tra schema
-│   ├── middleware/      # Xác thực, quyền admin, upload avatar, giới hạn request
-│   ├── routes/          # Khai báo API
-│   ├── services/        # Nghiệp vụ đặt chỗ, MoMo, email, lịch demo, chat
-│   ├── migrations/      # Các migration 001–007
-│   ├── setup/           # Schema nền cho database mới
-│   ├── scripts/         # Dựng database demo, xem cấu hình tuyến
-│   ├── test/            # Unit test và kiểm thử tích hợp
-│   ├── uploads/avatars/ # Ảnh tải lên, sinh khi chạy và không đưa vào Git
-│   ├── .env.example
-│   └── server.js        # Khởi động HTTP, WebSocket và worker chat
-├── frontend/
-│   ├── src/
-│   │   ├── admin/       # Dashboard và các màn hình quản trị
-│   │   ├── api/         # Axios, kết nối WebSocket
-│   │   ├── components/  # Giao diện theo nhóm chức năng, xem chi tiết bên dưới
-│   │   ├── contexts/    # Context và provider chat quản trị dùng chung
-│   │   ├── hooks/       # Logic hồ sơ, avatar, mật khẩu, hành khách, ghế, chat
-│   │   ├── layouts/     # Header, Footer, AuthLayout và AdminLayout
-│   │   ├── data/        # Nội dung blog tĩnh
-│   │   ├── pages/       # Các trang khách hàng và xác thực
-│   │   ├── styles/      # CSS theo trang và thành phần
-│   │   ├── utils/       # Định dạng, phiên đăng nhập, nhãn, tên sân bay, avatar, chat
-│   │   ├── App.jsx      # Định tuyến và bảo vệ trang
-│   │   └── main.jsx     # Điểm vào React
-│   └── .env.example
-└── docs/                # Tài liệu nghiệp vụ và bàn giao
+```mermaid
+flowchart LR
+    Customer[Trình duyệt khách hàng] --> Frontend[React / Vite]
+    Admin[Trình duyệt quản trị viên] --> Frontend
+    Frontend -->|HTTP API / JWT| Backend[Express]
+    Frontend <-->|WebSocket chat| Backend
+    Backend --> Database[(PostgreSQL)]
+    Backend --> Groq[Groq: trả lời AI]
+    Backend --> Mail[Gmail: OTP và email vé]
+    Backend <-->|Tạo giao dịch / IPN| MoMo[MoMo]
 ```
 
-Frontend và backend có `package.json` riêng. Chạy lệnh npm trong đúng thư mục tương ứng; thư mục gốc không có script khởi động chung.
+| Thành phần | Vai trò | Địa chỉ local mặc định |
+| --- | --- | --- |
+| Frontend | Giao diện, điều hướng, gọi API | `http://localhost:5173` |
+| Backend | Xác thực, kiểm tra quyền, nghiệp vụ, HTTP và WebSocket | `http://localhost:5000` |
+| PostgreSQL | Lưu tài khoản, chuyến, ghế, đơn, thanh toán, chat | `127.0.0.1:5432` |
+| pgAdmin 4 | Công cụ để bạn quản lý PostgreSQL | Không phải database server, không thay backend |
 
-Các component frontend được phân nhóm như sau:
+Khi chạy local, Vite chuyển tiếp `/api` và `/uploads` tới backend. Trình duyệt kết nối chat tại `/api/chat/live`; backend lưu hội thoại trong PostgreSQL. Vì vậy, cần giữ **PostgreSQL, backend và frontend cùng hoạt động**.
 
-```text
-frontend/src/components/
-├── common/         # AccountAvatar, ProtectedRoute, ScrollToTop
-├── home/           # Khối nội dung trang chủ
-├── flights/        # Tìm kiếm chuyến bay
-├── booking/        # Form hành khách, dịch vụ, sơ đồ ghế, tóm tắt đặt vé/đánh giá
-├── payment/        # Thông tin xác nhận, phương thức và tổng tiền thanh toán
-├── profile/        # Sidebar, ảnh đại diện, thông tin cá nhân, modal mật khẩu
-├── chat/           # Chatbot, header, tin nhắn, ô nhập và trạng thái admin
-└── admin/flights/  # Bảng chuyến bay, form thêm/sửa, modal hủy/xóa
-```
+Frontend và backend có `package.json` riêng. **Không chạy `npm install` hay `npm start` trực tiếp ở thư mục gốc.** Các lệnh bên dưới dùng `npm --prefix` để bạn có thể thực hiện từ thư mục gốc `fe-react`.
 
-`pages/` và `admin/` ghép các khối giao diện thành màn hình. Logic có state hoặc gọi API của hồ sơ, avatar, mật khẩu, hành khách, chọn ghế và chatbot nằm trong các hook tương ứng ở `hooks/`; `utils/` chứa các hàm hỗ trợ và cấu hình không có state. Các file CSS tiếp tục nằm trong `styles/` để giữ nguyên bố cục hiện tại. Khi thêm thành phần mới, đặt vào nhóm chức năng tương ứng; layout, hook và context đặt trong thư mục riêng.
+## 2. Chuẩn bị môi trường
 
-Các hàm dùng chung đã được gom về một nơi; trang/component nên import trực tiếp từ các module sau:
-
-| Module trong `frontend/src/utils` | Trách nhiệm |
+| Công cụ | Yêu cầu |
 | --- | --- |
-| `format.js` | `formatNumber`, `formatMoney`, `formatDate`, `formatTime`, `formatDateTime`, `vietnamToday`; ngày giờ dùng `Asia/Ho_Chi_Minh`, giữ nguyên ngày dạng `YYYY-MM-DD` và giờ dạng `HH:mm` trên vé. |
-| `auth.js` | `getStoredUser`, `getAuth`, `isAdminUser`, `clearAuthStorage`, `isTokenExpired`; đọc JSON an toàn và phát sự kiện `auth-changed` khi xóa phiên. Kiểm tra token phía trình duyệt chỉ phục vụ giao diện, backend vẫn xác thực JWT/quyền. |
-| `labels.js` | Tên giới tính và suất ăn; nhãn suất ăn lấy từ danh sách dịch vụ dùng chung trong `passenger.js`. |
-| `airportNames.js` | Tên điểm đi/đến hiển thị; dùng chung cho kết quả tìm kiếm, vé và đánh giá. |
+| Node.js | Nhánh **22 từ 22.13 trở lên**, hoặc Node.js 24; phù hợp yêu cầu của Vite/ESLint trong dự án |
+| npm | Đi kèm Node.js |
+| PostgreSQL | Bản 18 là môi trường dùng để kiểm tra dự án |
+| pgAdmin 4 | Dùng để tạo, kiểm tra, sao lưu và quản lý database |
+| Git | Lấy mã nguồn nếu nhận dự án qua repository |
+| Chrome/Edge | Cần nếu chạy kiểm thử giao diện tự động |
 
-Ví dụ: `formatMoney(1500000)` trả `1.500.000đ`; dùng `formatNumber` nếu giao diện đã có ký hiệu tiền riêng. `formatDate(value, { fallback: "Chưa cập nhật" })` giữ thông báo riêng của trang khi thiếu ngày. Các module `booking.js`, `passenger.js`, `profile.js` giữ quy tắc/cấu hình riêng của nghiệp vụ, không chứa bản sao hàm định dạng hoặc đọc phiên đăng nhập.
-
-## Các chức năng hiện có
-
-### Khách chưa đăng nhập
-
-- Xem trang chủ, điểm đến, các tuyến phổ biến, nội dung giới thiệu hãng và đánh giá khách hàng.
-- Tìm chuyến theo sân bay đi, sân bay đến và ngày bay; xem giờ bay, giá, số ghế còn trống và phân trang kết quả. Điểm đến được lọc theo tuyến hợp lệ.
-- Xem danh sách và chi tiết blog; tìm bài, lọc chuyên mục và sắp xếp bài viết. Nội dung lấy từ `frontend/src/data/blogData.js`, chưa có CMS/API quản trị bài viết.
-- Đăng ký đầy đủ họ tên, email, điện thoại, ngày sinh, giới tính, mật khẩu và xác nhận mật khẩu; lỗi hiển thị dưới từng trường. Đăng nhập, quên mật khẩu và đặt lại mật khẩu bằng mã gửi qua email.
-- Chat Groq hiểu câu tìm chuyến và thay đổi chặng/ngày theo ngữ cảnh; khi đủ thông tin, khách bấm đường dẫn xem kết quả rồi chọn chuyến. Thông tin tài khoản được điền ở form hành khách, chỉ cần kiểm tra và bổ sung mục thiếu. Phiên chat không bắt buộc đăng nhập; xem [luồng AI, đường dẫn tìm chuyến và hồ sơ](docs/groq-flight-assistant.md).
-
-### Khách đã đăng nhập
-
-| Nhóm | Chức năng |
-| --- | --- |
-| Hồ sơ | Xem/cập nhật thông tin cá nhân, tải ảnh đại diện JPG/JPEG/PNG/WEBP tối đa 2 MB, tối đa 4096 × 4096 pixel. Backend xác minh nội dung, từ chối ảnh động, tạo lại WebP tối đa 512 × 512 và bỏ metadata/tên file gốc. |
-| Mật khẩu | Đổi mật khẩu bằng mã email. Mã 6 chữ số có hạn 10 phút, tối đa 5 lần sai; gửi lại sau ít nhất 60 giây. Đổi mật khẩu thu hồi token cũ. |
-| Hành khách | Nhập họ tên, email, điện thoại, giới tính, ngày sinh, loại và số giấy tờ CCCD/hộ chiếu. Backend kiểm tra dữ liệu trước khi lập đơn. |
-| Ghế | Xem sơ đồ ghế theo chuyến, chọn ECONOMY/BUSINESS/FIRST, giữ ghế 15 phút; chống hai tài khoản đặt cùng ghế trên cùng chuyến. |
-| Dịch vụ | Chọn hành lý ký gửi, suất ăn và bảo hiểm; xem tổng tiền do backend tính. |
-| Thanh toán | Tạo thanh toán MoMo hoặc thanh toán giả lập khi bật chế độ demo. Kết quả MoMo được xác minh qua IPN và API trạng thái đơn. |
-| Đơn của tôi | Xem/lọc trạng thái, làm mới, tự cập nhật định kỳ 15 giây và khi quay lại tab. Tiếp tục đơn chưa hết hạn qua `/payment?bookingId=...`, dùng giá/thông tin đã lưu, không gia hạn giữ ghế. |
-| Vé của tôi | Xem vé điện tử, mã đặt chỗ, hành trình, ghế, dịch vụ, số tiền và trạng thái hiện tại của chuyến/thanh toán. |
-| Đánh giá | Gửi 1–5 sao và nội dung 1–1000 ký tự cho đơn đã xác nhận, có thanh toán thành công không đang đối soát. Mỗi đơn chỉ đánh giá một lần; có thể xóa nhưng không gửi lại hoặc sửa. |
-
-Trang chủ hiển thị tối đa **4 đánh giá mới nhất**. Backend xóa các bài vượt giới hạn khi có đánh giá mới và vẫn giữ dấu đã đánh giá trên đơn. Thay giới hạn trong `backend/config/reviews.js`.
-
-### Quản trị viên
-
-| Màn hình | Chức năng |
-| --- | --- |
-| Dashboard | Lọc theo thời gian, 6 thẻ số liệu, 3 biểu đồ và bảng hiệu suất từng chuyến. Tách MoMo/MOCK theo ngày thanh toán; chuyến, ghế và doanh số dự kiến theo ngày khởi hành. Doanh số dự kiến từ đơn xác nhận hợp lệ + đơn chờ còn hạn, gồm MOCK và ghi rõ giả định. Xem [công thức và kiểm thử](docs/dashboard-profile-update.md). |
-| Người dùng | Tìm kiếm, lọc theo quyền/trạng thái, xem thông tin, khóa/mở khóa; chỉ xóa tài khoản chưa có lịch sử liên quan. Bảo vệ tài khoản admin, không có luồng cấp thêm quyền ADMIN/STAFF. |
-| Chuyến bay | Tìm kiếm, lọc ngày/trạng thái, phân trang, thêm/sửa/hủy chuyến; kiểm tra tuyến, thời gian và trùng lịch máy bay. Chỉ xóa chuyến chưa có lịch sử và không phải chuyến demo. |
-| Đơn đặt vé | Tìm/lọc/phân trang, xem hành khách, ghế, dịch vụ, giá, thanh toán, đối soát. Hủy kèm lý do để giải phóng ghế và giữ lịch sử. Chỉ xóa vĩnh viễn đơn chưa có giao dịch/vé và không ở trạng thái CONFIRMED/PAYMENT_REVIEW, sau khi nhập đúng mã đơn. |
-| Thanh toán | Tìm/lọc theo trạng thái và phương thức, xem chi tiết giao dịch và hồ sơ đối soát; ghi nhận đã hoàn tiền với mã xác nhận, ghi chú, người xử lý và thời gian. |
-| Chat hỗ trợ | Bật/tắt sẵn sàng nhận khách, xem hàng chờ, tiếp nhận, nhắn tin, xem tin chưa đọc và kết thúc hỗ trợ; xử lý mất kết nối và chuyển về bot. |
-| Xem trang khách | Mở giao diện khách hàng từ quản trị và quay về qua menu tài khoản. |
-
-**Hoàn tiền hiện là ghi nhận thủ công**, không gọi API chuyển tiền hoàn. Đơn có bất kỳ giao dịch PENDING/FAILED/SUCCESS/REFUNDED đều được giữ lịch sử để tiếp nhận callback đến muộn. Đơn đã thu tiền bị hủy hoặc callback thành công sau khi hết hạn sẽ chuyển sang đối soát thay vì tự cấp lại ghế.
-
-### Quy tắc tuyến, lịch demo và giá
-
-- Danh mục demo có 8 sân bay Việt Nam: HAN, SGN, DAD, PQC, CXR, DLI, HUI, VCA; 3 sân bay nước ngoài: NRT, HND, SIN.
-- Có 56 tuyến nội địa và 12 tuyến quốc tế theo từng chiều. Quốc tế chỉ đi/đến Việt Nam qua HAN hoặc SGN; không khai thác tuyến giữa hai sân bay nước ngoài.
-- Bật `DEMO_FLIGHTS_ENABLED=true`: khi tìm tuyến/ngày chưa có chuyến, backend tạo chuyến cần dùng. Tìm lại dùng chuyến đã lưu, không tạo sẵn cả năm và không tự mở lại chuyến bị hủy/hết ghế.
-- Lịch demo bắt đầu xếp từ 06:00, chừa 30 phút giữa các chuyến cùng máy bay; giờ được hiểu theo múi giờ Việt Nam. Nội địa mẫu 2 giờ/1.500.000đ, quốc tế mẫu 8 giờ/5.500.000đ; đây là dữ liệu minh họa.
-- Có 12 máy bay demo, mỗi máy bay 20 ghế: 16 ECONOMY, 3 BUSINESS, 1 FIRST. Ghế được giữ/đặt theo từng `flight_id`, độc lập giữa các chuyến.
-
-| Thành phần giá | Mức hiện tại |
-| --- | --- |
-| Hạng ghế | ECONOMY ×1; BUSINESS ×1,5; FIRST ×2 giá cơ bản của chuyến |
-| Hành lý ký gửi | 0 kg: 0đ; 10 kg: 150.000đ; 20 kg: 250.000đ; 30 kg: 350.000đ |
-| Suất ăn | Không chọn: 0đ; cơm gà: 80.000đ; cơm bò: 100.000đ; mì: 70.000đ |
-| Bảo hiểm | 50.000đ nếu chọn |
-
-Tổng tiền = giá theo hạng ghế + hành lý + suất ăn + bảo hiểm. Backend lấy giá/hạng từ database và bảng giá trong `backend/lib/validation.js`, không tin giá gửi lên từ trình duyệt. Sau khi bắt đầu thanh toán, không được sửa thông tin/giá đơn.
-
-## Yêu cầu và cài thư viện
-
-Chuẩn bị Node.js **22.13 trở lên trong nhánh 22** (phù hợp cả Vite và ESLint hiện tại), npm, PostgreSQL 18 và hai terminal. Các lệnh database bên dưới cần `createdb`/`psql` trong PATH; có thể tạo database bằng pgAdmin. Kiểm tra phiên bản bằng `node --version`, `npm --version`, `psql --version`.
-
-Các lệnh trong README dùng PowerShell và bắt đầu từ thư mục gốc dự án, trừ khi có ghi chú khác. Nếu dùng database có sẵn, đọc phần migration; nếu cài máy mới, thực hiện phần tạo database demo mới.
+Kiểm tra trong terminal:
 
 ```powershell
-cd backend
-npm ci
-cd ../frontend
-npm ci
+node --version
+npm --version
 ```
 
-## Môi trường
+Các ví dụ cài đặt dùng **PowerShell trên Windows**. Mở terminal tại thư mục gốc chứa `backend/`, `frontend/`, `README.md`. Khi dùng macOS/Linux, các lệnh npm vẫn giống nhau; cú pháp đặt biến môi trường và sao chép file cần đổi theo shell.
 
-Máy mới: sao chép `backend/.env.example` → `backend/.env`, `frontend/.env.example` → `frontend/.env`. **Không ghi đè `.env` đã cấu hình.** File mẫu không chứa thông tin đăng nhập thật. Chạy từ thư mục gốc:
+## 3. Cài đặt và chạy lần đầu
+
+Đường này dành cho **máy mới hoặc database mới, rỗng**. Nếu bạn đã có database chứa dữ liệu cần giữ, chuyển sang [mục 4](#4-chạy-với-database-đang-có-trong-pgadmin).
+
+### Bước 1 — Cài thư viện
+
+Tại thư mục gốc:
+
+```powershell
+npm --prefix backend ci
+npm --prefix frontend ci
+```
+
+`npm ci` cài đúng phiên bản từ `package-lock.json`. Không cần chép `node_modules` từ máy khác.
+
+### Bước 2 — Tạo file môi trường
 
 ```powershell
 if (!(Test-Path backend/.env)) { Copy-Item backend/.env.example backend/.env }
 if (!(Test-Path frontend/.env)) { Copy-Item frontend/.env.example frontend/.env }
 ```
 
-Mở `backend/.env`, sửa mật khẩu PostgreSQL, tên database và `JWT_SECRET` theo máy của bạn. Cấu hình tối thiểu để chạy demo:
+Mở `backend/.env`, điền thông tin PostgreSQL của máy bạn:
 
 ```dotenv
 PORT=5000
@@ -180,117 +95,80 @@ DB_HOST=127.0.0.1
 DB_PORT=5432
 DB_NAME=airline_booking_demo
 DB_USER=postgres
-DB_PASSWORD=YOUR_LOCAL_POSTGRES_PASSWORD
+DB_PASSWORD=YOUR_POSTGRES_PASSWORD
 JWT_SECRET=REPLACE_WITH_A_LONG_RANDOM_SECRET
 FRONTEND_URL=http://localhost:5173
 DEMO_FLIGHTS_ENABLED=true
 DEMO_PAYMENTS_ENABLED=true
 ```
 
-Trong `frontend/.env`:
+Có thể tạo chuỗi ngẫu nhiên cho `JWT_SECRET` bằng:
+
+```powershell
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+Trong `frontend/.env`, giữ:
 
 ```dotenv
 VITE_API_URL=/api
 ```
 
-| Biến                                                                       | Cấu hình                                                                                                           |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD`                              | Kết nối PostgreSQL của backend.                                                                                    |
-| `JWT_SECRET`                                                               | Chuỗi bí mật ngẫu nhiên để ký token và băm mã khôi phục.                                                           |
-| `FRONTEND_URL`                                                             | Origin frontend, mặc định local `http://localhost:5173`.                                                           |
-| `VITE_API_URL`                                                             | Frontend: `/api` để dùng proxy Vite, không cần IP LAN. Khởi động lại Vite sau khi đổi.                             |
-| `NODE_ENV`                                                                 | `development` khi chạy đồ án.                                                                                      |
-| `PORT`                                                                     | Cổng backend, mặc định `5000`. Nếu đổi, cập nhật cổng target proxy trong `frontend/vite.config.js`. |
-| `DEMO_FLIGHTS_ENABLED`, `DEMO_PAYMENTS_ENABLED`                            | `true` để tạo chuyến theo lượt tìm và thanh toán giả lập. Production luôn chặn demo.                               |
-| `MAIL_USER`, `MAIL_PASS`, `MAIL_FROM_NAME`                                 | Dịch vụ email hiện dùng Gmail; nhập địa chỉ Gmail, mật khẩu ứng dụng và tên người gửi. Dùng cho mã mật khẩu và biên nhận. |
-| `MOMO_PARTNER_CODE`, `MOMO_ACCESS_KEY`, `MOMO_SECRET_KEY`, `MOMO_ENDPOINT` | Điền theo môi trường MoMo được cấp.                                                                                |
-| `MOMO_REDIRECT_URL`, `MOMO_IPN_URL`                                        | Redirect về frontend `/payment-result`; IPN tới backend `/api/payments/momo/ipn`, phải truy cập được từ phía MoMo. |
-| `GROQ_API_KEY`, `GROQ_MODEL`                                               | Chatbot; thiếu khóa thì chatbot báo chưa cấu hình.                                                                 |
-| `VITE_CHAT_WS_URL` | Tùy chọn ở frontend; chỉ đặt khi URL WebSocket khác URL suy ra từ API. Mặc định dùng `/api/chat/live` trên backend. |
+Không ghi đè `.env` đã có. Không đưa mật khẩu database, khóa JWT, Groq, Gmail hoặc MoMo lên Git.
 
-Không cần Gmail/MoMo/Groq để chạy tìm chuyến và thanh toán giả lập. Chat trực tiếp với admin không cần Groq; trả lời AI cần `GROQ_API_KEY`. Thiếu Gmail thì không gửi được mã mật khẩu/biên nhận, nhưng không ngăn xác nhận thanh toán demo. MoMo cần đủ cấu hình trong `.env.example` và IPN mà phía MoMo truy cập được; `localhost` trên máy bạn không phải địa chỉ callback công khai.
+### Bước 3 — Tạo database rỗng trong pgAdmin 4
 
-Khi frontend và backend chạy trên cùng máy, giữ `VITE_API_URL=/api`, `FRONTEND_URL=http://localhost:5173` và không đặt `VITE_CHAT_WS_URL`. Vite chuyển tiếp `/api` (gồm WebSocket chat) và `/uploads` tới `127.0.0.1:5000`; backend tự nhận các IP IPv4 của máy vào danh sách origin được phép khi khởi động trong môi trường development. Mặc định frontend và backend chỉ lắng nghe trên loopback, thiết bị khác trong mạng không truy cập được. Chỉ mở frontend ra LAN khi chủ động chạy `npm run dev:lan`; backend vẫn chỉ lắng nghe local và nhận request qua proxy Vite.
+1. Mở pgAdmin, kết nối PostgreSQL bằng tài khoản quản trị của máy, thường là `postgres`.
+2. Tại `Databases`, tạo database tên **`airline_booking_demo`**.
+3. Để database rỗng; chưa chạy file SQL nào vào database này.
+4. Ghi lại host, port, tên database, username và mật khẩu. Chúng phải khớp `DB_*` ở bước 2.
 
-Proxy API chuyển IP kết nối thực tới backend, ghi đè header IP do phía khách gửi. Backend development chỉ tin proxy từ loopback để giới hạn thao tác theo từng IP LAN; production giữ `trust proxy` tắt. Khi thay proxy triển khai, cần cấu hình lại nguồn proxy được tin cậy theo môi trường thực tế.
+Nếu tên này đã có dữ liệu, hãy tạo tên mới, chẳng hạn `airline_booking_demo_nhom1`, rồi đổi `DB_NAME` tương ứng. Script chấp nhận tên `airline_booking_demo` hoặc hậu tố gồm chữ thường/số sau dấu `_`.
 
-Khi deploy bản build, hosting cần proxy `/api`, `/uploads` và WebSocket tới backend, hoặc đặt `VITE_API_URL`/`VITE_CHAT_WS_URL` theo URL công khai. Backend production lắng nghe trên `0.0.0.0`; cấu hình `FRONTEND_URL` theo origin frontend. Giữ thư mục `backend/uploads/avatars` khi sao lưu/chuyển máy.
+### Bước 4 — Dựng schema, dữ liệu mẫu và admin
 
-## Database đang sử dụng
-
-**Chat trực tiếp cần thêm migration `007_live_chat.sql`. Không chạy setup lên database hiện tại.** Nếu nâng từ bản cũ, sao lưu và đối chiếu các file sau trước khi người quản trị áp dụng:
-
-| Thứ tự | File trong `backend/migrations`            | Tác dụng                                                                                                            |
-| ------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| 1      | `001_account_booking_safety.sql`           | Trạng thái đơn, token, mật khẩu, thông tin MoMo và đối soát. Cần đúng một ADMIN; enum phải commit trước phần BEGIN. |
-| 2      | `002_demo_flight_schedule.sql`             | Khóa/index chuyến demo.                                                                                             |
-| 3      | `003_on_demand_demo_data.sql`              | Sân bay/máy bay/ghế demo; có dọn chuyến demo cũ chưa sử dụng.                                                       |
-| 4      | `004_remove_replaced_tables.sql`           | Bỏ hai bảng cũ khi thỏa điều kiện kiểm tra.                                                                         |
-| 5      | `005_admin_booking_delete_permissions.sql` | Quyền xóa cho role codex_user; backend vẫn bảo vệ đơn có lịch sử giao dịch.                                         |
-| 6      | `006_customer_reviews.sql`                 | Đánh giá theo đơn và dấu đã gửi đánh giá.                                                                           |
-| 7      | `007_live_chat.sql`                        | Lưu hội thoại, tin nhắn, trạng thái nhân viên và tin chưa đọc. Chỉ thêm bảng/index, không xóa dữ liệu cũ.           |
-
-Migration tham chiếu role `codex_user`; quản trị database cần đối chiếu role môi trường. Backend không tự migrate. Xem [bàn giao nghiệp vụ](docs/booking-safety-handoff.md), [lịch demo](docs/demo-flight-schedule.md), [đánh giá](docs/customer-reviews.md).
-
-Sau khi sao lưu và xác định migration còn thiếu, chạy từng file theo thứ tự bằng tài khoản sở hữu database. Ví dụ, **chỉ khi database đã có 001–006** và còn thiếu chat, chạy từ thư mục gốc:
+Tại thư mục gốc, thay các giá trị mẫu bằng thông tin của bạn:
 
 ```powershell
-psql -h 127.0.0.1 -p 5432 -U postgres -d YOUR_EXISTING_DATABASE -v ON_ERROR_STOP=1 -f backend/migrations/007_live_chat.sql
-```
-
-Thay tên database/cổng cho đúng môi trường. Với migration 001, không dùng `--single-transaction` hoặc bọc toàn bộ file trong một `BEGIN` khác vì phần thêm enum phải commit trước phần cập nhật bảng. Các migration 003/004 có dọn dữ liệu/bảng cũ theo điều kiện; đọc nội dung trước khi áp dụng, không chạy lại tất cả để thử sửa lỗi.
-
-## Tạo database demo mới từ đầu
-
-Chỉ dùng database **mới, rỗng**, local, tên `airline_booking_demo` hoặc `airline_booking_demo_<hậu_tố_chữ_thường_và_số>`. Script không đọc kết nối `.env`, từ chối database đã có bảng/enum và không xóa dữ liệu cũ. Tài khoản chạy setup cần quyền tạo schema/role, thường là postgres trên máy học tập.
-
-```powershell
-createdb -h 127.0.0.1 -p 5432 -U postgres airline_booking_demo
-cd backend
-$env:SETUP_DATABASE_URL = 'postgresql://postgres:YOUR_PASSWORD@127.0.0.1:5432/airline_booking_demo'
+$env:SETUP_DATABASE_URL = 'postgresql://postgres:YOUR_URL_ENCODED_PASSWORD@127.0.0.1:5432/airline_booking_demo'
 $env:SETUP_ADMIN_EMAIL = 'admin@example.com'
-$env:SETUP_ADMIN_PASSWORD = 'CHOOSE_YOUR_OWN_PASSWORD'
-npm run setup:demo
-Remove-Item Env:SETUP_DATABASE_URL, Env:SETUP_ADMIN_EMAIL, Env:SETUP_ADMIN_PASSWORD
+$env:SETUP_ADMIN_PASSWORD = 'CHOOSE_YOUR_OWN_ADMIN_PASSWORD'
+try {
+    npm --prefix backend run setup:demo
+} finally {
+    Remove-Item Env:SETUP_DATABASE_URL, Env:SETUP_ADMIN_EMAIL, Env:SETUP_ADMIN_PASSWORD -ErrorAction SilentlyContinue
+}
 ```
 
-Thay `YOUR_PASSWORD`, `admin@example.com` và `CHOOSE_YOUR_OWN_PASSWORD` bằng thông tin tự chọn; mật khẩu admin từ 8 ký tự, tối đa 72 byte. URL-encode mật khẩu PostgreSQL có ký tự đặc biệt trong URL kết nối. Script dùng `backend/setup/schema.sql`, tạo admin với mật khẩu băm, hãng VN, 11 sân bay và áp dụng migration 001–007. Kết quả có 12 máy bay/240 ghế demo, chưa có đơn/thanh toán. Chuyến phát sinh khi tìm tuyến/ngày. Nếu setup lỗi giữa chừng, tạo database mới; không chạy lại trên database có dữ liệu.
+- Mật khẩu PostgreSQL trong URL phải được URL-encode nếu có ký tự đặc biệt: ví dụ `@` thành `%40`, `#` thành `%23`. Trong `DB_PASSWORD` của `.env` vẫn dùng mật khẩu gốc.
+- Mật khẩu admin từ 8 ký tự, tối đa 72 byte. Email/mật khẩu ở đây do bạn tự đặt, **không có tài khoản admin mặc định**.
+- `SETUP_DATABASE_URL` là kết nối riêng của script setup, không phải biến kết nối khi ứng dụng chạy.
+- Script chỉ chấp nhận database local mới, rỗng; không đọc kết nối `.env` và từ chối database đã có bảng/enum. Tài khoản chạy setup cần quyền tạo schema/role, thường là `postgres` local.
+- Script đọc `backend/setup/schema.sql`, tạo admin với mật khẩu đã băm, danh mục ban đầu, rồi áp dụng migration **001–008**.
 
-Đăng nhập admin bằng email/mật khẩu đã đặt ở `SETUP_ADMIN_EMAIL`/`SETUP_ADMIN_PASSWORD`; dự án không có mật khẩu admin mặc định. Tạo tài khoản khách qua trang `/register`. Biến `SETUP_*` chỉ dành cho script setup; backend chạy ứng dụng vẫn đọc nhóm `DB_*` từ `.env`.
+Kết quả: một admin, một hãng mẫu, 11 sân bay, 12 máy bay demo và 240 ghế. **Chưa có đơn, giao dịch hoặc lịch chuyến tạo sẵn cho cả năm.** Khi khách tìm tuyến/ngày hợp lệ, chế độ demo sẽ tạo chuyến cần dùng.
 
-Chỉ đổi DB_NAME và kết nối trong backend/.env khi chủ động chuyển sang database demo vừa tạo. Không dùng `backend/test/fixtures/schema.sql` cho database ứng dụng: đó là cấu trúc cũ dành riêng kiểm thử.
+Nếu setup báo lỗi giữa chừng, đọc lỗi trước; không xóa database đang có dữ liệu để chạy lại. Với database mới dựng chưa có dữ liệu cần giữ, có thể chọn một database rỗng khác và chạy lại.
 
-## Chạy
+### Bước 5 — Chạy backend và frontend
 
-Terminal backend:
+Terminal thứ nhất, tại thư mục gốc:
 
 ```powershell
-cd backend
-npm start
+npm --prefix backend start
 ```
 
-Terminal frontend:
+Terminal thứ hai, cũng tại thư mục gốc:
 
 ```powershell
-cd frontend
-npm run dev
+npm --prefix frontend run dev
 ```
 
-Mở http://localhost:5173; API mặc định http://localhost:5000. Có thể dùng `npm run dev` trong backend để tự khởi động lại khi sửa mã.
+Mở **http://localhost:5173**. Để backend tự khởi động lại khi sửa mã, dùng `npm --prefix backend run dev` thay cho `start`.
 
-Để làm việc nhóm ở trường, giữ terminal backend chạy như trên. Trong terminal frontend, dừng Vite bằng **Ctrl+C**, rồi chạy:
+Backend kiểm tra cấu trúc database trước khi mở cổng. Nếu terminal báo thiếu migration, sửa cấu hình/database theo [mục 4](#4-chạy-với-database-đang-có-trong-pgadmin), không bỏ qua lỗi kiểm tra schema.
 
-```powershell
-npm run dev:lan
-```
-
-Lệnh tương đương nếu bản checkout chưa có script `dev:lan`: `npm run dev -- --host 0.0.0.0`.
-
-Các thành viên cùng Wi-Fi mở địa chỉ **Network** mà Vite in ra, ví dụ `http://192.168.1.12:5173`. Cổng `5173` cần được phép truy cập qua tường lửa và Wi-Fi phải cho các thiết bị kết nối với nhau. Chế độ LAN cho phép các thiết bị trong mạng truy cập, không tự giới hạn đúng ba thành viên nhóm. Khi dùng một mình, dừng tiến trình LAN bằng **Ctrl+C**, chạy lại `npm run dev`; mở `http://localhost:5173` trên máy bạn.
-
-Sau khi đổi mạng, khởi động lại backend và Vite để nhận IP mới; không cần sửa `.env`. Ở chế độ LAN, gửi lại địa chỉ Network mới cho nhóm.
-
-Kiểm tra nhanh sau khi cả hai tiến trình đã chạy:
+### Bước 6 — Kiểm tra cài đặt
 
 ```powershell
 Invoke-RestMethod http://localhost:5000/api/test
@@ -298,213 +176,382 @@ Invoke-RestMethod http://localhost:5000/
 Invoke-RestMethod http://localhost:5000/api/flights/catalog
 ```
 
-Kết quả lần lượt có `API TEST OK`, `Backend + Database OK` và danh mục sân bay/hãng/máy bay/tuyến. Backend kiểm tra schema trước khi lắng nghe cổng; nếu thiếu migration, xử lý database trước rồi khởi động lại.
+Kết quả tương ứng phải có `API TEST OK`, `Backend + Database OK` và danh mục sân bay/tuyến.
 
-Để tạo bản frontend build, chạy trong `frontend`:
+Sau đó:
 
-```powershell
-npm run build
-npm run preview
+1. Đăng nhập admin bằng thông tin đã chọn ở bước 4; kiểm tra trang `/admin`.
+2. Đăng xuất, tạo tài khoản khách tại `/register`.
+3. Tìm tuyến **HAN → SGN** vào một ngày tương lai để không chọn chuyến đã qua giờ.
+4. Nhập hành khách, chọn dịch vụ/ghế và bấm **Thanh toán Demo**. Đơn được ghi nhận đã thanh toán và có vé ngay trong hệ thống.
+5. Kiểm tra `/my-orders`, `/my-tickets`, sau đó đăng nhập admin kiểm tra cùng mã đơn.
+
+**Không cần Gmail, Groq hay MoMo để hoàn thành luồng đặt vé/thanh toán giả lập local.** Thiếu các dịch vụ đó chỉ ảnh hưởng những tính năng tương ứng.
+
+## 4. Chạy với database đang có trong pgAdmin
+
+Nếu database hiện tại đã chứa dữ liệu dự án:
+
+1. Sao lưu database bằng pgAdmin trước khi cập nhật cấu trúc.
+2. Điền đúng kết nối đó vào `backend/.env`; cài thư viện và chạy hai tiến trình như mục 3.
+3. **Không chạy `setup:demo`, không chạy schema kiểm thử lên database hiện tại.**
+4. Nếu phiên bản mã mới cần migration, đối chiếu cấu trúc và áp dụng đúng file còn thiếu bằng tài khoản sở hữu database.
+
+pgAdmin chỉ là công cụ quản lý: các file SQL trong repository vẫn cần để mô tả và dựng lại cấu trúc. Backend không tự chạy migration khi khởi động.
+
+| File SQL | Vai trò |
+| --- | --- |
+| `backend/setup/schema.sql` | Schema nền để script dựng **database mới**, không phải file cập nhật database đang dùng |
+| `001_account_booking_safety.sql` | Token, mật khẩu, trạng thái đơn, MoMo và đối soát; cần xác định đúng một admin chính |
+| `002_demo_flight_schedule.sql` | Khóa/index phục vụ lịch demo |
+| `003_on_demand_demo_data.sql` | Dữ liệu sân bay/máy bay/ghế demo; có dọn lịch demo cũ chưa được dùng |
+| `004_remove_replaced_tables.sql` | Dọn bảng cũ `booking_temp`, `password_resets` khi thỏa điều kiện |
+| `005_admin_booking_delete_permissions.sql` | Quyền database cho nghiệp vụ xóa đơn |
+| `006_customer_reviews.sql` | Cấu trúc đánh giá và dấu đã đánh giá trên đơn |
+| `007_live_chat.sql` | Hội thoại, tin nhắn, trạng thái nhân viên và tin chưa đọc |
+| `008_chat_customer_identity.sql` | Chuẩn bị cột liên kết hội thoại với tài khoản; giao diện hiện chưa dùng cột này để xác minh danh tính khách |
+| `backend/test/fixtures/schema.sql` | Chỉ dành cho database kiểm thử, không dùng cho database ứng dụng |
+
+Các file 001–008 nằm trong `backend/migrations/`. Một số file tham chiếu role `codex_user`; người quản lý database cần đối chiếu quyền với tài khoản ứng dụng thực tế.
+
+**Cách chạy SQL trong pgAdmin:** chọn đúng database → mở Query Tool → mở file cần áp dụng → đọc và chạy. Với migration 001, thực hiện hai câu `ALTER TYPE ... ADD VALUE` đầu file và commit trước, rồi mới chạy phần `BEGIN ... COMMIT` còn lại. Không bọc toàn bộ migration 001 trong một transaction vì các giá trị enum mới cần được commit trước khi sử dụng.
+
+Không chạy lại toàn bộ migration chỉ để thử sửa lỗi: 003/004 có tác động dọn dữ liệu/bảng theo điều kiện. Đọc thêm [bàn giao database và đặt vé](docs/booking-safety-handoff.md) và [dọn bảng cũ](docs/database-table-cleanup.md).
+
+## 5. Các trang và quyền truy cập
+
+| Đường dẫn | Chức năng | Quyền |
+| --- | --- | --- |
+| `/`, `/home` | Trang chủ; `/` chuyển admin về quản trị và khách về trang chủ | Công khai |
+| `/destinations` | Khám phá điểm đến và chọn tuyến/ngày | Công khai |
+| `/blog`, `/blog/:slug` | Nội dung du lịch tĩnh | Công khai |
+| `/flights?from=HAN&to=SGN&date=YYYY-MM-DD` | Kết quả tìm kiếm, phân trang; có thể tải lại/chia sẻ URL | Công khai |
+| `/flight-list` | Đường dẫn tương thích cũ, chuyển sang `/flights` | Công khai |
+| `/login`, `/register` | Đăng nhập/đăng ký; giữ chuyến đã chọn khi đi từ bước mua vé | Công khai |
+| `/forgot-password`, `/reset-password` | Khôi phục mật khẩu bằng mã email | Công khai |
+| `/passenger-info?flightId=...` | Thông tin hành khách và dịch vụ | Đã đăng nhập |
+| `/booking?flightId=...` | Chọn/giữ ghế | Đã đăng nhập |
+| `/payment?bookingId=...` | Tải đơn từ server và tiếp tục thanh toán | Chủ đơn |
+| `/payment-result?bookingId=...` | Đọc trạng thái giao dịch từ backend | Chủ đơn |
+| `/my-orders` | Lịch sử đơn, đơn chờ và tiếp tục thanh toán | Chủ đơn |
+| `/my-bookings` | Đường dẫn cũ chuyển sang `/my-orders` | Theo trang đích |
+| `/my-tickets` | Vé, chi tiết dịch vụ và đánh giá | Chủ đơn |
+| `/profile` | Hồ sơ, avatar và đổi mật khẩu | Đã đăng nhập |
+| `/admin` | Thống kê chuyến bay, ghế và doanh số | ADMIN |
+| `/admin/users` | Quản lý tài khoản; mở danh sách đơn của khách | ADMIN |
+| `/admin/flights` | Quản lý chuyến bay | ADMIN |
+| `/admin/bookings` | Quản lý đơn; `?bookingId=...` mở chi tiết, `?q=...` tìm đơn | ADMIN |
+| `/admin/payments` | Giao dịch/đối soát; `?bookingId=...` lọc theo đơn | ADMIN |
+| `/admin/chat` | Tiếp nhận, trả lời và kết thúc hỗ trợ | ADMIN |
+| Đường dẫn không tồn tại | Trang 404 và liên kết quay lại | Công khai |
+
+Frontend bảo vệ trang để điều hướng; **backend mới quyết định quyền thật** bằng JWT, trạng thái tài khoản và chủ sở hữu dữ liệu. Sửa role trong localStorage không cấp được quyền API admin.
+
+Admin có nút **Xem trang khách hàng**; menu tài khoản phía khách có nút **Về trang quản trị**. Đây vẫn là cùng tài khoản admin, không phải đăng nhập giả làm khách khác.
+
+## 6. Dự án hoạt động như thế nào
+
+### 6.1 Tìm chuyến và đặt vé
+
+```mermaid
+flowchart TD
+    A[Trang chủ / Điểm đến / Chatbot] --> B[Kết quả chuyến bay]
+    B --> C{Đã đăng nhập?}
+    C -->|Chưa| D[Đăng nhập hoặc đăng ký]
+    D --> E[Nhập hành khách và dịch vụ]
+    C -->|Rồi| E
+    E --> F[Chọn và giữ ghế 15 phút]
+    F --> G[Tạo đơn với giá server tính]
+    G --> H[Thanh toán MoMo hoặc demo]
+    H --> I[Đọc trạng thái từ backend]
+    I --> J[Đơn của tôi / Vé của tôi]
 ```
 
-Build xuất ra `frontend/dist`; URL preview xem trong terminal Vite. Backend và PostgreSQL vẫn phải chạy. Nếu preview dùng origin khác `5173`, cập nhật `FRONTEND_URL` ở backend rồi khởi động lại để tránh lỗi CORS. Khi deploy, cấu hình hosting trả `index.html` cho các URL React Router như `/my-orders`; backend hiện không phục vụ `frontend/dist`.
+- Các điểm tìm kiếm dùng chung `/flights`; tuyến/ngày nằm trên URL. Trang kết quả chịu trách nhiệm gọi API tìm kiếm.
+- Khi chọn chuyến, frontend đưa `flightId` vào URL. Trang hành khách/chọn ghế có thể tải lại chuyến từ API, không chỉ dựa vào dữ liệu chuyển trang.
+- Bản nháp hành khách/dịch vụ lưu trong **sessionStorage của tab, tách theo tài khoản và chuyến, hết hạn sau 30 phút kể từ lần lưu**. Quay lại sửa giữ thông tin đã nhập; bản nháp bị xóa khi tạo đơn thành công. Mở tab mới vẫn tải được chuyến nhưng cần nhập lại thông tin chưa lưu thành đơn.
+- Phiên đăng nhập hết hạn sẽ yêu cầu đăng nhập lại và giữ đích quay về tối đa 30 phút cho đúng tài khoản. Thời hạn giữ ghế phía server vẫn giữ nguyên.
+- Backend kiểm tra chuyến còn mở bán, giấy tờ, dịch vụ và giá. Giữ ghế có transaction/khóa để hai người không cùng đặt một ghế trên cùng chuyến.
+- Đơn đã tạo có thể mở lại bằng `bookingId` tại trang thanh toán. Không lấy tổng tiền từ URL hoặc tin giá do trình duyệt gửi.
 
-## Các trang và API chính
+### 6.2 Chuyến mẫu và giá
 
-### Trang giao diện
+Demo có 8 sân bay Việt Nam (HAN, SGN, DAD, PQC, CXR, DLI, HUI, VCA) và 3 sân bay nước ngoài (NRT, HND, SIN). Có 56 tuyến nội địa, 12 tuyến quốc tế theo từng chiều. Quốc tế chỉ đi/đến Việt Nam qua HAN hoặc SGN; không bán tuyến giữa hai sân bay nước ngoài.
 
-| Đường dẫn | Nội dung | Quyền |
+`DEMO_FLIGHTS_ENABLED=true` và môi trường khác production cho phép tạo chuyến theo lượt tìm. Tìm lại dùng cùng chuyến đã lưu; không tự mở lại chuyến hủy, đổi lịch hoặc hết ghế. Lịch dùng giờ Việt Nam, có khoảng nghỉ 30 phút cho máy bay. Đây là quy tắc mô phỏng cho đồ án.
+
+| Thành phần | Giá/cấu hình |
+| --- | --- |
+| Chuyến nội địa mẫu | 2 giờ; giá cơ bản 1.500.000đ |
+| Chuyến quốc tế mẫu | 8 giờ; giá cơ bản 5.500.000đ |
+| Hạng ghế | ECONOMY ×1; BUSINESS ×1,5; FIRST ×2 |
+| Hành lý | 0 kg: 0đ; 10 kg: 150.000đ; 20 kg: 250.000đ; 30 kg: 350.000đ |
+| Suất ăn | Không chọn: 0đ; cơm gà: 80.000đ; cơm bò: 100.000đ; mì: 70.000đ |
+| Bảo hiểm | 50.000đ nếu chọn |
+
+Tổng tiền = giá theo hạng ghế + hành lý + suất ăn + bảo hiểm. Mỗi máy bay demo có 20 ghế: 16 phổ thông, 3 thương gia, 1 hạng nhất. Trạng thái giữ/đặt ghế được tính theo từng chuyến, không khóa ghế vĩnh viễn cho mọi ngày bay.
+
+### 6.3 Thanh toán và trạng thái đơn
+
+| Trạng thái | Ý nghĩa và bước tiếp theo |
+| --- | --- |
+| `PENDING` | Chờ thanh toán; có thể tiếp tục nếu ghế còn hạn và chuyến còn hợp lệ |
+| `CONFIRMED` | Đã xác nhận; xem vé và có thể đánh giá nếu đủ điều kiện |
+| `EXPIRED` | Hết thời gian giữ ghế; tìm chuyến khác để đặt lại |
+| `CANCELLED` | Đã hủy; giữ lịch sử và lý do |
+| `PAYMENT_REVIEW` | Có khoản cần đối soát; admin kiểm tra để xử lý |
+
+`REFUNDED` là trạng thái giao dịch hoàn tiền; giao diện đơn cũng thể hiện nhãn đã hoàn tiền khi phù hợp.
+
+- **Demo:** bấm nút là xác nhận thanh toán trong hệ thống: giao dịch `SUCCESS`, đơn `CONFIRMED` (giao diện “Đã thanh toán”), ghế `BOOKED`; vé hiển thị trong Vé của tôi. Không cần quét mã hoặc trả thêm lần nữa. Phương thức vẫn lưu `MOCK` để phân biệt với MoMo; không trừ tiền qua ví/ngân hàng. Email biên nhận gửi sau khi xác nhận, không bắt người dùng chờ email xong.
+- **MoMo:** backend tạo giao dịch và trả URL thanh toán. MoMo gửi IPN về backend; backend kiểm tra chữ ký, mã giao dịch và số tiền trước khi xác nhận. Trang kết quả đọc lại trạng thái server, không kết luận thành công chỉ từ query string MoMo trả về.
+- Callback đến muộn sau khi ghế hết hạn/đã được người khác đặt chuyển sang đối soát, không lấy ghế của khách khác.
+- Admin hủy đơn/chuyến có lý do và giữ lịch sử. Đơn có giao dịch hoặc vé không được xóa như dữ liệu nháp. Hoàn tiền hiện được admin ghi nhận bằng mã tham chiếu và ghi chú sau khi xử lý bên ngoài.
+- Dashboard và quản lý thanh toán cộng cả MoMo và Demo vào **Giá trị đã thanh toán** cho các đơn/giao dịch hợp lệ. Biểu đồ vẫn tách từng phương thức; khoản chờ hoàn hoặc đã hoàn không tính vào tổng này. Giá trị ghi nhận trong hệ thống có phần Demo, không đồng nghĩa toàn bộ là tiền thực thu.
+
+### 6.4 Chat AI và hỗ trợ trực tiếp
+
+1. Khách mở chat, có phiên hội thoại và mã bí mật riêng; không bắt buộc đăng nhập.
+2. Có khóa Groq thì AI xử lý câu hỏi/tuyến/ngày; khách xác nhận liên kết tìm chuyến để xem kết quả. Bot không tự mua vé hoặc thanh toán.
+3. Tin nhắn được lưu vào PostgreSQL. Admin bật sẵn sàng, xem hàng chờ, tiếp nhận và trả lời qua WebSocket.
+4. Khi nhân viên đang nhận hội thoại, bot không chen câu trả lời vào luồng hỗ trợ. Kết thúc hoặc mất kết nối quá thời gian cho phép sẽ trả về bot.
+5. Phiên chat trong trình duyệt được tách khi đổi tài khoản/đăng xuất; dữ liệu tìm chuyến cũ không được khôi phục sang tài khoản khác.
+
+Chat hiện là phiên theo trình duyệt, **chưa phải hộp thư tài khoản đồng bộ nhiều thiết bị**. Admin thấy mã khách/hội thoại, chưa tự xác minh khách đó là chủ của một đơn; cần kiểm tra thông tin trước khi hỗ trợ nghiệp vụ.
+
+### 6.5 Tài khoản, hồ sơ và đánh giá
+
+- Mật khẩu băm bằng bcrypt; JWT được kiểm tra lại với tài khoản, role, khóa tài khoản và `token_version` ở backend.
+- Quên/đổi mật khẩu dùng mã email 6 chữ số, hạn 10 phút, tối đa 5 lần sai; gửi lại sau ít nhất 60 giây. Đổi mật khẩu thu hồi phiên cũ.
+- Avatar JPG/JPEG/PNG/WEBP tối đa 2 MB, 4096 × 4096 pixel được backend kiểm tra và tạo lại thành WebP tối đa 512 × 512.
+- Một đơn hợp lệ chỉ đánh giá một lần. Có thể xóa đánh giá nhưng không gửi lại/sửa. Trang chủ giữ tối đa 4 đánh giá mới nhất; backend xóa đánh giá vượt giới hạn khi có bài mới. Cấu hình tại `backend/config/reviews.js`.
+- Admin chính được bảo vệ; giao diện hiện không có luồng cấp thêm quyền ADMIN/STAFF. Không thể xóa tài khoản đang có lịch sử nghiệp vụ liên quan.
+
+## 7. Cấu hình dịch vụ và biến môi trường
+
+| Nhóm biến | Nơi cấu hình | Tác dụng |
 | --- | --- | --- |
-| `/home` | Trang chủ, tìm chuyến và đánh giá | Công khai |
-| `/destinations` | Điểm đến | Công khai |
-| `/blog`, `/blog/:slug` | Danh sách và chi tiết blog | Công khai |
-| `/flights`, `/flight-list` | Kết quả/danh sách chuyến | Công khai |
-| `/login`, `/register` | Đăng nhập, đăng ký | Công khai |
-| `/forgot-password`, `/reset-password` | Khôi phục mật khẩu | Công khai |
-| `/passenger-info`, `/booking` | Nhập hành khách, chọn ghế/dịch vụ | Đã đăng nhập |
-| `/payment`, `/payment-result` | Thanh toán và kiểm tra kết quả | Đã đăng nhập |
-| `/profile` | Hồ sơ và đổi mật khẩu | Đã đăng nhập |
-| `/my-orders` | Đơn đặt vé, tiếp tục thanh toán | Đã đăng nhập |
-| `/my-tickets` | Vé đã mua và đánh giá | Đã đăng nhập |
-| `/admin` | Dashboard | ADMIN |
-| `/admin/users`, `/admin/flights` | Người dùng, chuyến bay | ADMIN |
-| `/admin/bookings`, `/admin/payments` | Đơn và thanh toán/đối soát | ADMIN |
-| `/admin/chat` | Chat hỗ trợ trực tiếp | ADMIN |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Backend | Kết nối PostgreSQL; mã hiện đọc từng biến, chưa đọc `DATABASE_URL` |
+| `JWT_SECRET` | Backend | Ký token và bảo vệ mã mật khẩu |
+| `PORT` | Backend | Cổng HTTP/WebSocket, mặc định 5000 |
+| `NODE_ENV` | Backend | Local dùng `development`; production chặn cả hai chế độ demo |
+| `FRONTEND_URL` | Backend | Origin frontend được phép gọi API và WebSocket |
+| `DEMO_FLIGHTS_ENABLED` | Backend | Tạo chuyến mẫu theo lượt tìm khi không phải production |
+| `DEMO_PAYMENTS_ENABLED` | Backend | Thanh toán giả lập khi không phải production |
+| `GROQ_API_KEY`, `GROQ_MODEL` | Backend | Chat AI; model mặc định trong mã là `openai/gpt-oss-120b` |
+| `MAIL_USER`, `MAIL_PASS`, `MAIL_FROM_NAME` | Backend | Gmail gửi OTP/biên nhận; `MAIL_PASS` dùng mật khẩu ứng dụng phù hợp tài khoản Gmail |
+| `MOMO_PARTNER_CODE`, `MOMO_ACCESS_KEY`, `MOMO_SECRET_KEY`, `MOMO_ENDPOINT` | Backend | Thông tin tích hợp MoMo được cấp cho môi trường tương ứng |
+| `MOMO_REDIRECT_URL` | Backend | URL frontend `/payment-result` |
+| `MOMO_IPN_URL` | Backend | URL backend `/api/payments/momo/ipn`, phải truy cập được từ MoMo |
+| `VITE_API_URL` | Frontend | `/api` khi local; URL backend có `/api` khi deploy tách hosting |
+| `VITE_CHAT_WS_URL` | Frontend, tùy chọn | Chỉ đặt khi WebSocket khác URL tự suy ra từ API |
 
-`/` chuyển khách tới `/home`, admin đã đăng nhập tới `/admin`. `/my-bookings` chuyển sang `/my-orders`. Các bước đặt vé nhận dữ liệu từ bước trước; riêng trang thanh toán hỗ trợ mở lại bằng `?bookingId=<id>`.
+Thiếu Gmail thì không gửi được OTP/email vé; thiếu Groq thì AI báo chưa cấu hình; thiếu MoMo thì không tạo được thanh toán MoMo. Chat người thật và thanh toán demo local không cần khóa Groq/MoMo. Dịch vụ email lỗi không biến một giao dịch đã xác nhận thành thất bại.
 
-### API backend
+`VITE_*` là cấu hình được đưa vào bản frontend, không đặt bí mật trong đó. Đổi biến frontend cần khởi động lại Vite hoặc build/deploy lại; đổi biến backend cần khởi động lại backend.
 
-Base URL local: `http://localhost:5000/api`. API cần đăng nhập dùng header `Authorization: Bearer <token>` nhận sau đăng nhập; frontend tự gắn token. Backend kiểm tra lại quyền, trạng thái khóa và phiên từ database, không chỉ dựa vào việc ẩn trang trên giao diện.
+## 8. Cấu trúc mã nguồn và database
 
-| Nhóm | Endpoint tiêu biểu | Quyền |
-| --- | --- | --- |
-| Xác thực | `POST /auth/register`, `/auth/login`, `/auth/forgot-password`, `/auth/reset-password` | Công khai |
-| Danh mục/tìm chuyến | `GET /flights/catalog`, `GET /flights/search?from=HAN&to=SGN&date=YYYY-MM-DD&page=1&page_size=10` | Công khai |
-| Sơ đồ ghế | `GET /seats/flight/:flightId` | Đã đăng nhập |
-| Đặt chỗ | `POST /bookings/hold-seat`, `POST /bookings` | Đã đăng nhập |
-| Đơn/vé của tôi | `GET /bookings/mine`, `/bookings/my-tickets`, `/bookings/:bookingId/checkout` | Chủ đơn |
-| Thanh toán | `GET /payments/config`, `POST /payments/momo/create`, `POST /bookings/:bookingId/pay`, `GET /payments/booking/:bookingId/status` | Config công khai; các thao tác đơn yêu cầu chủ đơn |
-| Callback MoMo | `POST /payments/momo/ipn` | Không dùng JWT; xác minh chữ ký và dữ liệu giao dịch |
-| Hồ sơ | `GET/PUT /users/profile`, `POST /users/profile/avatar` | Đã đăng nhập; upload multipart với trường `avatar` |
-| Đổi mật khẩu | `POST /users/password/request-code`, `/users/password/change` | Đã đăng nhập |
-| Đánh giá | `GET /reviews`, `GET /reviews/mine`, `POST /reviews/:bookingId`, `DELETE /reviews/:reviewId` | Danh sách công khai; thao tác cá nhân yêu cầu chủ đơn/bài |
-| Quản trị người dùng | `GET /users`, `GET /users/:id`, `PUT /users/:id/role`, `PUT /users/:id/toggle-lock`, `DELETE /users/:id` | ADMIN; API quyền chỉ chấp nhận CUSTOMER, có bảo vệ admin |
-| Quản trị chuyến | `GET/POST /flights`, `PUT/DELETE /flights/:id`, `PATCH /flights/:id/cancel`, `GET /flights/overview`, `GET /flights/demo/config` | ADMIN |
-| Thống kê dashboard | `GET /flights/statistics?from=YYYY-MM-DD&to=YYYY-MM-DD&group=day` (`group=month` để nhóm theo tháng; tối đa 366 ngày) | ADMIN |
-| Quản trị đơn | `GET /bookings/admin`, `PATCH /bookings/:bookingId/cancel`, `DELETE /bookings/:bookingId` | ADMIN |
-| Giao dịch/hoàn tiền | `GET /payments`, `POST /payments/reviews/:reviewId/refund` | ADMIN |
-| Chat AI | `POST /chat` | Công khai, cần cấu hình Groq |
-| Phiên chat khách | `POST /chat/session`, `/chat/sync`, `/chat/messages`, `/chat/bot`, `/chat/reset` | Tạo phiên công khai; các thao tác còn lại xác minh mã/bí mật phiên chat. Reset xóa vĩnh viễn cuộc cũ và tạo cuộc mới. |
-| Chat quản trị | `POST /chat/admin/state`, `/chat/admin/:id` (xem, `accept`, `send`, `end`, `delete`), `/chat/admin/logout` | ADMIN; `delete` xóa cứng cuộc được chọn cùng tin nhắn/dấu đã đọc |
-| Sự kiện chat | WebSocket `/chat/live` (URL đầy đủ `/api/chat/live`) | Xác thực phiên chat hoặc JWT admin trong thông điệp đầu tiên |
-
-Hai endpoint cũ `POST /flights/demo/preview` và `/flights/demo/generate` trả **410** vì đã bỏ tạo lịch hàng loạt. Lệnh `npm run demo:preview` trong backend chỉ đọc cấu hình tuyến, cần database, không tạo chuyến.
-
-## Chat trực tiếp và thời gian chờ kết nối lại
-
-- Khi khách gửi tin đầu tiên, hội thoại tự xuất hiện trong hộp thư **Chat hỗ trợ** của admin, kể cả khi nhân viên chưa trực. Khách không cần bấm chuyển nhân viên; bot tiếp tục trả lời đến khi admin bấm **Tiếp nhận**. Không cần bật Wi-Fi trước khi tiếp nhận.
-- Sau khi tiếp nhận, chỉ admin phụ trách được gửi tin; bot tạm dừng riêng cuộc đó. Phản hồi bot đang xử lý cũng bị chặn bằng phiên bản hội thoại.
-- Nút Wi-Fi thể hiện lựa chọn đang trực/tạm ngừng trực; hội thoại vẫn tự vào hộp thư và admin vẫn chủ động tiếp nhận được. Các cuộc đã nhận tiếp tục đến khi **Kết thúc hỗ trợ**. Tin mới sau kết thúc đưa cuộc chat về hàng chờ.
-- **Làm mới cuộc trò chuyện** ở phía khách xóa cứng cuộc cũ rồi tạo mã/bí mật phiên mới. **Xóa** ở phía admin xóa ngay cuộc đang chọn, kể cả đang hỗ trợ; không xóa các cuộc khác. Tin nhắn và dấu đã đọc bị xóa theo, không tạo thùng rác hay bản lưu lịch sử xóa. Các phía đang kết nối bỏ phiên cũ; khách được mở cuộc mới. Xem [chi tiết thay đổi chat](docs/chat-handoff-deletion.md).
-- **Mốc chờ đã chốt: 60 giây kể từ khi backend phát hiện admin mất kết nối.** Giá trị duy nhất để đổi nằm ở `ADMIN_RECONNECT_GRACE_MS` trong [liveChat.service.js](backend/services/liveChat.service.js), có ghi chú ngay cạnh. Không tạo file cấu hình riêng chỉ cho mốc này.
-- Kết nối WebSocket được giữ chung cho phiên đăng nhập, xuyên suốt các mục admin và cả khi admin xem trang khách hàng. Nút Wi-Fi và số tin chưa đọc dùng chung trạng thái, không tạo lại khi đổi mục.
-- Backend theo dõi từng tab bằng WebSocket: còn một tab admin kết nối thì vẫn online. Ping/pong mỗi 5 giây do server chủ động gửi, không phụ thuộc bộ đếm JavaScript của tab nền. Đóng tab cuối sẽ bắt đầu chờ kết nối lại; mất mạng được phát hiện qua ping/pong và lease 15 giây. Trong thời gian chờ, khách vẫn gửi tin được và bot tạm dừng. Admin quay lại trong 60 giây sẽ tiếp tục cuộc cũ.
-- Đăng xuất khi có mạng sẽ tắt trạng thái trực, chuyển các cuộc đang hỗ trợ về bot ngay và đóng kết nối của admin trên các tab. Nếu đăng xuất khi mất mạng, backend xử lý như mất kết nối và giữ mốc chờ 60 giây. Mỗi lần đăng nhập có mã phiên JWT riêng; admin có thể bấm **Tiếp nhận** mà không cần bật trạng thái trực.
-- Quá thời gian chờ, backend tự kết thúc quyền phụ trách, thông báo chuyển về bot và xử lý tin khách chưa được trả lời. Worker kiểm tra mỗi 3 giây; thời gian sinh câu trả lời AI phụ thuộc Groq. Admin quay lại muộn phải **Tiếp nhận** lại. Không cần mở trang khách để worker hoạt động.
-- Để cài trên database hiện có, người quản trị áp dụng **chỉ migration 007** nếu 001–006 đã có, rồi khởi động lại backend. Chat trực tiếp không cần Groq; câu trả lời AI cần `GROQ_API_KEY`. Khi AI lỗi, hệ thống báo rõ thay vì bỏ khách chờ mãi.
-- Kiểm thử riêng: `npm run test:chat` trong backend với `TEST_DATABASE_URL` trỏ tới database local **mới, rỗng**, tên `airline_booking_test[_hậu_tố]`. Dùng database khác với lượt `npm test` vì mỗi bộ tự dựng schema riêng.
-
-### Chạy local và deploy WebSocket
-
-Local vẫn chỉ cần PostgreSQL, backend và frontend. Thư viện `ws` được cài bằng `npm ci` trong backend; trình duyệt dùng WebSocket có sẵn. Không cần tài khoản hay dịch vụ chat bên ngoài. Tin nhắn vẫn được lưu bằng API; WebSocket báo có cập nhật để giao diện tải dữ liệu mới ngay. Các yêu cầu đọc trạng thái không gia hạn online; chỉ kết nối sống và thao tác chủ động mới làm điều đó.
-
-- Endpoint mặc định: `/api/chat/live`, dùng chung cổng Express. Frontend tự suy ra URL `ws://` hoặc `wss://` từ `VITE_API_URL`. Chỉ đặt `VITE_CHAT_WS_URL` nếu dùng URL WebSocket riêng.
-- Deploy frontend HTTPS cần backend HTTPS/WSS. Đặt `FRONTEND_URL` đúng origin frontend; backend kiểm tra origin khi nâng cấp WebSocket. JWT gửi trong thông điệp xác thực đầu tiên, không đưa vào URL/log truy cập. Khách dùng mã phiên chat riêng để xác thực.
-- Nếu dùng proxy, phải chuyển tiếp HTTP Upgrade cho `/api/chat/live`. Ví dụ Nginx trong cùng khối `server` với proxy API (thay `backend:5000` theo môi trường):
-
-```nginx
-location /api/chat/live {
-    proxy_pass http://backend:5000;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
-    proxy_set_header Host $host;
-    proxy_read_timeout 75s;
-}
+```text
+fe-react/
+├── backend/
+│   ├── config/       # PostgreSQL, quy tắc demo, giới hạn đánh giá
+│   ├── routes/       # URL API và middleware quyền truy cập
+│   ├── controllers/  # Nhận request, gọi nghiệp vụ, trả response
+│   ├── services/     # Đặt chỗ, thanh toán, email, chat, thống kê
+│   ├── middleware/   # JWT, quyền admin, upload, giới hạn request
+│   ├── lib/          # Validation, tính giá, kiểm tra schema, lỗi HTTP
+│   ├── setup/        # Schema dựng database mới
+│   ├── migrations/   # Thay đổi database 001–008
+│   ├── scripts/      # Setup demo, kiểm tra AI, xem quy tắc tuyến
+│   ├── test/         # Kiểm thử backend và schema thử nghiệm
+│   ├── uploads/      # Ảnh người dùng, cần giữ khi chuyển máy
+│   ├── temp/         # Ảnh/log/database tạm do kiểm thử tạo
+│   └── server.js     # HTTP, WebSocket và worker chat
+├── frontend/
+│   ├── src/
+│   │   ├── pages/    # Trang khách và xác thực
+│   │   ├── admin/    # Màn hình quản trị
+│   │   ├── components/ # Thành phần theo nhóm chức năng
+│   │   ├── hooks/    # Logic biểu mẫu, đặt vé, chat và hồ sơ
+│   │   ├── contexts/ # Trạng thái chat quản trị dùng chung
+│   │   ├── layouts/  # Header, Footer, bố cục admin và xác thực
+│   │   ├── api/      # Axios và WebSocket
+│   │   ├── utils/    # Định dạng, phiên, bản nháp, validation giao diện
+│   │   ├── data/     # Nội dung blog và hướng dẫn tĩnh
+│   │   ├── styles/   # CSS
+│   │   └── App.jsx   # Bản đồ trang và bảo vệ route
+│   ├── test/         # Unit test và trình duyệt với dữ liệu giả
+│   ├── vercel.json   # Rewrite React Router khi deploy Vercel
+│   └── dist/         # Bản build sinh tự động
+├── scripts/test-project.cjs # Kiểm thử toàn dự án với PostgreSQL riêng
+├── docs/             # Chi tiết nghiệp vụ và báo cáo kiểm tra
+└── README.md
 ```
 
-Bản này dùng **một tiến trình backend**, lưu hội thoại trong PostgreSQL và theo dõi các socket đang sống trong bộ nhớ. Nếu sau này chạy nhiều replica/process (kể cả PM2 cluster), cần bổ sung chia sẻ presence/sự kiện và phiên chat đã đăng xuất qua Redis hoặc cơ chế tương đương trước khi mở rộng. Chưa cần Redis để chạy local hoặc deploy một backend. Tham khảo [tài liệu chính thức ws](https://github.com/websockets/ws#readme).
+| Nhóm bảng chính | Dữ liệu |
+| --- | --- |
+| `users`, `password_challenges` | Tài khoản, role, khóa phiên và mã mật khẩu |
+| `airlines`, `airports`, `airplanes`, `seats`, `flights` | Danh mục và chuyến bay |
+| `bookings`, `booking_details`, `passengers`, `tickets` | Đơn, hành khách, dịch vụ, giữ ghế và vé |
+| `payments`, `payment_review_cases` | Giao dịch, đối soát và ghi nhận hoàn tiền |
+| `customer_reviews` | Đánh giá |
+| `chat_conversations`, `chat_messages`, `chat_presence`, `chat_reads` | Hội thoại và trạng thái hỗ trợ |
 
-## Trình diễn và nghiệm thu
+Thông tin hành trình/giá/ghế lúc đặt được lưu trên đơn để giữ lịch sử. Thay đổi chuyến hiện tại không được tùy tiện ghi đè dữ liệu vé đã mua. Ngày giờ hiển thị theo Việt Nam (`Asia/Ho_Chi_Minh`); dữ liệu `TIMESTAMP WITHOUT TIME ZONE` hiện được hiểu là giờ Việt Nam.
 
-1. Đăng nhập khách, tìm HAN → SGN **ngày mai**, nhập hành khách, chọn ghế/dịch vụ và tạo đơn.
-2. Mở **Đơn đặt vé của tôi**, đăng xuất/đăng nhập lại hoặc mở URL thanh toán ở tab khác: tiếp tục thanh toán đúng giá đã lưu, không kéo dài hạn giữ ghế.
-3. Dùng **Thanh toán giả lập (Demo)** trên đơn mới chưa mở MoMo; xem vé và gửi đánh giá.
-4. Admin chọn **Xem trang khách hàng**, dùng menu tài khoản để về quản trị.
-5. Admin hủy đơn đã xác nhận: giữ đơn/giao dịch, giải phóng ghế, mở đối soát. Trong chi tiết đơn hoặc thanh toán, nhập ghi chú/mã xác nhận và ghi nhận hoàn tiền.
-6. Với MOCK, dùng mã xử lý nội bộ thử nghiệm, không chuyển tiền thật. Với MOMO, chỉ xác nhận sau khi hoàn khoản tương ứng bên ngoài hệ thống. Hệ thống không tự chuyển tiền hoàn.
-7. Dùng hai tài khoản ở hai trình duyệt chọn cùng ghế: chỉ một người giữ được.
+Các nhóm API: `/api/auth`, `/api/users`, `/api/flights`, `/api/seats`, `/api/bookings`, `/api/payments`, `/api/reviews`, `/api/chat`. Tra cứu URL chính xác trong `backend/routes/`; các API quản trị dùng `verifyToken` và `isAdmin`, API đơn/thanh toán cá nhân còn kiểm tra chủ đơn.
 
-MOCK không tính doanh thu MoMo; dashboard hiển thị số tiền MOCK riêng. Đơn có giao dịch PENDING/FAILED/SUCCESS/REFUNDED đều được giữ lịch sử để xử lý callback muộn. Xem chi tiết ở [bản hoàn thiện](docs/report-readiness.md) và [dashboard/hồ sơ](docs/dashboard-profile-update.md).
+## 9. Chạy thử, kiểm tra và build
 
-## Kiểm thử
+### Chạy hằng ngày và trong mạng LAN
 
-Để chạy đầy đủ trên môi trường riêng, từ **thư mục gốc** sau khi đã cài thư viện cho frontend/backend:
+Sau lần cài đầu, chỉ cần PostgreSQL đang chạy và hai terminal `npm --prefix backend start`, `npm --prefix frontend run dev`.
+
+Để người cùng Wi-Fi thử website, thay lệnh frontend bằng:
 
 ```powershell
-# Chỉ cần đặt nếu PostgreSQL không nằm ở <thư mục người dùng>/PostgreSQL/bin.
-$env:POSTGRES_BIN = 'C:/Program Files/PostgreSQL/18/bin'
+npm --prefix frontend run dev:lan
+```
+
+Mở địa chỉ **Network** Vite in ra, ví dụ `http://192.168.1.12:5173`. Cho phép cổng 5173 qua tường lửa nếu cần. Backend vẫn chỉ nghe loopback và nhận API qua Vite. Khi đổi Wi-Fi/IP, khởi động lại backend và Vite. LAN không tự giới hạn người truy cập trong một nhóm cụ thể.
+
+### Kiểm tra không cần database thật
+
+```powershell
+npm --prefix frontend test
+npm --prefix frontend run lint
+npm --prefix frontend run build
+npm --prefix frontend run test:ui
+```
+
+`test:ui` build lại và chạy Chrome/Edge headless với API giả lập; không tạo giao dịch thật. Nếu vừa build và chưa sửa mã, có thể chạy trực tiếp từ thư mục `frontend`: `node test/browser-smoke.cjs`.
+
+Backend có các lệnh độc lập dùng mock:
+
+```powershell
+npm --prefix backend run test:security
+npm --prefix backend run test:avatar
+npm --prefix backend run test:ai
+npm --prefix backend run test:demo
+```
+
+`test:ai` dùng provider giả. `test:ai:live` gọi Groq thật và cần khóa API; lệnh đó có tiêu thụ hạn mức dịch vụ.
+
+### Kiểm thử tích hợp và toàn dự án
+
+`npm --prefix backend test` có bài tích hợp nên **không chạy được khi thiếu `TEST_DATABASE_URL`**. Bộ test không được trỏ vào database ứng dụng.
+
+Cách kiểm tra toàn bộ được khuyến nghị, từ thư mục gốc:
+
+```powershell
+$env:POSTGRES_BIN = 'C:\Program Files\PostgreSQL\18\bin'
 node scripts/test-project.cjs
 ```
 
-Thay `POSTGRES_BIN` theo máy; không đặt dòng mẫu nếu script đã tìm được PostgreSQL. Cần Node.js theo yêu cầu dự án và Chrome/Edge (hoặc biến `CHROME_PATH`). Script tạo cluster PostgreSQL local và ba database mới trong `backend/temp/full-check-...`, chạy test backend/chat/frontend, lint/build, giao diện với fixture, rồi giao diện kết nối **Express + PostgreSQL + WebSocket thật**. Trình duyệt chỉ đổi địa chỉ API/WS sang backend test; không giả tài khoản, kết quả đặt vé hoặc dữ liệu nghiệp vụ trong lượt kết nối thật. Kiểm tra thêm các cổng demo/debug khi backend chạy production.
+Đổi đường dẫn PostgreSQL đúng máy. Runner cần `initdb`, `postgres`, `pg_ctl` và Chrome/Edge; có thể đặt `CHROME_PATH` nếu trình duyệt cài ở vị trí khác. Không đặt `POSTGRES_BIN` thì mặc định tìm trong thư mục `PostgreSQL/bin` của người dùng.
 
-Script không đọc kết nối database ứng dụng; `.env` không bị sửa. Gmail, MoMo, Groq được tắt ở backend demo riêng để tránh tác động ngoài. Các tiến trình do script tạo sẽ được dừng khi kết thúc; log, JSON kết quả, ảnh chụp và database kiểm thử được giữ trong `backend/temp/` đã ignore. Có thể dùng `--api-only` để chạy lại backend hoặc `--live-only` để chỉ chạy kiểm tra giao diện với backend thật trên database mới (cần có frontend build sẵn).
+Runner tạo PostgreSQL riêng với cổng ngẫu nhiên, dựng database test/demo riêng trong `backend/temp`, chạy unit/integration/chat, lint, build, trình duyệt giả lập, trình duyệt với backend thật và kiểm tra cổng chặn production. Dịch vụ thanh toán/email/AI thật bị tắt trong luồng kiểm tra này. Runner không đổi `.env` hay dùng database ứng dụng.
 
-Xem [báo cáo kiểm thử chức năng đầy đủ](docs/full-functional-test.md) để biết phạm vi đã xác minh và giới hạn dịch vụ ngoài. Các lệnh từng bộ:
+- `node scripts/test-project.cjs --api-only`: kiểm tra backend với database riêng.
+- `node scripts/test-project.cjs --live-only`: kiểm tra UI với backend/database riêng; cần frontend đã build.
 
-```powershell
-cd frontend
-npm run lint
-npm test
-npm run build
-cd ../backend
-npm run test:demo
-npm run test:avatar
-npm run test:security
-```
+Kết quả ở `backend/temp/full-check-<thời_gian>/summary.json` và các file log/ảnh đi kèm. Có thể dọn dữ liệu trong `backend/temp` khi không chạy test; test sau sẽ tạo lại. **Không nhầm với `backend/uploads` chứa ảnh người dùng.**
 
-Trong `frontend`, `npm test` chạy kiểm thử các hàm định dạng, múi giờ, phiên đăng nhập và nhãn dịch vụ, không cần backend/database. Để kiểm tra các luồng giao diện bằng Chrome/Edge headless:
+### Build và preview
 
 ```powershell
-cd frontend
-npm run test:ui
+npm --prefix frontend run build
+npm --prefix frontend run preview
 ```
 
-Lệnh này build frontend rồi kiểm tra đăng ký/đăng nhập, khôi phục/đổi mật khẩu, hồ sơ, tìm chuyến, hành khách/dịch vụ, giữ ghế, tiếp tục thanh toán, thanh toán demo, vé/đánh giá, blog/điểm đến, quản trị tài khoản/chuyến/đơn/thanh toán, hoàn tiền, chat và một số bố cục mobile. Cần Chrome hoặc Edge đã cài; có thể đặt `CHROME_PATH` nếu trình duyệt nằm ở đường dẫn khác. Test dùng server local với API/WebSocket giả, chặn truy cập dịch vụ ngoài và không đọc database hay dùng tài khoản/thanh toán thật. Kết quả này kiểm chứng giao diện; các quy tắc nghiệp vụ và WebSocket thực được kiểm tra riêng bằng test backend/PostgreSQL.
+Build tạo `frontend/dist`. Preview chỉ phục vụ bản frontend; PostgreSQL/backend vẫn cần chạy. Dùng URL/cổng mà Vite in ra; nếu origin frontend đổi, cấu hình `FRONTEND_URL` phù hợp rồi khởi động lại backend. Backend hiện không tự phục vụ `frontend/dist`.
 
-Để chạy toàn bộ kiểm thử tích hợp, dùng PostgreSQL local với database **mới, rỗng mỗi lượt**, tên `airline_booking_test[_hậu_tố]`; không dùng database ứng dụng:
+## 10. Triển khai Vercel và Render
 
-```powershell
-# Chạy trong backend; thay cổng và mật khẩu theo PostgreSQL kiểm thử của bạn.
-createdb -h 127.0.0.1 -p 5432 -U postgres airline_booking_test_example
-$env:TEST_DATABASE_URL = 'postgresql://postgres:YOUR_PASSWORD@127.0.0.1:5432/airline_booking_test_example'
-npm test
-Remove-Item Env:TEST_DATABASE_URL
-```
+Mô hình phù hợp: **frontend Vercel + backend Render Web Service + PostgreSQL cloud**. Các bước dưới là cấu hình cần chuẩn bị, không có nghĩa repository đã được deploy hoặc kiểm tra giao dịch thật trên cloud.
 
-`npm test` chạy avatar, lịch demo, kiểm thử bảo mật và tích hợp tài khoản/đặt vé/thanh toán/đánh giá; **không bao gồm bộ chat trực tiếp**. Chạy bộ chat riêng với database rỗng khác:
-
-```powershell
-# Vẫn trong backend; dùng tên mới cho mỗi lượt chạy.
-createdb -h 127.0.0.1 -p 5432 -U postgres airline_booking_test_chat
-$env:TEST_DATABASE_URL = 'postgresql://postgres:YOUR_PASSWORD@127.0.0.1:5432/airline_booking_test_chat'
-npm run test:chat
-Remove-Item Env:TEST_DATABASE_URL
-```
-
-`npm run test:demo`, `npm run test:avatar` và `npm run test:security` không cần database thật. Kiểm thử tích hợp/chat cần PostgreSQL local đang chạy; tài khoản test cần quyền dựng schema và tạo role `codex_user` khi chưa có. Test tự dựng schema/migration/dữ liệu giả và giữ database sau chạy, nên lần sau phải chọn database mới. Email và lệnh tạo giao dịch MoMo được giả lập; callback vẫn kiểm tra chữ ký với khóa thử. Kết quả này không chứng minh Gmail/MoMo thật đã được cấu hình.
-
-## Lỗi thường gặp
-
-| Hiện tượng | Cách xử lý |
+| Dịch vụ | Thiết lập |
 | --- | --- |
-| `npm` báo không tìm thấy `package.json` | Vào `backend` hoặc `frontend` rồi chạy lệnh tương ứng. |
-| `createdb`/`psql` không được nhận diện | Thêm thư mục `bin` PostgreSQL vào PATH hoặc tạo database bằng pgAdmin. |
-| Backend báo lỗi kết nối/đăng nhập database | Kiểm tra dịch vụ PostgreSQL, cổng, database và nhóm `DB_*`; sửa `.env` rồi khởi động lại backend. |
-| `Database migration required` hoặc thiếu bảng chat/đánh giá | Đối chiếu schema với migration 001–007. Máy mới dùng setup trên database rỗng; database đang dùng chỉ áp dụng migration còn thiếu. |
-| Setup báo database không rỗng hoặc tên không hợp lệ | Script chỉ nhận database local mới/rỗng với tên `airline_booking_demo[_suffix]`, hậu tố chỉ có chữ thường/số. Không dùng database đang vận hành. |
-| API báo lỗi proxy hoặc không kết nối được | Giữ `VITE_API_URL=/api`, chạy backend ở cổng `5000` và khởi động lại Vite. Nếu backend dùng cổng khác, cập nhật target trong `frontend/vite.config.js`. |
-| Lỗi CORS hoặc WebSocket không kết nối | Kiểm tra `FRONTEND_URL` khớp origin đang mở; kiểm tra URL API/WS, HTTPS/WSS và HTTP Upgrade nếu có proxy. |
-| Tìm chuyến không có kết quả | Chọn ngày mai, tuyến hợp lệ; kiểm tra cờ demo, đủ máy bay/ghế và migration 003. Chuyến quá giờ, hủy, hoãn hoặc hết ghế không được mở bán. |
-| Không có nút thanh toán demo | Kiểm tra `DEMO_PAYMENTS_ENABLED=true`, `NODE_ENV` khác `production`, rồi khởi động lại backend. Đơn đang có MoMo PENDING không được xen thanh toán demo. |
-| Không thể tiếp tục thanh toán | Ghế có thể đã hết hạn 15 phút hoặc chuyến ngừng bán; tạo đơn mới nếu hết hạn. Mở lại trang không kéo dài thời gian giữ ghế. |
-| Không gửi được mã email | Điền `MAIL_USER` và mật khẩu ứng dụng Gmail vào `MAIL_PASS`; mã không được trả về API. |
-| AI báo chưa cấu hình | Điền `GROQ_API_KEY`, kiểm tra model rồi khởi động lại backend. Chat với admin vẫn hoạt động độc lập. |
-| Dashboard doanh thu bằng 0 sau demo | Giao dịch MOCK bị loại khỏi doanh thu MoMo theo quy tắc hiện tại. |
-| Không xóa được đơn/người dùng/chuyến | Dữ liệu có lịch sử được bảo vệ; dùng hủy đơn/chuyến hoặc khóa tài khoản theo trường hợp. |
-| API trả 401 sau đổi mật khẩu/khóa tài khoản | Token cũ đã bị thu hồi; đăng nhập lại khi tài khoản còn được phép sử dụng. |
+| Vercel | Root Directory `frontend`; Framework Vite; Build `npm run build`; Output `dist` |
+| Render | Root Directory `backend`; Build `npm ci`; Start `npm start`; Node tương thích mục 2 |
+| PostgreSQL cloud | Khôi phục schema/dữ liệu phù hợp, cấu hình quyền tài khoản ứng dụng và kết nối backend |
 
-## Phạm vi và tài liệu nghiệp vụ
+Frontend trên Vercel:
 
-Phạm vi hiện tại: một chiều, một hành khách/ghế mỗi đơn; quốc tế qua HAN/SGN; lịch demo dùng giờ Việt Nam. Khứ hồi, nhiều hành khách, tồn chỗ hãng thật và hoàn tiền tự động là hướng phát triển.
+```dotenv
+VITE_API_URL=https://YOUR_BACKEND.onrender.com/api
+```
 
-Chat/presence và giới hạn request hiện phù hợp một tiến trình backend; xem phần WebSocket trước khi mở rộng nhiều process/replica. Các tài liệu trong `docs` có nhật ký và kết quả kiểm thử theo từng thời điểm, không phải số liệu database hiện tại trên mọi máy. Khi tài liệu cũ khác hành vi xóa đơn, ưu tiên mã nguồn hiện tại và `report-readiness.md`.
+Backend trên Render:
 
-Các giới hạn bảo vệ đã áp dụng:
+```dotenv
+NODE_ENV=production
+FRONTEND_URL=https://YOUR_FRONTEND.vercel.app
+DB_HOST=YOUR_CLOUD_DATABASE_HOST
+DB_PORT=5432
+DB_NAME=YOUR_CLOUD_DATABASE_NAME
+DB_USER=YOUR_CLOUD_DATABASE_USER
+DB_PASSWORD=YOUR_CLOUD_DATABASE_PASSWORD
+JWT_SECRET=YOUR_RANDOM_SECRET
+```
 
-- API AI `POST /api/chat`: tối đa 20 yêu cầu/phút/IP; tin nhắn tối đa 4.000 ký tự, lịch sử tối đa 10 tin, tổng đầu vào tối đa 16.000 ký tự. JSON cho nhóm API chat giới hạn 128 KB. Lỗi đầu vào trả 400, vượt hạn mức trả 429 kèm `Retry-After`.
-- HTTP chatbot và worker chat dùng chung giới hạn 120 lượt gọi AI/phút và tối đa 4 lượt đồng thời trên mỗi tiến trình; timeout 20 giây, không tự retry. Các giới hạn nằm trong `backend/controllers/chat.controller.js` và `backend/routes/chat.routes.js`. Nếu deploy sau proxy, cấu hình IP tin cậy theo hạ tầng trước khi dùng giới hạn theo IP; không tin trực tiếp header `X-Forwarded-For` từ client.
-- Avatar mới được giải mã/tạo lại bằng Sharp; file giả ảnh, hỏng, sai MIME, ảnh động hoặc quá kích thước bị từ chối. File lưu có tên ngẫu nhiên với đuôi `.webp`; ảnh cũ vẫn được giữ cho tới khi người dùng thay ảnh.
-- Với `NODE_ENV=production`, phản hồi lỗi không kèm chi tiết exception/database; server vẫn ghi log. Endpoint debug `/api/uploads-test`, `/api/chat/test` trả 404 và endpoint `/` không trả tên database.
-- Chạy `npm run test:security` trong backend để kiểm tra các tình huống trên bằng dịch vụ AI/database giả, không cần database thật hay khóa AI thật.
+Render cung cấp `PORT`; backend đã đọc biến này và nghe `0.0.0.0` trong production. `frontend/vercel.json` đưa đường dẫn React Router về `index.html` để tải lại trang con. Chat suy ra `wss://YOUR_BACKEND.onrender.com/api/chat/live` từ URL API; backend chỉ cho origin khớp `FRONTEND_URL`.
 
-- [An toàn tài khoản, đặt chỗ và thanh toán](docs/booking-safety-handoff.md)
-- [Quy tắc lịch demo và tuyến bay](docs/demo-flight-schedule.md)
-- [Quản trị đơn đặt vé](docs/admin-booking-management.md)
-- [Vé điện tử và đánh giá](docs/customer-reviews.md)
-- [Thay đổi trước báo cáo: giữ lịch sử, tiếp tục thanh toán và hoàn tiền](docs/report-readiness.md)
-- [Lịch sử dọn bảng database cũ](docs/database-table-cleanup.md)
-- [Kết quả gom hàm dùng chung và kiểm tra chức năng](docs/shared-utils-verification.md)
-- [Báo cáo kiểm thử chức năng đầy đủ](docs/full-functional-test.md)
+**Các điểm cần xử lý để đủ chức năng trên hosting:**
+
+1. **Database:** `127.0.0.1` trên Render là máy Render, không phải máy bạn. Chuyển database lên cloud; vẫn dùng pgAdmin kết nối để quản lý. Mã hiện chưa hỗ trợ `DATABASE_URL` hoặc cấu hình SSL riêng; đối chiếu yêu cầu endpoint, bổ sung cấu hình kết nối nếu dùng endpoint bắt buộc TLS. Script setup local không chấp nhận database cloud.
+2. **Demo:** production luôn chặn tạo chuyến mẫu và thanh toán MOCK, dù cờ `DEMO_*` bật. Cần chuẩn bị chuyến thật trong database và tích hợp thanh toán phù hợp, hoặc thiết kế một chế độ demo online riêng. Không đổi `NODE_ENV` để lách chặn demo: backend development chỉ nghe loopback.
+3. **Email:** mã hiện dùng Gmail SMTP. Render Free chặn các cổng SMTP 25/465/587, ảnh hưởng OTP và email vé; cần dịch vụ gửi qua HTTPS API hoặc hạ tầng hỗ trợ SMTP.
+4. **Ảnh:** `backend/uploads` là file local; Render có filesystem tạm. Cần dịch vụ lưu ảnh hoặc persistent disk phù hợp để ảnh không mất sau restart/deploy.
+5. **MoMo/Groq:** đặt khóa ở backend; đổi redirect sang Vercel và IPN sang Render. Callback cần URL HTTPS công khai và đúng môi trường MoMo.
+6. **Proxy/IP:** `trust proxy` production hiện tắt; cần cấu hình theo proxy thực tế trước khi dựa vào giới hạn request theo IP. Không tin mọi header IP tùy ý từ client.
+7. **Phiên chat:** sửa vấn đề đổi tài khoản theo mục 6 không thay việc kiểm thử quyền riêng tư và thanh toán khi mở cho người dùng thực.
+
+Tài liệu nền tảng: [Vite trên Vercel](https://vercel.com/docs/frameworks/frontend/vite), [Render Web Service](https://render.com/docs/web-services), [WebSocket](https://render.com/docs/websocket), [giới hạn Render Free](https://render.com/docs/free), [persistent disk](https://render.com/docs/disks).
+
+Render Free có thể ngủ khi không hoạt động và database Postgres Free có thời hạn sử dụng; đối chiếu tài liệu trước khi dùng cho buổi báo cáo hoặc lưu dữ liệu lâu dài. Không coi gói miễn phí là phương án vận hành bán vé thương mại đã hoàn thiện.
+
+## 11. Lỗi thường gặp
+
+| Hiện tượng | Kiểm tra và xử lý |
+| --- | --- |
+| `ENOENT ... package.json` khi chạy npm | Đang chạy sai thư mục; dùng các lệnh `npm --prefix backend ...` hoặc `frontend ...` từ thư mục gốc |
+| `npm ci` báo engine không phù hợp | Kiểm tra `node --version`; dùng phiên bản trong mục 2 |
+| Backend không kết nối được PostgreSQL | PostgreSQL server có chạy không; kiểm tra host/port/tên DB/user/mật khẩu trong `backend/.env`, không chỉ việc pgAdmin đang mở |
+| `Database migration required` | Đúng database chưa; đối chiếu schema và migration 001; sao lưu trước khi áp dụng |
+| Chat báo chưa có database/migration 007 | Database thiếu bảng chat; áp dụng migration phù hợp, không chạy schema test |
+| Setup từ chối database | Database không rỗng, sai tên hoặc không ở local; chọn đúng quy trình mục 3/mục 4 |
+| Không đăng nhập được admin | Dùng thông tin tự chọn khi chạy setup; dự án không có mật khẩu admin công khai mặc định |
+| Không có chuyến | Chọn tuyến hợp lệ và ngày tương lai; kiểm tra cờ demo và `NODE_ENV`; production không tự tạo chuyến |
+| Ghế vừa chọn nhưng không thanh toán được | Ghế hết hạn, chuyến thay đổi hoặc phiên hết hạn; mở Đơn đặt vé để kiểm tra; không tự tăng thời gian giữ ghế |
+| Không thấy nút thanh toán giả lập | Chỉ có khi `DEMO_PAYMENTS_ENABLED=true` và không chạy production |
+| Không nhận OTP/email | Kiểm tra cấu hình Gmail, kết nối SMTP và giới hạn hosting; OTP không được in công khai để thay thế email |
+| Chat AI báo chưa cấu hình | Kiểm tra `GROQ_API_KEY`, model và hạn mức; chat với admin không cần Groq |
+| CORS hoặc WebSocket bị từ chối | `FRONTEND_URL` phải đúng origin gồm giao thức/cổng, không thêm đường dẫn; kiểm tra URL API, `wss` và khởi động lại backend |
+| MoMo trả về nhưng chưa có vé | Trang kết quả còn chờ IPN/đối soát; kiểm tra URL callback và trạng thái đơn, không dựa riêng vào `resultCode` trên URL |
+| Refresh trang con trên Vercel bị 404 | Kiểm tra Root Directory và việc deploy có `frontend/vercel.json` |
+| Avatar mất sau redeploy | Ảnh lưu trên filesystem tạm; cấu hình nơi lưu bền vững và sao lưu cả uploads khi chuyển máy |
+| `npm test` backend thiếu `TEST_DATABASE_URL` | Đây là kiểm thử tích hợp; dùng runner toàn dự án hoặc database test mới, không dùng database ứng dụng |
+| Thư mục `backend/temp` quá lớn | Chứa database/ảnh/log kiểm thử; dọn khi mọi tiến trình test đã dừng |
+
+## 12. Giới hạn và tài liệu chi tiết
+
+Hiện dự án tập trung demo nghiệp vụ: chưa có vé khứ hồi/nhiều chặng, nhiều hành khách trong một đơn, kết nối hãng, hoàn tiền tự động, CMS blog, hộp thư chat đồng bộ tài khoản trên nhiều máy hoặc cơ chế phối hợp nhiều backend instance. Chat/rate limit hiện có trạng thái trong một tiến trình; cần thiết kế chia sẻ trạng thái trước khi scale ngang.
+
+Khi chuyển máy, giữ mã nguồn, lockfile, cấu hình riêng được bàn giao an toàn, bản sao database và `backend/uploads`. Có thể tạo lại `node_modules`, `frontend/dist` và `backend/temp`. File SQL, test và tài liệu vẫn liên quan đến khả năng dựng lại/kiểm tra dự án dù không được gọi khi khách mua vé.
+
+Tài liệu bổ sung:
+
+- [Kết quả rà soát liên kết và luồng sử dụng hiện tại](docs/navigation-review.md)
+- [Đặt vé, tài khoản, thanh toán và database](docs/booking-safety-handoff.md)
+- [Lịch mẫu và quy tắc tuyến](docs/demo-flight-schedule.md)
+- [Quản lý đơn đặt vé](docs/admin-booking-management.md)
+- [Dashboard và hồ sơ](docs/dashboard-profile-update.md)
+- [Đánh giá khách hàng](docs/customer-reviews.md)
+- [Chatbot AI và tìm chuyến](docs/groq-flight-assistant.md)
+- [Chat trực tiếp và xóa hội thoại](docs/chat-handoff-deletion.md)
+- [Chuẩn bị báo cáo và luồng đối soát](docs/report-readiness.md)
+- [Báo cáo kiểm thử trước đây](docs/full-functional-test.md)
+
+Các báo cáo có ngày hoặc đường dẫn kết quả test là ảnh chụp tại thời điểm kiểm tra. Chạy lại các lệnh mục 9 để xác minh phiên bản mã đang sử dụng.

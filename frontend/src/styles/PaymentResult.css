@@ -239,6 +239,7 @@
   margin-top: 27px;
 
   display: flex;
+  flex-wrap: wrap;
 
   justify-content: center;
 

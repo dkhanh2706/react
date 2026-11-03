@@ -1,4 +1,5 @@
 import { formatMoney } from "../../utils/format.js";
+import { getFlightSearchPath } from "../../utils/booking.js";
 export default function PassengerPriceSummary({
   flight,
   baseFlightPrice,
@@ -93,7 +94,7 @@ export default function PassengerPriceSummary({
                   <span>→</span>
                 </button>
 
-                <button type="button" className="passenger-summary-back" onClick={() => navigate(-1)}>
+                <button type="button" className="passenger-summary-back" onClick={() => navigate(getFlightSearchPath(flight))}>
                   ← Quay lại chọn chuyến
                 </button>
               </div>

@@ -27,8 +27,6 @@ function FlightSearch() {
     departDate: "",
   });
 
-  const [loading, setLoading] = useState(false);
-
   const handleChange = (event) => {
     const { name, value } = event.target;
 
@@ -39,7 +37,7 @@ function FlightSearch() {
     }));
   };
 
-  const searchFlight = async () => {
+  const searchFlight = () => {
     if (!form.from || !form.to || !form.departDate) {
       toast.error("Vui lòng chọn đầy đủ thông tin chuyến bay");
 
@@ -52,41 +50,9 @@ function FlightSearch() {
       return;
     }
 
-    try {
-      setLoading(true);
-
-      const response = await api.get("/flights/search", {
-        params: {
-          from: form.from,
-          to: form.to,
-          date: form.departDate,
-        },
-      });
-
-      const flights = Array.isArray(response.data)
-        ? response.data
-        : response.data?.data || [];
-
-      navigate("/flights", {
-        state: {
-          flights,
-
-          searchInfo: {
-            from: form.from,
-            to: form.to,
-            departDate: form.departDate,
-          },
-
-          source: "home",
-        },
-      });
-    } catch (error) {
-      console.error("SEARCH FLIGHT ERROR:", error.response?.data || error);
-
-      toast.error(error.response?.data?.message || "Không thể tìm chuyến bay");
-    } finally {
-      setLoading(false);
-    }
+    if (form.departDate < today) return toast.error("Vui lòng chọn ngày bay từ hôm nay");
+    const query = new URLSearchParams({ from: form.from, to: form.to, date: form.departDate, source: "home" });
+    navigate(`/flights?${query}`);
   };
 
   return (
@@ -142,9 +108,8 @@ function FlightSearch() {
         type="button"
         className="search-button"
         onClick={searchFlight}
-        disabled={loading}
       >
-        {loading ? "Đang tìm..." : "🔍 Tìm chuyến bay"}
+        🔍 Tìm chuyến bay
       </button>
     </div>
   );

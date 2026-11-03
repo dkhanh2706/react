@@ -20,8 +20,8 @@ Chỉ ADMIN; khoảng ngày bao gồm cả hai đầu, tối đa 366 ngày, theo
 | Ghế đang giữ | HOLD, đơn PENDING, hạn giữ lớn hơn thời điểm đọc. Giữ hết hạn không tính dù chưa được worker/API khác đổi trạng thái. |
 | Ghế trống | Ghế cung ứng − ghế đã bán − ghế đang giữ còn hạn. |
 | Tỷ lệ lấp đầy | Tổng ghế đã bán / tổng ghế cung ứng × 100%; không lấy trung bình phần trăm các chuyến. Mẫu số 0 trả null và giao diện hiện chưa có dữ liệu. |
-| Doanh thu MoMo | Theo `paid_at`; giao dịch MOMO SUCCESS, đơn CONFIRMED, ghế BOOKED, chuyến không hủy, không có hồ sơ hoàn tiền OPEN cho giao dịch. |
-| Thanh toán MOCK | Cùng nguyên tắc ngày thanh toán, hiển thị thành chỉ số/cột riêng, không cộng vào doanh thu MoMo. |
+| Giá trị đã thanh toán | `summary.paid_value` = MoMo + Demo theo `paid_at`; giao dịch SUCCESS, đơn CONFIRMED, ghế BOOKED, chuyến không hủy, không có hồ sơ hoàn tiền OPEN cho giao dịch. |
+| Thanh toán Demo | Phần MOCK trong tổng đã thanh toán, hiển thị thêm thành chỉ số/cột riêng để phân biệt phương thức. |
 | Giá trị đơn xác nhận hợp lệ | Tổng `bookings.total_price` của đơn có giao dịch thành công hợp lệ, theo kỳ khởi hành của chuyến; gồm MOCK. |
 | Giá trị đơn chờ | Đơn PENDING đã hoàn tất thông tin, không phải TMP, còn hạn giữ, chuyến AVAILABLE chưa khởi hành, không có khoản SUCCESS/REFUNDED. Lấy giá đã lưu trong đơn, gồm dịch vụ. |
 | Doanh số dự kiến | Giá trị đơn xác nhận hợp lệ + giá trị đơn chờ còn hạn, theo ngày khởi hành. Giả định mọi đơn chờ đều thanh toán thành công; không phải dự báo cuối tháng. |

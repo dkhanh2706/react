@@ -126,8 +126,6 @@ function Destinations() {
     departDate: "",
   });
 
-  const [loading, setLoading] = useState(false);
-
   const filteredDestinations = useMemo(() => {
     return DESTINATIONS.filter((item) => {
       const matchCategory =
@@ -172,7 +170,7 @@ function Destinations() {
     }));
   };
 
-  const searchFlights = async () => {
+  const searchFlights = () => {
     if (!form.from || !form.to || !form.departDate) {
       toast.error("Vui lòng chọn đầy đủ điểm đi, điểm đến và ngày bay");
 
@@ -185,41 +183,9 @@ function Destinations() {
       return;
     }
 
-    try {
-      setLoading(true);
-
-      const response = await api.get("/flights/search", {
-        params: {
-          from: form.from,
-          to: form.to,
-          date: form.departDate,
-        },
-      });
-
-      const flights = Array.isArray(response.data)
-        ? response.data
-        : response.data?.data || [];
-
-      navigate("/flights", {
-        state: {
-          flights,
-          searchInfo: form,
-          source: "destinations",
-        },
-      });
-    } catch (error) {
-      console.error(
-        "Lỗi tìm chuyến bay từ trang điểm đến:",
-        error.response?.data || error,
-      );
-
-      toast.error(
-        error.response?.data?.message ||
-          "Không thể tìm chuyến bay. Vui lòng thử lại.",
-      );
-    } finally {
-      setLoading(false);
-    }
+    if (form.departDate < today) return toast.error("Vui lòng chọn ngày bay từ hôm nay");
+    const query = new URLSearchParams({ from: form.from, to: form.to, date: form.departDate, source: "destinations" });
+    navigate(`/flights?${query}`);
   };
 
   return (
@@ -452,10 +418,9 @@ function Destinations() {
                 <button
                   type="button"
                   className="destination-search-button"
-                  disabled={loading}
                   onClick={searchFlights}
                 >
-                  {loading ? "Đang tìm chuyến bay..." : "Tìm chuyến bay"}
+                  Tìm chuyến bay
                 </button>
               </div>
             </div>

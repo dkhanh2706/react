@@ -9,6 +9,7 @@ if (!connection) throw new Error("Set TEST_DATABASE_URL to a NEW EMPTY local air
 const enabled = true;
 let pool, server, base, customerToken, secondToken, adminToken, flightId, seats, bcrypt;
 const delivered = [];
+let receiptGate = null;
 let momoCreates = 0;
 const passenger = { full_name: "Nguyen Van Test", email: "test@example.test", phone: "0900000000", gender: "MALE", date_of_birth: "2000-01-01", document_type: "CCCD", document_number: "123456789012" };
 
@@ -108,7 +109,7 @@ before(async () => {
   const customerReviews = fs.readFileSync(path.join(__dirname, "../migrations/006_customer_reviews.sql"), "utf8");
   await pool.query(customerReviews);
   await pool.query(customerReviews);
-  require.cache[mailPath] = { id: mailPath, filename: mailPath, loaded: true, exports: { sendPasswordCode: async info => { delivered.push(info); }, sendPaymentSuccessEmail: async () => {} } };
+  require.cache[mailPath] = { id: mailPath, filename: mailPath, loaded: true, exports: { sendPasswordCode: async info => { delivered.push(info); }, sendPaymentSuccessEmail: async () => { if (receiptGate) await receiptGate; } } };
   const momo = require("../services/momo.service");
   momo.createMomoPayment = async args => { momoCreates++; return { ...args, payUrl: "https://example.test/pay/" + args.orderId }; };
   const express = require("express");
@@ -282,9 +283,19 @@ check("mock payment rejects incomplete or expired bookings and is disabled outsi
   assert.equal((await request(`/api/bookings/${b.data.booking.id}/pay`, { token: customerToken, method: "POST" })).status, 409);
 });
 
-check("successful mock transactions do not contribute to real dashboard revenue", async () => {
+check("demo immediately confirms a paid order without waiting for email, and counts in paid totals separately from MoMo", async () => {
   const b = await booking(seats[4].id);
-  assert.equal((await request(`/api/bookings/${b.data.booking.id}/pay`, { token: customerToken, method: "POST" })).status, 200);
+  let releaseReceipt, timer;
+  receiptGate = new Promise(resolve => { releaseReceipt = resolve; });
+  try {
+    const result = await Promise.race([
+      request(`/api/bookings/${b.data.booking.id}/pay`, { token: customerToken, method: "POST" }),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("Payment response waited for receipt delivery")), 2000); }),
+    ]);
+    assert.equal(result.status, 200);
+    assert.equal(result.data.booking.status, "CONFIRMED");
+    assert.equal(result.data.payment.status, "SUCCESS");
+  } finally { clearTimeout(timer); releaseReceipt(); receiptGate = null; }
   const repeated = await request(`/api/bookings/${b.data.booking.id}/pay`, { token: customerToken, method: "POST" });
   assert.equal(repeated.status, 200);
   assert.equal(repeated.data.already, true);
@@ -301,6 +312,9 @@ check("successful mock transactions do not contribute to real dashboard revenue"
   const stats = await request("/api/flights/overview", { token: adminToken });
   assert.equal(stats.status, 200);
   assert.equal(Number(stats.data.revenue), 0);
+  const dashboard = (await request("/api/flights/statistics", { token: adminToken })).data;
+  assert.equal(dashboard.summary.paid_value, dashboard.summary.momo_revenue + dashboard.summary.mock_revenue);
+  assert.ok(dashboard.summary.paid_value >= Number(b.data.booking.total_price));
   assert.equal((await request("/api/users/2", { token: adminToken, method: "DELETE" })).status, 409);
 });
 
@@ -350,6 +364,12 @@ check("search is read-only, paginated, excludes unavailable flights, and preserv
   assert.equal(Number((await pool.query("SELECT count(*) FROM flights")).rows[0].count), before);
   const found = await request("/api/flights/search?from=HAN&to=SGN&date=2080-01-01&page_size=1");
   assert.equal(found.data.data[0].departure_time, "06:30");
+  const restored = await request(`/api/flights/${found.data.data[0].id}`);
+  assert.equal(restored.status, 200);
+  assert.equal(restored.data.data.departure_time, "06:30");
+  assert.equal(restored.data.data.from, "HAN");
+  assert.equal((await request("/api/flights/not-an-id")).status, 400);
+  assert.equal((await request("/api/flights/2147483647")).status, 404);
   assert.equal(found.data.page_size, 1);
   assert.equal((await request("/api/flights/search?from=HAN&to=SGN&date=2080-02-31")).status, 400);
 });
@@ -415,6 +435,7 @@ check("admin cancellation preserves bookings and payments, opens review, and tic
   assert.equal(result.status, 200);
   assert.equal(Number((await pool.query("SELECT count(*) FROM flights")).rows[0].count), before);
   assert.equal((await pool.query("SELECT status FROM flights WHERE id=$1", [flightId])).rows[0].status, "CANCELLED");
+  assert.equal((await request(`/api/flights/${flightId}`)).status, 404);
   assert.ok(Number((await pool.query("SELECT count(*) FROM bookings WHERE cancellation_reason LIKE 'Test cancellation%'" )).rows[0].count) > 0);
   const tickets = await request("/api/bookings/my-tickets", { token: customerToken });
   assert.equal(tickets.status, 200);
@@ -827,6 +848,7 @@ check("dashboard separates payment dates and departure dates and handles expiry,
   let cash = (await paidToday()).data;
   assert.ok(cash.summary.momo_revenue >= 1000000);
   assert.ok(cash.summary.mock_revenue >= 1000000);
+  assert.equal(cash.summary.paid_value, cash.summary.momo_revenue + cash.summary.mock_revenue);
   const momoBefore = cash.summary.momo_revenue;
   // A captured duplicate is awaiting review and must not inflate totals.
   const duplicate = (await pool.query("INSERT INTO payments(booking_id,method,amount,status,paid_at) VALUES($1,'MOMO',1000000,'SUCCESS',LOCALTIMESTAMP) RETURNING id", [momoId])).rows[0];

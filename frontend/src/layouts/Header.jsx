@@ -1,6 +1,6 @@
 import { getStoredUser as readUser, clearAuthStorage } from "../utils/auth.js";
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { getAvatarUrl } from "../utils/avatar";
 import { stopAdminChat } from "../api/chatRealtime";
@@ -86,9 +86,13 @@ function Header() {
     };
 
     window.addEventListener("userUpdated", handleUserUpdated);
+    window.addEventListener("auth-changed", handleUserUpdated);
+    window.addEventListener("storage", handleUserUpdated);
 
     return () => {
       window.removeEventListener("userUpdated", handleUserUpdated);
+      window.removeEventListener("auth-changed", handleUserUpdated);
+      window.removeEventListener("storage", handleUserUpdated);
     };
   }, []);
 
@@ -135,7 +139,7 @@ function Header() {
     if (!token) {
       toast.error("Vui lòng đăng nhập để sử dụng tính năng này");
 
-      navigate("/login");
+      navigate("/login", { state: { from: { pathname: path } } });
 
       return;
     }
@@ -179,52 +183,22 @@ function Header() {
           LOGO
       ====================================== */}
 
-      <div className="logo" onClick={() => navigate("/home")}>
+      <Link className="logo" to="/home" aria-label="DAMH Shop — Trang chủ">
         <span className="logo-mark">✈</span>
 
         <span className="logo-text">DAMH Shop</span>
-      </div>
+      </Link>
 
       {/* ======================================
           DESKTOP NAVIGATION
       ====================================== */}
 
-      <nav className="desktop-nav">
-        {/* TRANG CHỦ */}
-
-        <span
-          className={isHomeActive ? "active" : ""}
-          onClick={() => navigate("/home")}
-        >
-          Trang chủ
-        </span>
-
-        {/* ĐIỂM ĐẾN */}
-
-        <span
-          className={isDestinationsActive ? "active" : ""}
-          onClick={() => navigate("/destinations")}
-        >
-          Điểm đến
-        </span>
-
-        {/* BLOG */}
-
-        <span
-          className={isBlogActive ? "active" : ""}
-          onClick={() => navigate("/blog")}
-        >
-          Blog
-        </span>
-
-        {/* VÉ CỦA TÔI */}
-
-        <span
-          className={isTicketsActive ? "active" : ""}
-          onClick={() => requireLogin("/my-tickets")}
-        >
-          Vé máy bay của tôi
-        </span>
+      <nav className="desktop-nav" aria-label="Điều hướng chính">
+        <NavLink to="/home">Trang chủ</NavLink>
+        <NavLink to="/destinations">Điểm đến</NavLink>
+        <NavLink to="/blog">Blog</NavLink>
+        <NavLink to="/my-orders">Đơn đặt vé</NavLink>
+        <NavLink to="/my-tickets">Vé của tôi</NavLink>
       </nav>
 
       {/* ======================================

@@ -15,3 +15,10 @@ const normalizeSeats = seatData => {
   }));
 };
 export { normalizeSeatClass, normalizeSeatStatus, normalizeSeats };
+
+export function getFlightSearchPath(flight) {
+  const from = flight?.departure_code || flight?.from;
+  const to = flight?.arrival_code || flight?.to;
+  const date = String(flight?.date || flight?.flight_date || "").slice(0, 10);
+  return from && to && date ? `/flights?${new URLSearchParams({ from, to, date, source: "home" })}` : "/destinations";
+}

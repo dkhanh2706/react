@@ -72,7 +72,10 @@ async function main() {
       const { requestId, request } = data.params;
       try {
         if (new URL(request.url).pathname.startsWith("/api/")) {
-          await command("Fetch.fulfillRequest", { requestId, responseCode: request.method === "OPTIONS" ? 204 : 200, responseHeaders: [{ name: "Content-Type", value: "application/json" }, { name: "Access-Control-Allow-Origin", value: origin }, { name: "Access-Control-Allow-Headers", value: "Authorization, Content-Type" }, { name: "Access-Control-Allow-Methods", value: "GET, POST, PUT, PATCH, DELETE, OPTIONS" }], body: Buffer.from(request.method === "OPTIONS" ? "" : JSON.stringify(fixture.api(request.url, request.method, request.postData))).toString("base64") });
+          const path = new URL(request.url).pathname;
+          const failure = request.method !== "OPTIONS" && fixture.failNext.get(path);
+          if (failure) fixture.failNext.delete(path);
+          await command("Fetch.fulfillRequest", { requestId, responseCode: request.method === "OPTIONS" ? 204 : failure || 200, responseHeaders: [{ name: "Content-Type", value: "application/json" }, { name: "Access-Control-Allow-Origin", value: origin }, { name: "Access-Control-Allow-Headers", value: "Authorization, Content-Type" }, { name: "Access-Control-Allow-Methods", value: "GET, POST, PUT, PATCH, DELETE, OPTIONS" }], body: Buffer.from(request.method === "OPTIONS" ? "" : JSON.stringify(failure ? { message: "Phiên đăng nhập đã hết hạn" } : fixture.api(request.url, request.method, request.postData))).toString("base64") });
         } else if (request.url.startsWith(origin)) await command("Fetch.continueRequest", { requestId });
         else await command("Fetch.failRequest", { requestId, errorReason: "BlockedByClient" });
       } catch (error) {
@@ -178,10 +181,22 @@ async function main() {
   await click('.password-confirm-button'); await waitFor("location.pathname==='/login'&&!localStorage.getItem('token')", "password change logout");
   console.log("PASS profile edit, OTP password change and session invalidation");
 
-  await visit("/flights?from=HAN&to=SGN&date=2080-01-01", "document.body.innerText.includes('VN-TEST')", "flight search");
-  await visit("/passenger-info", "!!document.querySelector('input[name=document_number]')", "passenger");
+  await visit("/home", "!!document.querySelector('select[name=from] option[value=HAN]')", "home search catalog");
+  await fill('select[name=from]', 'HAN'); await fill('select[name=to]', 'SGN'); await fill('input[name=departDate]', '2080-01-01');
+  const initialSearches = fixture.calls.filter(call => call.path === '/api/flights/search').length;
+  await click('.search-button'); await waitFor("document.body.innerText.includes('VN-TEST')", "home flight search");
+  assert.equal(fixture.calls.filter(call => call.path === '/api/flights/search').length, initialSearches + 1);
+  assert.ok((await evaluate('location.search')).includes('from=HAN'));
+  await visit("/flight-list?from=HAN&to=SGN&date=2080-01-01", "location.pathname==='/flights'&&!!document.querySelector('.flight-select-button')", "legacy flight list");
+  await click('.flight-select-button'); await waitFor("!!document.querySelector('input[name=document_number]')", "passenger");
   await fill('input[name=date_of_birth]', '2000-01-01'); await fill('input[name=document_number]', '123456789012'); await click('.baggage-options button:nth-child(2)'); await click('.insurance-option'); await fill('.meal-select', 'CHICKEN_RICE');
   await clickText('Tiếp tục'); await waitFor("!!document.querySelector('.seat.economy')", "seat map");
+  await click('.btn-back-step'); await waitFor("!!document.querySelector('input[name=document_number]')", "edit passenger");
+  assert.equal(await evaluate("document.querySelector('input[name=document_number]').value"), '123456789012');
+  assert.equal(await evaluate("document.querySelector('.meal-select').value"), 'CHICKEN_RICE');
+  await clickText('Tiếp tục'); await waitFor("!!document.querySelector('.seat.economy')", "return to seats");
+  await evaluate("history.replaceState(null,'',location.href)");
+  await command('Page.reload'); await waitFor("!!document.querySelector('.seat.economy')&&location.search.includes('flightId=1')", "reload booking without navigation state");
   await click('[title$="- FIRST"]'); await waitFor("!!document.querySelector('.seat.selected[title$=\"- FIRST\"]')&&!document.querySelector('.seat.economy').disabled", "FIRST seat hold");
   assert.ok((await evaluate("document.querySelector('.seat-selection-summary').innerText")).includes('Phụ thu hạng Nhất'));
   assert.equal(await evaluate("document.querySelector('.final-price').innerText"), '3.280.000đ');
@@ -195,7 +210,16 @@ async function main() {
   assert.ok((await evaluate("document.querySelector('.order-summary-card').innerText")).includes('1.780.000'));
   await visit("/my-orders", "!!document.querySelector('.orders-card-pending')", "pending orders");
   await evaluate("document.querySelector('a[href*=bookingId]').click()"); await waitFor("!!document.querySelector('.order-summary-card')", "resume checkout");
-  await clickText('Thanh toán giả lập'); await waitFor("document.body.innerText.includes('Thanh toán giả lập thành công')", "payment result");
+  await visit("/payment-result?bookingId=77", "!!document.querySelector('.result-primary-button')&&document.body.innerText.includes('Tiếp tục thanh toán')", "pending result action");
+  fixture.failNext.set('/api/bookings/77/checkout', 401);
+  await click('.result-primary-button'); await waitFor("location.pathname==='/login'", "expired checkout session");
+  await fill('input[type=email]', fixture.customer.email); await fill('input[type=password]', 'Password123!');
+  await evaluate("document.querySelector('form').requestSubmit()");
+  await waitFor("location.pathname==='/payment'&&location.search.includes('bookingId=77')&&!!document.querySelector('.order-summary-card')", "login returns to checkout");
+  console.log('PASS one search request, legacy links, restored passenger/services and expired-session checkout return');
+  await clickText('Thanh toán Demo'); await waitFor("document.querySelector('.payment-result-card h1')?.textContent==='Thanh toán thành công'", "payment result");
+  await visit('/my-orders', "document.querySelector('.orders-status')?.textContent.includes('Đã thanh toán')", 'demo order is paid');
+  assert.equal(await evaluate("document.querySelectorAll('a.orders-button-primary[href*=payment]').length"), 0);
   console.log("PASS search, passenger/services, seat hold, resume checkout and demo payment");
 
   await visit("/my-tickets", "!!document.querySelector('.ticket-review-heading button:not(:disabled)')", "tickets");
@@ -325,6 +349,20 @@ async function main() {
   console.log(`Chat previews: ${chatPreviewDirectory}`);
   console.log("PASS blog, destinations and guided chatbot");
 
+  await visit('/home', "!!document.querySelector('.support-button')", 'chat account isolation');
+  await click('.support-button'); await waitFor("!!document.querySelector('.chatbot-input-area input:not(:disabled)')", 'first account chat');
+  const firstChat = await evaluate("JSON.parse(localStorage.getItem('flight-support-session')).id");
+  await evaluate("localStorage.setItem('user',JSON.stringify({...JSON.parse(localStorage.getItem('user')),id:99}));window.dispatchEvent(new Event('auth-changed'))");
+  await waitFor("!document.querySelector('.chatbot-box')", 'account switch closes prior conversation');
+  await click('.support-button'); await waitFor(`JSON.parse(localStorage.getItem('flight-support-session')).id!==${JSON.stringify(firstChat)}&&!!document.querySelector('.chatbot-input-area input:not(:disabled)')`, 'second account gets separate chat');
+  assert.equal(await evaluate("JSON.parse(localStorage.getItem('flight-support-session')).owner"), 'user:99');
+  await visit('/missing-page', "document.body.innerText.includes('Không tìm thấy trang')", '404 page');
+  await visit('/booking', "document.body.innerText.includes('Không tìm thấy thông tin chuyến bay')", 'booking without flight context');
+  await visit('/passenger-info?flightId=1', "!!document.querySelector('input[name=document_number]')", 'direct passenger link');
+  await click('.passenger-back-button');
+  await waitFor("location.pathname==='/flights'&&location.search.includes('from=HAN')&&!!document.querySelector('.flight-select-button')", 'change flight returns to search rather than booking history');
+  console.log('PASS account chat isolation and explicit 404 navigation');
+
   await visit("/admin", "document.body.innerText.includes('Tổng chuyến bay')", "dashboard");
   assert.equal(await evaluate("document.querySelectorAll('.dash-chart').length"), 2);
   assert.ok(await evaluate("!!document.querySelector('.dash-donut')&&document.body.innerText.includes('3.280.000')"));
@@ -349,6 +387,9 @@ async function main() {
   await waitFor("!document.querySelector('.bk-dialog')&&document.body.innerText.includes('Đã hủy')", "refund saved");
   await click('.bk-view'); await waitFor("document.body.innerText.includes('REFUND-TEST')", "persisted refund reference");
   await visit("/admin/payments", "document.body.innerText.includes('BKTEST')", "admin payments");
+  await visit('/admin/bookings?bookingId=77', "!!document.querySelector('.bk-dialog')", 'direct admin order link');
+  await evaluate("document.querySelector('.bk-related-links a').click()");
+  await waitFor("location.pathname==='/admin/payments'&&location.search.includes('bookingId=77')&&document.body.innerText.includes('BKTEST')", 'order to payment link');
   await visit("/admin/chat", "!!document.querySelector('.admin-chat-item')", "admin chat"); await click('.admin-chat-item'); await waitFor("!!document.querySelector('.admin-chat-accept:not(:disabled)')", "chat detail"); await clickText('Tiếp nhận'); await waitFor("!document.querySelector('.admin-chat-compose input').disabled", "accept chat"); await fill('.admin-chat-compose input', 'Xin chao, toi se ho tro ban.'); await evaluate("document.querySelector('.admin-chat-compose').requestSubmit()"); await waitFor("document.querySelector('.admin-chat-messages').innerText.includes('Xin chao, toi se ho tro ban.')", "send staff reply"); await clickText('Kết thúc hỗ trợ');
   console.log("PASS order cancellation, manual refund, payment history and staff chat");
   await waitFor("!!document.querySelector('.admin-chat-delete:not(:disabled)')", "delete action ready");

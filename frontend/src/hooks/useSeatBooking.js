@@ -1,23 +1,21 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import api from "../api/axios";
 import { normalizeSeatClass, normalizeSeatStatus, normalizeSeats } from "../utils/booking.js";
+import useBookingFlight from "./useBookingFlight.js";
+import { clearBookingDraft } from "../utils/bookingDraft.js";
+import { BAGGAGE_OPTIONS, MEAL_OPTIONS } from "../utils/passenger.js";
 export default function useSeatBooking() {
-  const location = useLocation();
   const navigate = useNavigate();
-  const flight = location.state?.flight;
-  const passenger = location.state?.passenger;
-  const services = location.state?.services || {
-    baggage_weight: 0,
-    baggage_price: 0,
-    meal_type: "NONE",
-    meal_name: "Không chọn suất ăn",
-    meal_price: 0,
-    insurance: false,
-    insurance_price: 0,
-    service_price: 0
-  };
+  const { flight, draft, navigation, loading, error } = useBookingFlight();
+  const passenger = draft?.passenger || navigation.passenger;
+  const choices = draft?.services || navigation.services || {};
+  const baggage = BAGGAGE_OPTIONS.find(item => item.weight === Number(choices.baggage_weight)) || BAGGAGE_OPTIONS[0];
+  const meal = MEAL_OPTIONS.find(item => item.value === choices.meal_type) || MEAL_OPTIONS[0];
+  const services = { baggage_weight: baggage.weight, baggage_price: baggage.price,
+    meal_type: meal.value, meal_name: meal.label, meal_price: meal.price,
+    insurance: !!choices.insurance, insurance_price: choices.insurance ? 50000 : 0 };
   const [seats, setSeats] = useState([]);
   const [selectedSeat, setSelectedSeat] = useState(null);
   const [loadingSeats, setLoadingSeats] = useState(false);
@@ -42,6 +40,7 @@ export default function useSeatBooking() {
         const response = await api.get(`/seats/flight/${flight.id}`);
         const rawSeats = Array.isArray(response.data) ? response.data : response.data?.data || [];
         setSeats(normalizeSeats(rawSeats));
+        setSelectedSeat(normalizeSeats(rawSeats).find(seat => seat.held_by_me && seat.status === "HOLD") || null);
       } catch (error) {
         console.error("Lỗi tải ghế:", error.response?.data || error);
         toast.error("Không thể tải danh sách ghế");
@@ -167,6 +166,7 @@ export default function useSeatBooking() {
       };
       const response = await api.post("/bookings", bookingData);
       const serverBooking = response.data?.booking;
+      clearBookingDraft(flight.id);
       const serverServices = response.data?.services || services;
       const serverPricing = response.data?.pricing || {
         base_price: Number(flight.price || 0),
@@ -202,6 +202,8 @@ export default function useSeatBooking() {
   return {
     navigate,
     flight,
+    loading,
+    error,
     passenger,
     services,
     seats,

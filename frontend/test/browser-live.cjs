@@ -99,7 +99,7 @@ module.exports = async function browserLive({ browser, backendUrl, db, runDir, a
   await tab.wait("(document.body.innerText.includes('Không thể tạo thanh toán MoMo')||document.body.innerText.includes('Server error'))&&!document.querySelector('.momo-button').disabled", "unconfigured provider error displayed");
   assert.ok(browser.responses.some(response => response.path.endsWith('/payments/momo/create') && response.status === 502));
   assert.equal((await db.query("SELECT status FROM payments WHERE booking_id=$1 ORDER BY id DESC LIMIT 1", [bookingId])).rows[0].status, "FAILED");
-  await tab.clickText("Thanh toán giả lập"); await tab.wait("document.body.innerText.includes('Thanh toán giả lập thành công')", "demo payment");
+  await tab.clickText("Thanh toán Demo"); await tab.wait("document.querySelector('.payment-result-card h1')?.textContent==='Thanh toán thành công'", "demo payment");
   stored = (await db.query("SELECT b.status,d.seat_status FROM bookings b JOIN booking_details d ON d.booking_id=b.id WHERE b.id=$1", [bookingId])).rows[0];
   assert.deepEqual(stored, { status: "CONFIRMED", seat_status: "BOOKED" });
   assert.equal((await db.query("SELECT count(*)::int AS n FROM payments WHERE booking_id=$1 AND status='SUCCESS'", [bookingId])).rows[0].n, 1);

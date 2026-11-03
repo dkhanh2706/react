@@ -106,6 +106,7 @@ async function getStatistics(query) {
   const revenue_series = result.revenue_series.map(p => ({ ...p, momo: Number(p.momo), mock: Number(p.mock) }));
   summary.momo_revenue = revenue_series.reduce((sum, p) => sum + p.momo, 0);
   summary.mock_revenue = revenue_series.reduce((sum, p) => sum + p.mock, 0);
+  summary.paid_value = summary.momo_revenue + summary.mock_revenue;
   summary.projected_sales = summary.confirmed_value + summary.pending_value;
   summary.empty_seats = summary.offered_seats - summary.booked_seats - summary.held_seats;
   summary.occupancy_rate = summary.offered_seats ? summary.booked_seats / summary.offered_seats * 100 : null;

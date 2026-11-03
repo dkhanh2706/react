@@ -1,6 +1,7 @@
 import { formatDateTime as formatDate, formatNumber as formatPrice } from "../utils/format.js";
 import ResponsiveAdminTable from "../components/admin/ResponsiveAdminTable";
 import { useEffect, useState, useMemo } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import {
@@ -28,6 +29,8 @@ const paymentStatus = item => item.review_status === "OPEN" ? "PAYMENT_REVIEW" :
   ((!item.payment_status || item.payment_status === "PENDING") && ["EXPIRED", "CANCELLED", "PAYMENT_REVIEW"].includes(item.booking_status) ? item.booking_status : item.payment_status || item.booking_status);
 
 function PaymentManagement() {
+  const [params] = useSearchParams();
+  const bookingFilter = params.get("bookingId");
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -120,9 +123,9 @@ function PaymentManagement() {
       const matchMethod =
         methodFilter === "ALL" || method.includes(methodFilter);
 
-      return matchSearch && matchStatus && matchMethod;
+      return matchSearch && matchStatus && matchMethod && (!bookingFilter || String(item.booking_id) === bookingFilter);
     });
-  }, [payments, searchQuery, statusFilter, methodFilter]);
+  }, [payments, searchQuery, statusFilter, methodFilter, bookingFilter]);
 
   const totalTransactions = payments.filter(p => p.payment_id).length;
 
@@ -130,7 +133,7 @@ function PaymentManagement() {
     (p) => p.payment_status === "SUCCESS",
   );
 
-  const totalRevenue = successfulPayments.filter(p => p.payment_method === "MOMO" && p.booking_status === "CONFIRMED" && p.review_status !== "OPEN").reduce(
+  const totalRevenue = successfulPayments.filter(p => ["MOMO", "MOCK"].includes(p.payment_method) && p.booking_status === "CONFIRMED" && p.review_status !== "OPEN").reduce(
     (sum, p) => sum + Number(p.payment_amount || p.total_price || 0),
     0,
   );
@@ -142,6 +145,7 @@ function PaymentManagement() {
   return (
     <AdminLayout pageTitle="Quản lý thanh toán">
       <div className="adm-payments-page">
+        {bookingFilter && <p className="bk-related-links">Đang xem giao dịch của đơn #{bookingFilter}. <Link to="/admin/payments">Xem tất cả giao dịch</Link> · <Link to={`/admin/bookings?bookingId=${bookingFilter}`}>Mở đơn đặt vé →</Link></p>}
         {/* ================= HEADER ================= */}
         <div className="adm-page-header-row">
           <div>
@@ -175,7 +179,7 @@ function PaymentManagement() {
             </div>
 
             <div>
-              <span className="p-stat-label">Doanh thu vé MoMo</span>
+              <span className="p-stat-label">Giá trị đã thanh toán (MoMo + Demo)</span>
 
               <strong className="p-stat-val">
                 {formatPrice(totalRevenue)}{" "}
@@ -283,7 +287,7 @@ function PaymentManagement() {
 
                 <option value="MOMO">Ví MoMo</option>
 
-                <option value="MOCK">Thử nghiệm (MOCK)</option>
+                <option value="MOCK">Thanh toán Demo</option>
               </select>
             </div>
           </div>
@@ -433,7 +437,7 @@ function PaymentManagement() {
                           >
                             {method.includes("MOMO")
                               ? "Ví MoMo"
-                              : method === "MOCK" ? "Giả lập (MOCK)" : "Chưa tạo thanh toán"}
+                              : method === "MOCK" ? "Demo" : "Chưa tạo thanh toán"}
                           </span>
                         </td>
 
@@ -523,6 +527,7 @@ function PaymentManagement() {
                 </button>
               </div>
 
+              <p className="bk-related-links"><Link to={`/admin/bookings?bookingId=${selectedPayment.booking_id}`}>Mở đơn đặt vé {selectedPayment.booking_code} →</Link></p>
               <div className="pay-detail-grid">
                 <div className="pay-detail-item">
                   <label>Khách hàng</label>
