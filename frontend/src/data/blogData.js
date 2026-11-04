@@ -7,7 +7,7 @@ const blogPosts = [
       "Một vài mẹo đơn giản giúp bạn chủ động hơn khi tìm kiếm chuyến bay và lựa chọn mức giá phù hợp.",
     category: "Kinh nghiệm",
     image:
-      "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1400&q=85",
+      "https://images.unsplash.com/photo-1687992176093-6417a93fa3d0?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D",
     createdAt: "10/10/2026",
     featured: true,
     content: [
@@ -50,7 +50,7 @@ const blogPosts = [
       "Từ giấy tờ, thời gian có mặt tại sân bay đến các bước làm thủ tục trước khi lên máy bay.",
     category: "Kinh nghiệm",
     image:
-      "https://images.unsplash.com/photo-1529074963764-98f45c47344b?auto=format&fit=crop&w=1400&q=85",
+      "https://images.unsplash.com/photo-1730288278805-42d46b17438d?q=80&w=1331&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D",
     createdAt: "08/10/2026",
     featured: true,
     content: [
@@ -93,7 +93,7 @@ const blogPosts = [
       "Chuẩn bị hành lý hợp lý giúp bạn hạn chế các tình huống phát sinh khi làm thủ tục tại sân bay.",
     category: "Hành lý",
     image:
-      "https://images.unsplash.com/photo-1553531384-cc64ac80f931?auto=format&fit=crop&w=1400&q=85",
+      "https://images.unsplash.com/photo-1651592753365-2b4921cbbd14?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D",
     createdAt: "06/10/2026",
     featured: false,
     content: [
@@ -128,7 +128,7 @@ const blogPosts = [
       "Biển, ẩm thực và nhiều điểm tham quan nổi bật khiến Đà Nẵng phù hợp với những chuyến du lịch ngắn ngày.",
     category: "Điểm đến",
     image:
-      "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?auto=format&fit=crop&w=1400&q=85",
+      "https://pystravel.vn/_next/image?url=https%3A%2F%2Fobjectstorage.omzcloud.vn%2Fpys-object-storage%2Fweb%2Fuploads%2Fblog%2F1780245543409.jpg&w=1920&q=75",
     createdAt: "04/10/2026",
     featured: true,
     content: [
@@ -163,7 +163,7 @@ const blogPosts = [
       "Gợi ý những trải nghiệm phù hợp cho hành khách đang lên kế hoạch khám phá đảo ngọc.",
     category: "Điểm đến",
     image:
-      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1400&q=85",
+      "https://images.unsplash.com/photo-1698809807960-758cf416e96e?q=80&w=1075&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D",
     createdAt: "02/10/2026",
     featured: false,
     content: [
@@ -198,7 +198,7 @@ const blogPosts = [
       "Một số bước bạn nên kiểm tra trước khi tiến hành làm thủ tục chuyến bay.",
     category: "Hướng dẫn",
     image:
-      "https://images.unsplash.com/photo-1515569067071-ec3b51335dd0?auto=format&fit=crop&w=1400&q=85",
+      "https://images.unsplash.com/photo-1762818106013-74323d5fcc80?q=80&w=1171&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D",
     createdAt: "30/09/2026",
     featured: false,
     content: [
@@ -233,7 +233,7 @@ const blogPosts = [
       "Tìm chuyến bay, lựa chọn ghế và hoàn tất đặt vé chỉ với một vài bước đơn giản.",
     category: "Hướng dẫn",
     image:
-      "https://images.unsplash.com/photo-1569154941061-e231b4725ef1?auto=format&fit=crop&w=1400&q=85",
+      "https://images.unsplash.com/photo-1655722723663-75b47de17a31?q=80&w=765&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D",
     createdAt: "28/09/2026",
     featured: false,
     content: [
@@ -276,7 +276,7 @@ const blogPosts = [
       "Những lưu ý khi lựa chọn chương trình khuyến mãi và kiểm tra điều kiện vé trước khi đặt.",
     category: "Khuyến mãi",
     image:
-      "https://images.unsplash.com/photo-1500835556837-99ac94a94552?auto=format&fit=crop&w=1400&q=85",
+      "https://images.unsplash.com/photo-1583528306385-8f29f27cb2d6?q=80&w=735&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D",
     createdAt: "25/09/2026",
     featured: false,
     content: [
