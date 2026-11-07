@@ -1,6 +1,5 @@
 const express = require("express");
 const cors = require("cors");
-const path = require("path");
 const fs = require("fs");
 const { networkInterfaces } = require("node:os");
 const { errorPayload, errorHandler } = require("./lib/errors");
@@ -75,9 +74,7 @@ require("./lib/localProxy")(app);
 // UPLOAD DIRECTORY
 // =====================================================
 
-const uploadDirectory = path.join(__dirname, "uploads");
-
-const avatarDirectory = path.join(uploadDirectory, "avatars");
+const { uploadDirectory, avatarDirectory } = require("./config/uploads");
 
 // Tự tạo folder nếu chưa có
 fs.mkdirSync(avatarDirectory, {
@@ -88,7 +85,7 @@ fs.mkdirSync(avatarDirectory, {
 // CORS
 // =====================================================
 
-const allowedOrigins = [
+const allowedOrigins = process.env.NODE_ENV === "production" ? [] : [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
 ];
@@ -107,11 +104,10 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 // Nếu .env có FRONTEND_URL
-if (
-  process.env.FRONTEND_URL &&
-  !allowedOrigins.includes(process.env.FRONTEND_URL)
-) {
-  allowedOrigins.push(process.env.FRONTEND_URL);
+for (const value of [process.env.FRONTEND_URL, ...(process.env.CORS_ORIGINS || "").split(",")]) {
+  if (!value?.trim()) continue;
+  const origin = new URL(value.trim()).origin;
+  if (!allowedOrigins.includes(origin)) allowedOrigins.push(origin);
 }
 
 const corsOptions = {

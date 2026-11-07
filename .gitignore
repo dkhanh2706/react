@@ -76,6 +76,12 @@ Thumbs.db
 coverage/
 .nyc_output/
 
+# Local tests and documentation (kept on this machine)
+test/
+tests/
+/docs/
+.vercel/
+
 # =========================
 # Temporary files
 # =========================

@@ -4,7 +4,7 @@ const fs = require("node:fs/promises");
 const crypto = require("node:crypto");
 const sharp = require("sharp");
 
-const avatarDirectory = path.join(__dirname, "..", "uploads", "avatars");
+const { avatarDirectory } = require("../config/uploads");
 const invalidImage = () => Object.assign(new Error("Chỉ chấp nhận ảnh JPG, JPEG, PNG hoặc WEBP hợp lệ, tối đa 4096 × 4096 pixel."), { status: 400 });
 const mimeFormats = { "image/jpeg": "jpeg", "image/jpg": "jpeg", "image/png": "png", "image/webp": "webp" };
 const upload = multer({

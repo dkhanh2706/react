@@ -467,50 +467,9 @@ npm --prefix frontend run preview
 
 Build tạo `frontend/dist`. Preview chỉ phục vụ bản frontend; PostgreSQL/backend vẫn cần chạy. Dùng URL/cổng mà Vite in ra; nếu origin frontend đổi, cấu hình `FRONTEND_URL` phù hợp rồi khởi động lại backend. Backend hiện không tự phục vụ `frontend/dist`.
 
-## 10. Triển khai Vercel và Render
+## 10. Deploy frontend lên Vercel và backend lên Render
 
-Mô hình phù hợp: **frontend Vercel + backend Render Web Service + PostgreSQL cloud**. Các bước dưới là cấu hình cần chuẩn bị, không có nghĩa repository đã được deploy hoặc kiểm tra giao dịch thật trên cloud.
-
-| Dịch vụ | Thiết lập |
-| --- | --- |
-| Vercel | Root Directory `frontend`; Framework Vite; Build `npm run build`; Output `dist` |
-| Render | Root Directory `backend`; Build `npm ci`; Start `npm start`; Node tương thích mục 2 |
-| PostgreSQL cloud | Khôi phục schema/dữ liệu phù hợp, cấu hình quyền tài khoản ứng dụng và kết nối backend |
-
-Frontend trên Vercel:
-
-```dotenv
-VITE_API_URL=https://YOUR_BACKEND.onrender.com/api
-```
-
-Backend trên Render:
-
-```dotenv
-NODE_ENV=production
-FRONTEND_URL=https://YOUR_FRONTEND.vercel.app
-DB_HOST=YOUR_CLOUD_DATABASE_HOST
-DB_PORT=5432
-DB_NAME=YOUR_CLOUD_DATABASE_NAME
-DB_USER=YOUR_CLOUD_DATABASE_USER
-DB_PASSWORD=YOUR_CLOUD_DATABASE_PASSWORD
-JWT_SECRET=YOUR_RANDOM_SECRET
-```
-
-Render cung cấp `PORT`; backend đã đọc biến này và nghe `0.0.0.0` trong production. `frontend/vercel.json` đưa đường dẫn React Router về `index.html` để tải lại trang con. Chat suy ra `wss://YOUR_BACKEND.onrender.com/api/chat/live` từ URL API; backend chỉ cho origin khớp `FRONTEND_URL`.
-
-**Các điểm cần xử lý để đủ chức năng trên hosting:**
-
-1. **Database:** `127.0.0.1` trên Render là máy Render, không phải máy bạn. Chuyển database lên cloud; vẫn dùng pgAdmin kết nối để quản lý. Mã hiện chưa hỗ trợ `DATABASE_URL` hoặc cấu hình SSL riêng; đối chiếu yêu cầu endpoint, bổ sung cấu hình kết nối nếu dùng endpoint bắt buộc TLS. Script setup local không chấp nhận database cloud.
-2. **Demo:** production luôn chặn tạo chuyến mẫu và thanh toán MOCK, dù cờ `DEMO_*` bật. Cần chuẩn bị chuyến thật trong database và tích hợp thanh toán phù hợp, hoặc thiết kế một chế độ demo online riêng. Không đổi `NODE_ENV` để lách chặn demo: backend development chỉ nghe loopback.
-3. **Email:** mã hiện dùng Gmail SMTP. Render Free chặn các cổng SMTP 25/465/587, ảnh hưởng OTP và email vé; cần dịch vụ gửi qua HTTPS API hoặc hạ tầng hỗ trợ SMTP.
-4. **Ảnh:** `backend/uploads` là file local; Render có filesystem tạm. Cần dịch vụ lưu ảnh hoặc persistent disk phù hợp để ảnh không mất sau restart/deploy.
-5. **MoMo/Groq:** đặt khóa ở backend; đổi redirect sang Vercel và IPN sang Render. Callback cần URL HTTPS công khai và đúng môi trường MoMo.
-6. **Proxy/IP:** `trust proxy` production hiện tắt; cần cấu hình theo proxy thực tế trước khi dựa vào giới hạn request theo IP. Không tin mọi header IP tùy ý từ client.
-7. **Phiên chat:** sửa vấn đề đổi tài khoản theo mục 6 không thay việc kiểm thử quyền riêng tư và thanh toán khi mở cho người dùng thực.
-
-Tài liệu nền tảng: [Vite trên Vercel](https://vercel.com/docs/frameworks/frontend/vite), [Render Web Service](https://render.com/docs/web-services), [WebSocket](https://render.com/docs/websocket), [giới hạn Render Free](https://render.com/docs/free), [persistent disk](https://render.com/docs/disks).
-
-Render Free có thể ngủ khi không hoạt động và database Postgres Free có thời hạn sử dụng; đối chiếu tài liệu trước khi dùng cho buổi báo cáo hoặc lưu dữ liệu lâu dài. Không coi gói miễn phí là phương án vận hành bán vé thương mại đã hoàn thiện.
+[DEPLOYMENT.md](DEPLOYMENT.md)
 
 ## 11. Lỗi thường gặp
 
@@ -541,17 +500,6 @@ Hiện dự án tập trung demo nghiệp vụ: chưa có vé khứ hồi/nhiề
 
 Khi chuyển máy, giữ mã nguồn, lockfile, cấu hình riêng được bàn giao an toàn, bản sao database và `backend/uploads`. Có thể tạo lại `node_modules`, `frontend/dist` và `backend/temp`. File SQL, test và tài liệu vẫn liên quan đến khả năng dựng lại/kiểm tra dự án dù không được gọi khi khách mua vé.
 
-Tài liệu bổ sung:
+Tài liệu chi tiết và báo cáo trong `docs/` được giữ trên máy, không có trong bản clone GitHub mới.
 
-- [Kết quả rà soát liên kết và luồng sử dụng hiện tại](docs/navigation-review.md)
-- [Đặt vé, tài khoản, thanh toán và database](docs/booking-safety-handoff.md)
-- [Lịch mẫu và quy tắc tuyến](docs/demo-flight-schedule.md)
-- [Quản lý đơn đặt vé](docs/admin-booking-management.md)
-- [Dashboard và hồ sơ](docs/dashboard-profile-update.md)
-- [Đánh giá khách hàng](docs/customer-reviews.md)
-- [Chatbot AI và tìm chuyến](docs/groq-flight-assistant.md)
-- [Chat trực tiếp và xóa hội thoại](docs/chat-handoff-deletion.md)
-- [Chuẩn bị báo cáo và luồng đối soát](docs/report-readiness.md)
-- [Báo cáo kiểm thử trước đây](docs/full-functional-test.md)
-
-Các báo cáo có ngày hoặc đường dẫn kết quả test là ảnh chụp tại thời điểm kiểm tra. Chạy lại các lệnh mục 9 để xác minh phiên bản mã đang sử dụng.
+Các thư mục `test/`, `tests/` ở mọi cấp và `docs/` ở thư mục gốc đã được `.gitignore` bỏ qua. Lệnh `git rm --cached` bỏ theo dõi các file đó nhưng vẫn giữ bản trên máy. Bản clone mới từ GitHub không có test/docs nên các lệnh test trong README chỉ dùng được trên máy còn các thư mục này. Các npm script test được giữ để kiểm tra local; deploy không gọi chúng. Thay đổi chỉ xóa khỏi phiên bản hiện tại của repository, không xóa lịch sử commit cũ.

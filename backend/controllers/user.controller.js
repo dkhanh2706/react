@@ -387,13 +387,7 @@ exports.uploadAvatar = async (req, res) => {
       try {
         const oldFilename = path.basename(oldAvatar);
 
-        const oldFilePath = path.join(
-          __dirname,
-          "..",
-          "uploads",
-          "avatars",
-          oldFilename,
-        );
+        const oldFilePath = path.join(require("../config/uploads").avatarDirectory, oldFilename);
 
         if (fs.existsSync(oldFilePath)) {
           fs.unlinkSync(oldFilePath);
